@@ -48,8 +48,8 @@ return function(glyph, on_activate, opts)
                 font_size = icon_size,
                 visible = idle_visible,
                 animate = { foreground = theme.animation_ms },
-                align_h = "Center",
-                align_v = "Center",
+                align_h = "center",
+                align_v = "center",
             }
             if opts.spinning == nil then
                 return idle_glyph
@@ -63,8 +63,8 @@ return function(glyph, on_activate, opts)
         return icon {
             name = art,
             size = theme.icon.md,
-            align_h = "Center",
-            align_v = "Center",
+            align_h = "center",
+            align_v = "center",
         }
     end
 
@@ -74,8 +74,8 @@ return function(glyph, on_activate, opts)
         font = opts.badge_font,
         font_size = theme.font.xs,
         letter_spacing = opts.badge_letter_spacing,
-        align_h = "End",
-        align_v = "End",
+        align_h = "end",
+        align_v = "end",
         translate = opts.badge_translate or { x = -theme.spacing.xs, y = -theme.spacing.xs },
         animate = { foreground = theme.animation_ms },
     }
@@ -84,8 +84,8 @@ return function(glyph, on_activate, opts)
         -- `content` is a caller's node in place of the glyph, sized by what it holds.
         width = opts.content == nil and side or nil,
         height = side,
-        align_h = "Center",
-        align_v = "Center",
+        align_h = "center",
+        align_v = "center",
         geometry = opts.geometry,
         cursor = opts.cursor,
         hover = hovered,

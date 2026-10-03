@@ -35,8 +35,8 @@ return function(children, opts)
         local border = opts.border_color or theme.GLASS_BORDER
         card.children = {
             shader {
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
                 source = mantle.config_dir .. "/shaders/launcher_sheen.frag",
                 params = util.lift(type(border) == "userdata" and border or ground, function(color)
                     return {
@@ -49,8 +49,8 @@ return function(children, opts)
                 end),
             },
             column {
-                width = "Fill",
-                height = opts.height and "Fill" or nil,
+                width = "fill",
+                height = opts.height and "fill" or nil,
                 padding = padding,
                 spacing = spacing,
                 children = children,

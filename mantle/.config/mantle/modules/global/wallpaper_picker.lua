@@ -172,7 +172,7 @@ local function tile(entry)
         width = TILE_WIDTH,
         height = TILE_HEIGHT,
         radius = theme.radius.lg,
-        clip = "Rounded",
+        clip = "rounded",
         hover = hovered,
         background = theme.GLASS_CONTENT,
         border_width = util.choose(selected, theme.border_width_medium, theme.border_width),
@@ -200,21 +200,21 @@ local function tile(entry)
                 source = entry.path,
                 fit = "cover",
                 async = true,
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
                 scale = util.choose(selected, theme.selected_scale, 1),
-                animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
+                animate = { scale = { duration = theme.animation_fast_ms, easing = "out_cubic" } },
             },
             -- Bottom name strip.
             rect {
-                width = "Fill",
+                width = "fill",
                 height = theme.control.md,
-                align_v = "End",
+                align_v = "end",
                 -- Card glass, not the scrim: xs text over a bright photo needs the near-opaque ground.
                 background = theme.GLASS,
                 padding = { left = theme.spacing.sm, right = theme.spacing.sm },
                 children = {
-                    cell(entry.name, theme.FG, theme.font.xs, { width = "Fill", align = "Center", align_v = "Center" }),
+                    cell(entry.name, theme.FG, theme.font.xs, { width = "fill", align = "center", align_v = "center" }),
                 },
             },
             rect {
@@ -225,7 +225,7 @@ local function tile(entry)
                 background = theme.ACCENT,
                 visible = applied,
                 children = {
-                    glyph(icons.check, theme.text_contrast(theme.ACCENT), theme.font.xs, { align = "Center", align_v = "Center" }),
+                    glyph(icons.check, theme.text_contrast(theme.ACCENT), theme.font.xs, { align = "center", align_v = "center" }),
                 },
             },
         },
@@ -237,11 +237,11 @@ local function grid_row(entries)
     for _, entry in ipairs(entries) do
         tiles[#tiles + 1] = tile(entry)
     end
-    return row { width = "Fill", spacing = tile_gap, children = tiles }
+    return row { width = "fill", spacing = tile_gap, children = tiles }
 end
 
 local grid = list {
-    width = "Fill",
+    width = "fill",
     height = GRID_HEIGHT,
     scroll = SCROLL,
     spacing = tile_gap,
@@ -363,8 +363,8 @@ local effect_rows = wallpaper.effects:map(function(names)
 end)
 
 local effect_grid = list {
-    width = "Fill",
-    direction = "Vertical",
+    width = "fill",
+    direction = "vertical",
     spacing = theme.spacing.xs,
     source = effect_rows,
     itemfn = function(names)
@@ -387,10 +387,10 @@ local effect_grid = list {
 -- Escape and a click outside close the picker, as they do the launcher, so the sidebar has no ×.
 local sidebar = column {
     width = theme.wallpaper_sidebar_width,
-    align_v = "Start",
+    align_v = "start",
     spacing = theme.spacing.md,
     children = {
-        cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "Fill" }),
+        cell(util.bold("Wallpaper settings"), theme.FG, theme.font.lg, { width = "fill" }),
         section_header("monitor"),
         monitor_row,
         -- Mixed fits across the targeted screens light no tile, so the label says so.
@@ -401,22 +401,22 @@ local sidebar = column {
         section_header("transition"),
         effect_grid,
         section_header("folder"),
-        cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "Fill" }),
+        cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "fill" }),
         cell(filtered:map(function(entries)
             return #entries == 1 and "1 file" or string.format("%d files", #entries)
-        end), theme.DIM, theme.font.xs, { width = "Fill" }),
+        end), theme.DIM, theme.font.xs, { width = "fill" }),
     },
 }
 
 local body = row {
-    width = "Fill",
-    height = "Fill",
+    width = "fill",
+    height = "fill",
     spacing = theme.spacing.md,
     children = {
-        -- A `rect` stacks, so an empty state centres over the grid instead of under its `Fill`.
-        panel_card({ rect { width = "Fill", height = "Fill", children = { grid, table.unpack(empty_states) } } }, {
-            width = "Fill",
-            height = "Fill",
+        -- A `rect` stacks, so an empty state centres over the grid instead of under its `fill`.
+        panel_card({ rect { width = "fill", height = "fill", children = { grid, table.unpack(empty_states) } } }, {
+            width = "fill",
+            height = "fill",
             outlined = true,
             padding = grid_padding,
         }),

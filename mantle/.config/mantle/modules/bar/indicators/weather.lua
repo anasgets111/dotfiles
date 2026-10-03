@@ -25,7 +25,7 @@ local function has_data(daily)
     return type(daily) == "table" and type(daily.time) == "table" and #daily.time > 0
 end
 
-local CENTRED = { width = "Fill", align = "Center" }
+local CENTRED = { width = "fill", align = "center" }
 
 ---@param daily table
 ---@param index integer
@@ -40,7 +40,7 @@ local function day_card(daily, index, opts)
         cell(util.bold(degrees((daily.temperature_2m_max or {})[index])), theme.FG, theme.font.lg, CENTRED),
         cell(degrees((daily.temperature_2m_min or {})[index]), theme.DIM, theme.font.sm, CENTRED),
     }, {
-        width = "Fill",
+        width = "fill",
         height = opts.height,
         tone = opts.today and "active" or "standard",
         padding = theme.spacing.sm,
@@ -55,7 +55,7 @@ local body = weather.daily:map(function(daily)
         return {}
     end
     local preview = row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         children = {
             day_card(daily, YESTERDAY, { label = "Yesterday", expanded = expanded }),
@@ -73,21 +73,21 @@ local body = weather.daily:map(function(daily)
                 { height = theme.item_height * 3 })
         end
         for _ = #children + 1, COLUMNS do
-            children[#children + 1] = rect { width = "Fill", height = theme.item_height * 3 }
+            children[#children + 1] = rect { width = "fill", height = theme.item_height * 3 }
         end
-        rows[#rows + 1] = row { width = "Fill", spacing = theme.spacing.sm, children = children }
+        rows[#rows + 1] = row { width = "fill", spacing = theme.spacing.sm, children = children }
     end
     if #rows == 0 then
         return { preview }
     end
     -- Keep the rows mounted while the clipped height shrinks, including a quick reversal.
     return { preview, rect {
-        width = "Fill",
+        width = "fill",
         height = util.choose(expanded, #rows * (theme.item_height * 3 + theme.spacing.sm), 0),
-        clip = "Box",
-        animate = { height = { duration = theme.animation_ms, easing = "OutCubic" } },
+        clip = "box",
+        animate = { height = { duration = theme.animation_ms, easing = "out_cubic" } },
         children = { column {
-            width = "Fill",
+            width = "fill",
             padding = { top = theme.spacing.sm },
             spacing = theme.spacing.sm,
             children = rows,
@@ -98,7 +98,7 @@ end)
 local ready = weather.daily:map(has_data)
 
 return column {
-    width = "Fill",
+    width = "fill",
     spacing = theme.spacing.sm,
     children = {
         -- The section's disclosure row: the reading now and its age, opening the full forecast.
@@ -121,6 +121,6 @@ return column {
                 spinning = weather.fetching,
             }),
         },
-        column { width = "Fill", children = body },
+        column { width = "fill", children = body },
     },
 }

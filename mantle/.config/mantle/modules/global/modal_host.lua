@@ -26,7 +26,7 @@ for _, modal in ipairs(modals) do
     reset = util.concat(reset, modal.reset_on_close)
 end
 
--- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `None`
+-- Mapped through the last card's exit fade. `keyboard_interactivity` reads the same signal: `none`
 -- on a still-mapped host makes Hyprland refocus the last window, onto its workspace.
 local shown = util.linger(any_modal, theme.animation_ms)
 
@@ -55,36 +55,36 @@ end)
 return panel {
     id = "modal_host",
     -- One instance, on the output the compositor picks at each show.
-    output = "Active",
+    output = "active",
     namespace = "mantle-modal-host",
-    layer = "Top",
+    layer = "top",
     anchor = { top = true, bottom = true, left = true, right = true },
     exclusive_zone = false,
-    width = "Fill",
-    height = "Fill",
+    width = "fill",
+    height = "fill",
     visible = shown,
     reset_on_close = reset,
     -- Released by the unmap, costing `theme.animation_ms` of swallowed typing; a stray workspace
-    -- switch is worse. `Exclusive` on niri, where a workspace switch hands an on-demand layer's keys
-    -- to a window. `OnDemand` on Hyprland, which sends the pointer only to an exclusive layer and
+    -- switch is worse. `exclusive` on niri, where a workspace switch hands an on-demand layer's keys
+    -- to a window. `on_demand` on Hyprland, which sends the pointer only to an exclusive layer and
     -- killed the bar; it still focuses an on-demand layer when it maps.
     keyboard_interactivity = computed({ shown, mantle.workspaces }, function(open, workspaces)
         if not open then
-            return "None"
+            return "none"
         end
-        return workspaces and workspaces.compositor == "niri" and "Exclusive" or "OnDemand"
+        return workspaces and workspaces.compositor == "niri" and "exclusive" or "on_demand"
     end),
     child = rect {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         children = {
             -- Dims, not blurs: cards blur themselves, and a blur region cannot fade.
             scrim(any_modal),
             -- The catcher contains the cards rather than sitting under them: `hit::descend` stops at
             -- the first child containing the point.
             rect {
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
                 cursor = "default",
                 on_click = function()
                     ui_state.close_modal(ui_state.active_modal:get())

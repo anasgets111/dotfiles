@@ -232,7 +232,7 @@ local function include_row(on, opts)
     local mark = checkbox(on)
     opts.height = theme.control.md
     opts.trailing = opts.trailing and row {
-        spacing = theme.spacing.sm, align_v = "Center", children = { opts.trailing, mark },
+        spacing = theme.spacing.sm, align_v = "center", children = { opts.trailing, mark },
     } or mark
     return panel_row(opts)
 end
@@ -323,9 +323,9 @@ end)
 
 local function package_columns(name, current, new, name_color, new_color, name_size)
     return {
-        cell(name, name_color, name_size or theme.font.sm, { width = "Fill", align_v = "Center" }),
-        cell(current, theme.DIM, theme.font.xs, { width = theme.update_version_width, align = "End", align_v = "Center" }),
-        cell(new, new_color, theme.font.xs, { width = theme.update_version_width, align = "End", align_v = "Center" }),
+        cell(name, name_color, name_size or theme.font.sm, { width = "fill", align_v = "center" }),
+        cell(current, theme.DIM, theme.font.xs, { width = theme.update_version_width, align = "end", align_v = "center" }),
+        cell(new, new_color, theme.font.xs, { width = theme.update_version_width, align = "end", align_v = "center" }),
     }
 end
 
@@ -355,7 +355,7 @@ local body = {
         },
     },
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         children = {
             action_button(
@@ -374,7 +374,7 @@ local body = {
                 {
                     tone = "accent",
                     glyph = icons.updates,
-                    width = "Fill",
+                    width = "fill",
                     disabled = busy,
                     visible = computed({ phase, mantle.updates, store.updates_dev_tools, service.tools_present },
                         function(current, updates)
@@ -398,21 +398,21 @@ local body = {
         },
     },
     column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         padding = { left = theme.spacing.sm, right = theme.spacing.sm },
         children = {
             row {
-                width = "Fill",
+                width = "fill",
                 spacing = theme.spacing.sm,
-                align_v = "Center",
+                align_v = "center",
                 children = {
                     cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line),
-                        status_color, theme.font.xs, { width = "Fill", wrap = "Word" }),
+                        status_color, theme.font.xs, { width = "fill", wrap = "word" }),
                     cell(computed({ mantle.updates, mantle.system }, function(updates, clock)
                         return last_check_line(updates, (clock and clock.time) or os.time())
                     end), theme.TEXT_MUTED, theme.font.xs, {
-                        align = "End",
+                        align = "end",
                         visible = phase:map(function(current)
                             return current ~= "running" and current ~= "done" and current ~= "failed"
                         end),
@@ -420,7 +420,7 @@ local body = {
                 },
             },
             row {
-                width = "Fill",
+                width = "fill",
                 visible = progress:map(function(percent)
                     return percent ~= false
                 end),
@@ -428,27 +428,27 @@ local body = {
             },
             row {
                 spacing = theme.spacing.sm,
-                align_v = "Center",
+                align_v = "center",
                 visible = working,
                 children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
             },
         },
     },
     column {
-        width = "Fill",
+        width = "fill",
         visible = pacnew:map(function(files) return #files > 0 end),
         spacing = theme.spacing.xs,
         children = {
             section_header("config files to merge"),
             column {
-                width = "Fill",
+                width = "fill",
                 padding = { left = theme.spacing.sm, right = theme.spacing.sm },
                 spacing = theme.spacing.xs,
                 children = pacnew:map(function(files)
                     local rows = {}
                     for _, path in ipairs(files) do
                         rows[#rows + 1] = cell(path, theme.PEACH, theme.font.xs, {
-                            width = "Fill", wrap = "Word", font = theme.mono_font,
+                            width = "fill", wrap = "word", font = theme.mono_font,
                         })
                     end
                     return rows
@@ -457,7 +457,7 @@ local body = {
         },
     },
     column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         padding = { left = theme.spacing.sm, right = theme.spacing.sm },
         visible = phase:map(function(current)
@@ -465,13 +465,13 @@ local body = {
         end),
         children = {
             row {
-                width = "Fill",
+                width = "fill",
                 spacing = theme.spacing.md,
                 children = package_columns("Package", "Installed", "Available", theme.TEXT_MUTED, theme.TEXT_MUTED,
                     theme.font.xs),
             },
             list {
-                width = "Fill",
+                width = "fill",
                 height = package_height,
                 scroll = scroll("update_packages"),
                 spacing = theme.spacing.xs,
@@ -484,9 +484,9 @@ local body = {
                         return heading
                     end
                     return row {
-                        width = "Fill",
+                        width = "fill",
                         height = theme.control.md,
-                        align_v = "Center",
+                        align_v = "center",
                         spacing = theme.spacing.md,
                         children = package_columns(
                             package.name or "?",
@@ -503,19 +503,19 @@ local body = {
         },
     },
     column {
-        width = "Fill",
+        width = "fill",
         visible = log_showing,
         spacing = theme.spacing.xs,
         children = {
             row {
-                width = "Fill",
-                align_v = "Center",
+                width = "fill",
+                align_v = "center",
                 children = {
                     cell(util.bold(mantle.updates:map(function(updates)
                         return service.install_failed(updates) and service.failure_reason(updates) or "Install log"
                     end)), mantle.updates:map(function(updates)
                         return service.install_failed(updates) and theme.RED or theme.DIM
-                    end), theme.font.xs, { width = "Fill", wrap = "Word" }),
+                    end), theme.font.xs, { width = "fill", wrap = "word" }),
                     panel_action_icon(icons.copy, function()
                         local lines = log_lines:get() or {}
                         if #lines > 0 then
@@ -525,14 +525,14 @@ local body = {
                 },
             },
             list {
-                width = "Fill",
+                width = "fill",
                 height = theme.update_log_height,
                 scroll = LOG_SCROLL,
                 source = log_lines,
                 spacing = theme.spacing.xs,
                 itemfn = function(line)
                     return cell(line, service.first_match(line:lower(), LOG_COLOURS) or theme.DIM, theme.font.xs, {
-                        width = "Fill", wrap = "Word", max_lines = 3, font = theme.mono_font,
+                        width = "fill", wrap = "word", max_lines = 3, font = theme.mono_font,
                     })
                 end,
             },
@@ -545,11 +545,11 @@ local body = {
         subtitle = settings_summary,
         expanded = settings_expanded,
         details = column {
-            width = "Fill",
+            width = "fill",
             children = {
                 aur_row,
                 column {
-                    width = "Fill",
+                    width = "fill",
                     visible = service.tools_present:map(function(present)
                         return util.find(dev_tools, function(tool) return present[tool.requires] == true end) ~= nil
                     end),
@@ -559,7 +559,7 @@ local body = {
         },
     },
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         visible = service.result_showing,
         children = {
@@ -567,14 +567,14 @@ local body = {
                 log_open:set(not log_open:get())
             end, "updates-log", {
                 tone = "quiet",
-                width = "Fill",
+                width = "fill",
                 visible = phase:map(function(current) return current == "done" end),
             }),
             action_button("Close", function()
                 service.dismiss_notifications()
                 service.dismissed:set(true)
                 ui.close_panel()
-            end, "updates-dismiss", { tone = "quiet", width = "Fill" }),
+            end, "updates-dismiss", { tone = "quiet", width = "fill" }),
         },
     },
 }

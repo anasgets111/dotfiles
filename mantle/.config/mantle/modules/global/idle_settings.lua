@@ -194,7 +194,7 @@ end
 -- One row per stage in stored `order`, as a `list` because declared children cannot be reordered.
 -- Descriptors rebuild only when stored settings change: a reorder rebuilds rows, a tick none.
 local stage_list = list {
-    width = "Fill",
+    width = "fill",
     geometry = stage_bounds,
     source = settings:map(function(resolved)
         local items = {}
@@ -265,15 +265,15 @@ local body = panel_card(util.concat({
     automatic,
     timeline_section(settings),
     row {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
         margin = { top = theme.spacing.sm },
-        children = { section_header("automation"), rect { width = "Fill" }, profile_picker },
+        children = { section_header("automation"), rect { width = "fill" }, profile_picker },
     },
     stage_list,
     section_header("behaviour"),
 }, behaviour_rows), {
-    width = "Fill",
+    width = "fill",
     background = theme.CLEAR,
     outlined = true,
     border_color = theme.BORDER_SUBTLE,

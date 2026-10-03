@@ -33,7 +33,7 @@ local function tile()
     return rect {
         width = theme.osd_tile,
         height = theme.osd_tile,
-        align_v = "Center",
+        align_v = "center",
         background = level_color:map(function(color)
             return theme.with_opacity(color, theme.opacity.light)
         end),
@@ -42,7 +42,7 @@ local function tile()
             return theme.with_opacity(color, theme.opacity.medium)
         end),
         radius = theme.radius.md,
-        children = { glyph(entry_glyph, level_color, theme.font.xl, { align = "Center", align_v = "Center" }) },
+        children = { glyph(entry_glyph, level_color, theme.font.xl, { align = "center", align_v = "center" }) },
     }
 end
 
@@ -51,8 +51,8 @@ local level_row = row {
     -- A track has no intrinsic width, so this layout states one. The toggle row measures instead;
     -- only one is visible, and an invisible child takes no space.
     width = theme.osd_width,
-    height = "Fill",
-    align_v = "Center",
+    height = "fill",
+    align_v = "center",
     spacing = theme.spacing.lg,
     padding = { left = PADDING, right = PADDING },
     visible = osd.entry:map(function(entry)
@@ -66,7 +66,7 @@ local level_row = row {
             return entry.level or 0
         end, level_color, theme.osd_track, { motion = theme.spring_tracking }),
         cell(entry_text, theme.FG, theme.font.lg, {
-            width = theme.osd_value_width, align = "End", align_v = "Center",
+            width = theme.osd_value_width, align = "end", align_v = "center",
         }),
     },
 }
@@ -76,9 +76,9 @@ local fact_row = row {
     -- No `width`: the card is these words. `theme.osd_toggle_min` is their floor; `align_h`
     -- centres the pair on a card sized by that floor rather than by the text.
     min_width = theme.osd_toggle_min,
-    height = "Fill",
-    align_h = "Center",
-    align_v = "Center",
+    height = "fill",
+    align_h = "center",
+    align_v = "center",
     spacing = theme.spacing.lg,
     -- Half of `spacing.lg` more each side, or the words reach the card edge and can run past it.
     padding = { left = PADDING + theme.spacing.lg / 2, right = PADDING + theme.spacing.lg / 2 },
@@ -88,15 +88,15 @@ local fact_row = row {
     children = {
         tile(),
         -- No `width`, so it sizes to its own words and everything above measures it.
-        cell(entry_text, theme.FG, theme.font.lg, { align_v = "Center" }),
+        cell(entry_text, theme.FG, theme.font.lg, { align_v = "center" }),
     },
 }
 
 return panel {
     id = "osd",
     -- One instance, on the output the compositor picks at each show.
-    output = "Active",
-    layer = "Overlay",
+    output = "active",
+    layer = "overlay",
     -- No `left`/`right`: the protocol centres an axis with neither edge anchored and leaves its
     -- width measurable, where two anchored edges would span the output.
     anchor = { bottom = true },
@@ -120,7 +120,7 @@ return panel {
                 opacity = { duration = duration, from = 0 },
                 translate = {
                     duration = duration,
-                    easing = shown and "OutCubic" or "InQuad",
+                    easing = shown and "out_cubic" or "in_quad",
                     from = { y = SLIDE },
                 },
             }

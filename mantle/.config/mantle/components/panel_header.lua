@@ -1,6 +1,6 @@
 -- Masthead with a tinted glyph plate, title and state line, and trailing controls. The plate and glyph take
 -- accent while `opts.active`, so "network" and "bluetooth" read as switches before their labels.
--- `width = "Fill"` plus `cell`'s elision keeps a long title from pushing the controls out.
+-- `width = "fill"` plus `cell`'s elision keeps a long title from pushing the controls out.
 local theme = require("config.theme")
 local util = require("lib.util")
 local cell = require("components.cell")
@@ -38,23 +38,23 @@ return function(opts)
             radius = theme.radius.md,
             background = plate,
             animate = { background = theme.animation_ms },
-            align_v = "Center",
+            align_v = "center",
             children = { cell(opts.icon, accent, math.floor(theme.control.lg * 0.55), {
-                align = "Center",
-                align_v = "Center",
+                align = "center",
+                align_v = "center",
                 animate = { foreground = theme.animation_ms },
             }) },
         }
     end
 
-    local lines = { cell(util.bold(opts.title), theme.FG, opts.title_size or theme.font.lg, { width = "Fill" }) }
+    local lines = { cell(util.bold(opts.title), theme.FG, opts.title_size or theme.font.lg, { width = "fill" }) }
     if opts.subtitle then
-        lines[#lines + 1] = cell(opts.subtitle, theme.DIM, opts.subtitle_size or theme.font.xs, { width = "Fill" })
+        lines[#lines + 1] = cell(opts.subtitle, theme.DIM, opts.subtitle_size or theme.font.xs, { width = "fill" })
     end
-    children[#children + 1] = column { width = "Fill", align_v = "Center", children = lines }
+    children[#children + 1] = column { width = "fill", align_v = "center", children = lines }
 
     for _, control in ipairs(opts.trailing or {}) do
-        control.align_v = control.align_v or "Center"
+        control.align_v = control.align_v or "center"
         children[#children + 1] = control
     end
     if opts.on_close then
@@ -62,9 +62,9 @@ return function(opts)
     end
 
     return row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
-        align_v = "Center",
+        align_v = "center",
         children = children,
     }
 end

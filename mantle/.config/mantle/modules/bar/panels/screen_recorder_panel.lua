@@ -118,7 +118,7 @@ local function option_group(group)
     }
 
     return column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         children = {
             section_header(group.title),
@@ -132,8 +132,8 @@ for _, group in ipairs(GROUPS) do
     settings_children[#settings_children + 1] = option_group(group)
 end
 settings_children[#settings_children + 1] = cell("Changes apply to the next recording", theme.DIM, theme.font.xs, {
-    width = "Fill",
-    wrap = "Word",
+    width = "fill",
+    wrap = "word",
     visible = recorder.recording,
 })
 
@@ -151,7 +151,7 @@ end
 local function wide_button(label, on_activate, slot, tone, icon, visible)
     return action_button(label, on_activate, slot, {
         tone = tone,
-        width = "Fill",
+        width = "fill",
         height = theme.control.lg,
         glyph = icon,
         visible = visible,
@@ -175,7 +175,7 @@ local body = {
 
     -- Static button tones; only the idle or recording pair takes space.
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         children = {
             wide_button("Region", capture("selection"), "recorder-region", "accent", icons.region, idle),
@@ -193,7 +193,7 @@ local body = {
         slot = "recorder-settings",
         expanded = settings_expanded,
         details = column {
-            width = "Fill",
+            width = "fill",
             spacing = theme.spacing.md,
             padding = { left = theme.spacing.sm, right = theme.spacing.sm },
             children = settings_children,

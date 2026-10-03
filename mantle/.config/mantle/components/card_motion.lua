@@ -17,7 +17,7 @@ return function(card, showing, opts)
     card.opacity = util.choose(showing, 1, 0)
     -- Entry and exit share timing; only their easing differs.
     card.animate = showing:map(function(open)
-        local easing = open and "OutCubic" or "InCubic"
+        local easing = open and "out_cubic" or "in_cubic"
         return {
             opacity = { duration = theme.animation_ms, easing = easing, from = 0 },
             scale = scale and { duration = theme.animation_ms, easing = easing, from = scale } or nil,

@@ -58,38 +58,38 @@ end)
 return panel {
     id = "bluetooth_pairing",
     -- One instance, on the output the compositor picks at each show.
-    output = "Active",
+    output = "active",
     namespace = "mantle-bluetooth-pairing",
-    layer = "Overlay",
+    layer = "overlay",
     -- Top edge only. The protocol centres an axis with neither edge anchored, and with no `width` or
     -- `height` the surface is the card.
     anchor = { top = true },
     margin = { top = theme.dialog_top_margin },
     exclusive_zone = false,
     visible = util.linger(showing, theme.animation_ms),
-    keyboard_interactivity = "None",
+    keyboard_interactivity = "none",
     child = rect(card_motion({
         children = { panel_card({
             cell(text(function(asked)
                 -- The name is the device's own choice, so the MAC stays beside it.
                 local name = asked.name ~= "" and string.format("%s (%s)", asked.name, asked.mac) or asked.mac
                 return { { text = string.format((PROMPTS[asked.kind] or {})[1] or "%s", name), bold = true } }
-            end), theme.FG, theme.font.md, { width = "Fill", wrap = "Word" }),
+            end), theme.FG, theme.font.md, { width = "fill", wrap = "word" }),
             cell(text(function(asked)
                 return asked.code or ""
             end), theme.ACCENT, theme.font.xxl, {
-                width = "Fill",
-                align = "Center",
+                width = "fill",
+                align = "center",
                 visible = when(function(asked)
                     return asked.code ~= nil
                 end),
             }),
             cell(text(function(asked)
                 return (PROMPTS[asked.kind] or {})[2] or ""
-            end), theme.DIM, theme.font.sm, { width = "Fill", wrap = "Word" }),
+            end), theme.DIM, theme.font.sm, { width = "fill", wrap = "word" }),
             row {
-                width = "Fill",
-                align_h = "End",
+                width = "fill",
+                align_h = "end",
                 spacing = theme.spacing.sm,
                 children = {
                     action_button("Cancel", answer(false), "bluetooth-pairing-reject", {

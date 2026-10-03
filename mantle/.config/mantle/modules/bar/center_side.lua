@@ -12,8 +12,8 @@ local MEDIA_SLOT = "media_indicator"
 
 local playback_available = mantle.mpris:map(function(mpris)
     local players = (mpris and mpris.players) or {}
-    return util.find(players, function(player) return player.play_state == "Playing" end) ~= nil
-        or players[1] ~= nil and players[1].play_state ~= "Stopped"
+    return util.find(players, function(player) return player.play_state == "playing" end) ~= nil
+        or players[1] ~= nil and players[1].play_state ~= "stopped"
 end)
 
 -- Hidden, the row measures zero, so the test uses its last shown rect.
@@ -54,13 +54,13 @@ end)
 
 return row {
     geometry = center_geometry,
-    height = "Fill",
-    align_h = "Center",
-    align_v = "Center",
+    height = "fill",
+    align_h = "center",
+    align_v = "center",
     visible = clear,
     children = { rect {
-        height = "Fill",
-        align_v = "Center",
+        height = "fill",
+        align_v = "center",
         hover = hover(MEDIA_SLOT),
         on_hover = function(is_hovered)
             ui_state.set_media_hover("trigger", is_hovered)
@@ -72,9 +72,9 @@ return row {
         -- The visualizer first, so it paints behind the title.
         children = {
             row {
-                height = "Fill",
-                align_h = "Center",
-                align_v = "Center",
+                height = "fill",
+                align_h = "center",
+                align_v = "center",
                 visible = playback_available,
                 children = { media },
             },

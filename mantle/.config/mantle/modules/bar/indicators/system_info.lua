@@ -93,7 +93,7 @@ local function tint(field)
 end
 
 local function group(children, visible)
-    return column { width = "Fill", spacing = theme.spacing.xs, visible = visible, children = children }
+    return column { width = "fill", spacing = theme.spacing.xs, visible = visible, children = children }
 end
 
 local function readout(read)
@@ -102,13 +102,13 @@ end
 
 local function tile_header(codepoint, glyph_color, label, value, value_color)
     return row {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
         spacing = theme.spacing.xs,
         children = {
-            glyph(codepoint, glyph_color, theme.icon.sm, { align_v = "Center" }),
-            cell(util.bold(label), theme.FG, theme.font.sm, { width = "Fill", align_v = "Center" }),
-            cell(value, value_color, theme.font.md, { align_v = "Center" }),
+            glyph(codepoint, glyph_color, theme.icon.sm, { align_v = "center" }),
+            cell(util.bold(label), theme.FG, theme.font.sm, { width = "fill", align_v = "center" }),
+            cell(value, value_color, theme.font.md, { align_v = "center" }),
         },
     }
 end
@@ -122,20 +122,20 @@ local function metric_tile(codepoint, label, field, detail)
         meter(mantle.sysinfo, function(sysinfo)
             return percent_of(sysinfo, field)
         end, color, theme.spacing.xs),
-        cell(detail, theme.DIM, theme.font.xs, { width = "Fill" }),
+        cell(detail, theme.DIM, theme.font.xs, { width = "fill" }),
     })
 end
 
 local function labeled_meter(label, read, color, value, visible)
     return row {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
         spacing = theme.spacing.sm,
         visible = visible,
         children = {
             cell(label, theme.DIM, theme.font.xs, { width = theme.item_width }),
             meter(mantle.sysinfo, read, color, theme.spacing.xs),
-            cell(value, color, theme.font.sm, { align = "End" }),
+            cell(value, color, theme.font.sm, { align = "end" }),
         },
     }
 end
@@ -182,7 +182,7 @@ local id = "notifications"
 local expanded = disclosure.state("sysinfo_expanded_" .. id, false)
 local details = panel_card({
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         children = {
             metric_tile(icons.cpu, "CPU", "cpu_percent", util.label(mantle.sysinfo, function(sysinfo)
@@ -196,27 +196,27 @@ local details = panel_card({
         },
     },
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         children = {
             group({
-                cell(util.bold("Network"), theme.FG, theme.font.sm, { width = "Fill" }),
+                cell(util.bold("Network"), theme.FG, theme.font.sm, { width = "fill" }),
                 cell(readout(function(sysinfo)
                     return "↓ " .. rate(sysinfo and sysinfo.net_rx_bytes_sec or 0)
-                end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                end), theme.DIM, theme.font.sm, { width = "fill" }),
                 cell(readout(function(sysinfo)
                     return "↑ " .. rate(sysinfo and sysinfo.net_tx_bytes_sec or 0)
-                end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                end), theme.DIM, theme.font.sm, { width = "fill" }),
             }),
             group({
-                cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "Fill" }),
+                cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "fill" }),
                 cell(computed({ mantle.system, boot }, function(system, info)
                     return system and info and info.started > 0 and
                         uptime(system.time - info.started) or "--"
-                end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                end), theme.DIM, theme.font.sm, { width = "fill" }),
                 cell(boot:map(function(info)
                     return info.duration ~= "" and "Boot " .. info.duration or "Boot --"
-                end), theme.DIM, theme.font.xs, { width = "Fill" }),
+                end), theme.DIM, theme.font.xs, { width = "fill" }),
             }),
         },
     },
@@ -224,7 +224,7 @@ local details = panel_card({
         tile_header(icons.gpu, gpu_color, "GPU", "", gpu_color),
         cell(util.label(mantle.sysinfo, function(sysinfo)
             return sysinfo and sysinfo.gpu and sysinfo.gpu.name or ""
-        end), theme.DIM, theme.font.xs, { width = "Fill" }),
+        end), theme.DIM, theme.font.xs, { width = "fill" }),
         labeled_meter("Usage", gpu_usage, gpu_color, readout(function(sysinfo)
             local usage = sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent
             return usage and string.format("%d%%", usage) or "--"
@@ -244,12 +244,12 @@ local details = panel_card({
             local gpu = sysinfo and sysinfo.gpu
             if not gpu then return "" end
             return gpu.temp and string.format("%d°C", gpu.temp) or "No temperature sensor"
-        end), theme.DIM, theme.font.xs, { width = "Fill" }),
+        end), theme.DIM, theme.font.xs, { width = "fill" }),
     }, has_gpu),
     group({
-        cell(util.bold("Disks"), theme.FG, theme.font.sm, { width = "Fill" }),
+        cell(util.bold("Disks"), theme.FG, theme.font.sm, { width = "fill" }),
         list {
-            width = "Fill",
+            width = "fill",
             spacing = theme.spacing.sm,
             source = disks,
             key = function(disk) return disk.name end,
@@ -260,16 +260,16 @@ local details = panel_card({
                     meter(disks, function() return disk.percent end,
                         tint_of(disk.percent), theme.spacing.xs),
                     cell(size(disk.used_bytes) .. " / " .. size(disk.total_bytes),
-                        theme.DIM, theme.font.xs, { width = "Fill" }),
+                        theme.DIM, theme.font.xs, { width = "fill" }),
                 }
                 for _, partition in ipairs(disk.partitions) do
                     partitions[#partitions + 1] = group({
                         row {
-                            width = "Fill",
+                            width = "fill",
                             spacing = theme.spacing.sm,
                             children = {
                                 cell(partition.mount_point == "/" and "Root" or partition.mount_point,
-                                    theme.FG, theme.font.xs, { width = "Fill" }),
+                                    theme.FG, theme.font.xs, { width = "fill" }),
                                 cell(string.format("%s / %s · %d%%", size(partition.used_bytes),
                                         size(partition.total_bytes), partition.percent),
                                     theme.DIM, theme.font.xs),
@@ -285,7 +285,7 @@ local details = panel_card({
     }, util.shown_when(disks, function(current)
         return #current > 0
     end)),
-}, { width = "Fill", outlined = true, padding = theme.spacing.md, spacing = theme.spacing.md })
+}, { width = "fill", outlined = true, padding = theme.spacing.md, spacing = theme.spacing.md })
 
 return panel_row {
     slot = "sysinfo-" .. id,

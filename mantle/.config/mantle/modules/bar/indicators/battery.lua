@@ -5,15 +5,15 @@ local tooltip = require("components.tooltip")
 
 local SLOT = "battery"
 
--- UPower's names. `PendingCharge` is every plug-in, and its charge-end threshold disagrees with
+-- UPower's names. `pending_charge` is every plug-in, and its charge-end threshold disagrees with
 -- sysfs here, so neither pending state claims a charge limit.
 local BATTERY_PHRASES = {
-    Charging = "charging",
-    Discharging = "discharging",
-    Empty = "empty",
-    FullyCharged = "full",
-    PendingCharge = "waiting to charge",
-    PendingDischarge = "waiting to discharge",
+    charging = "charging",
+    discharging = "discharging",
+    empty = "empty",
+    fully_charged = "full",
+    pending_charge = "waiting to charge",
+    pending_discharge = "waiting to discharge",
 }
 
 -- `"2h 14m left"`, or `""`. UPower estimates one duration at a time, and neither while it learns
@@ -68,13 +68,13 @@ end))
 local function readout(color, width)
     return row {
         width = width,
-        height = "Fill",
-        align_h = "Center",
-        align_v = "Center",
+        height = "fill",
+        align_h = "center",
+        align_v = "center",
         spacing = theme.spacing.xs,
         children = {
-            cell(GLYPH, color, theme.icon.md, { align_v = "Center" }),
-            cell(PERCENT, color, theme.font.sm, { align_v = "Center" }),
+            cell(GLYPH, color, theme.icon.md, { align_v = "center" }),
+            cell(PERCENT, color, theme.font.sm, { align_v = "center" }),
         },
     }
 end
@@ -83,14 +83,14 @@ local fill = rect {
     width = mantle.battery:map(function(battery)
         return string.format("%d%%", math.floor(math.max(0, math.min(100, (battery and battery.percent) or 0)) + 0.5))
     end),
-    height = "Fill",
+    height = "fill",
     background = mantle.battery:map(battery_color),
     -- The level slides and the threshold colour fades; the entry's presence blinks the fill twice
     -- when the cable goes in.
     animate = plug_flash:map(function(flashing)
         return {
-            width = { duration = theme.animation_ms, easing = "OutCubic" },
-            background = { duration = theme.animation_ms, easing = "OutCubic" },
+            width = { duration = theme.animation_ms, easing = "out_cubic" },
+            background = { duration = theme.animation_ms, easing = "out_cubic" },
             opacity = flashing and {
                 duration = theme.animation_fast_ms,
                 loops = 2,
@@ -104,9 +104,9 @@ local fill = rect {
 local battery_module = rect {
     width = theme.battery_pill_width,
     height = theme.item_height,
-    align_v = "Center",
+    align_v = "center",
     radius = theme.item_radius,
-    clip = "Rounded",
+    clip = "rounded",
     background = theme.GLASS_CONTROL,
     border_width = theme.border_width,
     border_color = theme.GLASS_BORDER,
@@ -117,7 +117,7 @@ local battery_module = rect {
         return battery.present
     end),
     -- Pill copy first: the fill paints over it, and shows it again while the plug flash fades.
-    children = { readout(ON_PILL, "Fill"), fill },
+    children = { readout(ON_PILL, "fill"), fill },
 }
 
 local battery_tooltip = tooltip({
@@ -125,7 +125,7 @@ local battery_tooltip = tooltip({
     text = mantle.battery:map(function(battery)
         if battery == nil then
             return "Battery unavailable"
-        elseif battery.state == "FullyCharged" then
+        elseif battery.state == "fully_charged" then
             return "Fully charged"
         end
         local eta = battery_eta(battery)

@@ -28,17 +28,17 @@ return function(opts)
         local node, tint = switch(chosen, opts.slot .. "-" .. tostring(value), function()
             opts.on_select(value)
         end, {
-            width = "Fill",
-            height = "Fill",
+            width = "fill",
+            height = "fill",
             border = false,
             rest = theme.CLEAR,
         })
         node.children = { cell(format(value), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM),
             opts.font_size or theme.font.xs, {
                 bold = chosen,
-                width = "Fill",
-                align = "Center",
-                align_v = "Center",
+                width = "fill",
+                align = "center",
+                align_v = "center",
                 animate = { foreground = theme.animation_ms },
             }) }
         return rect(node)
@@ -49,19 +49,19 @@ return function(opts)
         local out = {}
         for index, value in ipairs(values) do
             if index > 1 then
-                out[#out + 1] = rect { width = theme.border_width, height = "Fill", background = theme.GLASS_BORDER }
+                out[#out + 1] = rect { width = theme.border_width, height = "fill", background = theme.GLASS_BORDER }
             end
             out[#out + 1] = segment(value)
         end
         return out
     end)
     return row {
-        width = opts.width or "Fill",
+        width = opts.width or "fill",
         height = opts.height or theme.control.md,
-        align_v = "Center",
+        align_v = "center",
         visible = opts.visible,
         radius = theme.radius.md,
-        clip = "Rounded",
+        clip = "rounded",
         background = opts.tone == "subtle" and theme.GLASS_CONTROL_SUBTLE or theme.GLASS_CONTENT,
         border_width = theme.border_width,
         border_color = opts.tone == "subtle" and theme.BORDER_SUBTLE or theme.GLASS_BORDER,

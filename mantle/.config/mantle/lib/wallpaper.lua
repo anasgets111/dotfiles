@@ -64,8 +64,8 @@ end
 ---every change draws fresh parameters; a run under way keeps the spec the engine copied.
 function wallpaper.transition()
     return computed({ wallpaper.effect, store.wallpapers }, function(effect)
-        -- Not `InOutCubic`: 99.6% done at t=0.9, so its last 150ms stalls.
-        local spec = { duration = 1500, easing = "InOutSine" }
+        -- Not `in_out_cubic`: 99.6% done at t=0.9, so its last 150ms stalls.
+        local spec = { duration = 1500, easing = "in_out_sine" }
         if effect ~= wallpaper.NO_SHADER then
             local params = RANDOM_PARAMS[effect]
             spec.shader = wallpaper.SHADER_FOLDER .. "/" .. SHADER_PREFIX .. effect .. ".frag"

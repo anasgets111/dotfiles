@@ -34,7 +34,7 @@ for _, panel in ipairs(panels) do
     local panel_hover = panel.kind == media_panel.kind and hover("media_panel") or nil
     table.insert(section_rects, rect)
     sections[panel.kind] = column {
-        width = "Fill",
+        width = "fill",
         spacing = panel.spacing or theme.spacing.md,
         geometry = rect,
         hover = panel_hover,
@@ -120,7 +120,7 @@ local function inverted_corner(corner, glass_on_right, margin)
             height = size,
             margin = { left = glass_on_right and 0 or corner - size, top = corner - size },
             radius = radius,
-            corner_shape = "Scoop",
+            corner_shape = "scoop",
             background = glass and theme.GLASS_SURFACE or nil,
             behind_blur = not glass,
         }
@@ -137,59 +137,59 @@ end
 local shown = util.linger(ui_state.panel_open, theme.animation_ms)
 
 local card_animate = computed({ hidden_top, shown }, function(hidden, visible)
-    return visible and { margin = { duration = theme.animation_ms, easing = "OutQuad", from = { top = hidden } } } or {}
+    return visible and { margin = { duration = theme.animation_ms, easing = "out_quad", from = { top = hidden } } } or {}
 end)
 
 return panel {
     id = "bar",
-    -- Under `Overlay`, so notifications and OSD still draw and click over an open panel.
-    layer = "Top",
+    -- Under `overlay`, so notifications and OSD still draw and click over an open panel.
+    layer = "top",
     -- Three edges and a pixel zone: anchored to all four, a surface reserves nothing.
     anchor = { top = true, left = true, right = true },
     exclusive_zone = theme.bar_height,
-    width = "Fill",
+    width = "fill",
     -- Screen-tall: Hyprland animates a layer resize by stretching the old buffer.
     height = "100%",
     -- The credential sheet asks for a name, then a password, and `network_join.credential_step` covers
-    -- both including the wait between them: `"None"` in that gap would hand the keyboard back.
-    -- `"Exclusive"` because either field must be typable without a click, the engine arming the
-    -- scope's sole field on compositor focus. History's reply field needs only `"OnDemand"`, since a
+    -- both including the wait between them: `"none"` in that gap would hand the keyboard back.
+    -- `"exclusive"` because either field must be typable without a click, the engine arming the
+    -- scope's sole field on compositor focus. History's reply field needs only `"on_demand"`, since a
     -- click there takes the keyboard and other windows give it back.
     keyboard_interactivity = computed(
         { network_join.credential_step, ui_state.panel_showing("notifications") },
         function(step, showing_notifications)
-            -- The sheet stays `Exclusive`: this panel's click raised it and the catcher ends it.
-            return step ~= "" and "Exclusive" or showing_notifications and "OnDemand" or "None"
+            -- The sheet stays `exclusive`: this panel's click raised it and the catcher ends it.
+            return step ~= "" and "exclusive" or showing_notifications and "on_demand" or "none"
         end
     ),
     -- Input follows drawn nodes, so a closed panel leaves only the bar and its corners clickable.
     child = rect {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         children = {
             -- Screen-edge corners, under the catcher so a click on one closes.
             row {
-                width = "Fill",
+                width = "fill",
                 margin = { top = theme.bar_height },
                 children = {
                     inverted_corner(theme.radius.md, false),
-                    rect { width = "Fill" },
+                    rect { width = "fill" },
                     inverted_corner(theme.radius.md, true),
                 },
             },
             -- Starts at the bar's bottom edge, which cuts the card while it slides. Hit-testing
             -- stops at the first child holding the point, so the catcher lives in here.
             rect {
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
                 margin = { top = theme.bar_height },
                 children = ui_state.panel_instance:map(function(instance)
                     return {
                         -- `close_panel`, not a local handler: an outside click and a second
                         -- indicator click are the same edge, and it also answers pending passwords.
                         rect {
-                            width = "Fill",
-                            height = "Fill",
+                            width = "fill",
+                            height = "fill",
                             cursor = "default",
                             -- Not lingering: clicks reach windows while the card retracts.
                             visible = ui_state.panel_open,
@@ -203,7 +203,7 @@ return panel {
                             margin = card_x:map(function(x)
                                 return { left = x - CORNER }
                             end),
-                            animate = { margin = { duration = theme.animation_ms, easing = "OutCubic" } },
+                            animate = { margin = { duration = theme.animation_ms, easing = "out_cubic" } },
                             children = {
                                 row {
                                     margin = card_margin,
@@ -225,8 +225,8 @@ return panel {
                                                         return height
                                                     end),
                                                     animate = {
-                                                        width = { duration = theme.animation_ms, easing = "OutCubic" },
-                                                        height = { duration = theme.animation_ms, easing = "OutCubic" },
+                                                        width = { duration = theme.animation_ms, easing = "out_cubic" },
+                                                        height = { duration = theme.animation_ms, easing = "out_cubic" },
                                                     },
                                                     background = theme.GLASS_SURFACE,
                                                     behind_blur = true,

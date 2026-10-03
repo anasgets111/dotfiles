@@ -25,9 +25,9 @@ local clock = cell(util.bold(computed({ mantle.system, weather.code, weather.tem
             shown = string.format("%d°C %s %s", celsius, weather.info(code).icon, shown)
         end
         return shown
-    end)), theme.text_contrast(theme.GLASS_CONTROL), theme.font.sm, { align_v = "Center" })
+    end)), theme.text_contrast(theme.GLASS_CONTROL), theme.font.sm, { align_v = "center" })
 
--- The only tooltip with an explicit `width`/`height`: its `width = "Fill"` rows and fixed-cell grid
+-- The only tooltip with an explicit `width`/`height`: its `width = "fill"` rows and fixed-cell grid
 -- leave `components/tooltip.lua` no content-sized extent to measure, and a month is four to six
 -- weeks tall.
 local DATE_LINE = math.ceil(theme.font.sm * 1.2)
@@ -54,17 +54,17 @@ local clock_tooltip = tooltip({
                 { text = weather.info(code).desc },
                 { text = place ~= "" and (" in " .. place) or "", color = theme.DIM },
             }
-        end), theme.TOOLTIP_FG, theme.font.sm, { width = "Fill", align = "Center" }),
+        end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),
         cell(computed({ weather.updated_at, mantle.system }, function(at, system)
             local ago = weather.time_ago(at, system and system.time)
             return ago ~= "" and ("Last updated " .. ago) or ""
-        end), theme.DIM, theme.font.xs, { width = "Fill", align = "Center" }),
+        end), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
         cell(util.label(mantle.system, function(system)
             return os.date("%A %d %B %Y", system.time)
-        end), theme.TOOLTIP_FG, theme.font.sm, { width = "Fill", align = "Center" }),
+        end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),
         cell(util.label(mantle.system, function(system)
             return os.date("%I:%M:%S %p", system.time)
-        end), theme.DIM, theme.font.xs, { width = "Fill", align = "Center" }),
+        end), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
         calendar.node,
     },
 })
@@ -92,7 +92,7 @@ end), mantle.notifications:map(function(payload)
         return theme.DIM
     end
     return waiting(payload) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
-end), theme.font.md, { align_v = "Center" })
+end), theme.font.md, { align_v = "center" })
 
 
 local function open(rect)
@@ -113,8 +113,8 @@ local clock_pill = icon_button(nil, nil, {
         end,
     },
     content = row {
-        height = "Fill",
-        align_v = "Center",
+        height = "fill",
+        align_v = "center",
         spacing = theme.spacing.xs,
         -- Without this inset, bell and minutes run under the pill's radius.
         padding = { left = theme.spacing.sm, right = theme.spacing.sm },

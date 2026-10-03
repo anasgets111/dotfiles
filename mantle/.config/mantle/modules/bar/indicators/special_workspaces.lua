@@ -38,16 +38,16 @@ end
 
 local indicator = row {
     height = theme.item_height,
-    align_v = "Center",
+    align_v = "center",
     hover = hover(SLOT),
     visible = mantle.workspaces:map(function(workspaces)
         return #specials_of(workspaces) > 0
     end),
     children = {
         list {
-            direction = "Horizontal",
+            direction = "horizontal",
             spacing = theme.spacing.sm,
-            align_v = "Center",
+            align_v = "center",
             source = mantle.workspaces:map(specials_of),
             itemfn = special_button,
             key = function(special)

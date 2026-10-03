@@ -42,14 +42,14 @@ function pill.new(opts)
     ---@param circle table
     ---@param shown Signal<boolean>
     function self.cell(circle, shown)
-        circle.width = "Fill"
-        circle.height = "Fill"
+        circle.width = "fill"
+        circle.height = "fill"
         return row {
             width = computed({ expanded, shown }, function(open, kept)
                 return (open or kept) and theme.item_width or 0
             end),
             height = theme.item_height,
-            align_v = "Center",
+            align_v = "center",
             opacity = computed({ expanded, shown }, function(open, kept)
                 return (open or kept) and 1 or 0
             end),
@@ -63,7 +63,7 @@ function pill.new(opts)
     function self.row(children)
         return row {
             height = theme.item_height,
-            align_v = "Center",
+            align_v = "center",
             geometry = self.geometry,
             hover = hovered,
             spacing = spacing,

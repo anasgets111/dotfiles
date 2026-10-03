@@ -5,10 +5,10 @@ local icons = require("config.icons")
 local glyph = require("components.glyph")
 
 return function(field)
-    field.width, field.height, field.autofocus = "Fill", "Fill", true
+    field.width, field.height, field.autofocus = "fill", "fill", true
     field.font_size, field.foreground = theme.font.xl, theme.FG
     return row {
-        width = "Fill",
+        width = "fill",
         height = theme.control.xl,
         radius = theme.radius.md,
         background = theme.GLASS_INPUT,
@@ -16,6 +16,6 @@ return function(field)
         border_color = theme.ACCENT,
         padding = { left = theme.spacing.lg, right = theme.spacing.lg },
         spacing = theme.spacing.md,
-        children = { glyph(icons.search, theme.ACCENT, theme.icon.md, { align_v = "Center" }), field },
+        children = { glyph(icons.search, theme.ACCENT, theme.icon.md, { align_v = "center" }), field },
     }
 end

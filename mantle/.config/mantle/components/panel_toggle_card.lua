@@ -25,21 +25,21 @@ return function(opts)
     local node, tint = switch(checked, opts.slot, function()
         opts.on_change(not util.read_bool(opts.signal:get(), opts.read))
     end, {
-        width = "Fill",
+        width = "fill",
         height = theme.panel_toggle_height,
         radius = theme.radius.lg,
         disabled = opts.disabled,
         animate = {
             background = theme.animation_ms,
             border_color = theme.animation_ms,
-            opacity = { duration = theme.animation_ms, easing = "OutCubic" },
+            opacity = { duration = theme.animation_ms, easing = "out_cubic" },
         },
     })
     local ink = tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM)
 
     local lines = {}
     local icon = glyph(opts.icon, ink, theme.icon.md, {
-        align = "Center",
+        align = "center",
         visible = opts.spinning and opts.spinning:map(function(on)
             return not on
         end),
@@ -48,26 +48,26 @@ return function(opts)
     lines[1] = opts.spinning and rect {
         width = theme.icon.md,
         height = theme.icon.md,
-        align_h = "Center",
-        align_v = "Center",
+        align_h = "center",
+        align_v = "center",
         children = { icon, spinner(opts.spinning, theme.icon.md, ink) },
     } or icon
     lines[#lines + 1] = cell(opts.label, ink, theme.font.xs, {
         bold = checked,
-        align = "Center",
+        align = "center",
         animate = { foreground = theme.animation_ms },
     })
     if opts.detail ~= nil then
         lines[#lines + 1] = cell(opts.detail, tint(theme.TEXT_ACTIVE, theme.TEXT_ACTIVE, theme.TEXT_ACTIVE, theme.DIM),
             theme.font.xs, {
-                align = "Center",
-                align_v = "Center",
+                align = "center",
+                align_v = "center",
                 visible = util.lift(opts.detail, function(text)
                     return (text or "") ~= ""
                 end),
             })
     end
 
-    node.children = { column { align_h = "Center", align_v = "Center", spacing = theme.spacing.xs, children = lines } }
+    node.children = { column { align_h = "center", align_v = "center", spacing = theme.spacing.xs, children = lines } }
     return rect(node)
 end

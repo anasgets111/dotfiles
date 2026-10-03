@@ -15,7 +15,7 @@ return function(checked)
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
         children = { glyph(icons.check, theme.FG, theme.icon.sm, {
-            width = "Fill", align = "Center", align_v = "Center", visible = on,
+            width = "fill", align = "center", align_v = "center", visible = on,
         }) },
     }
 end

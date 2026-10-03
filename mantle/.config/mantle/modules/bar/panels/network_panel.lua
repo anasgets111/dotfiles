@@ -168,9 +168,9 @@ local function access_point_row(entry)
 
     local leading = {
         glyph(icons.wifi[util.signal_tier(ap.strength)], ap.active and theme.ACCENT or theme.FG,
-            theme.icon.md, { align_v = "Center" }),
+            theme.icon.md, { align_v = "center" }),
         band and cell(util.bold(band), color, theme.font.xs, {
-            align_v = "End",
+            align_v = "end",
             font = theme.condensed_font,
             letter_spacing = theme.band_tracking(band),
         }) or nil,
@@ -188,9 +188,9 @@ local function access_point_row(entry)
     trailing[#trailing + 1] = rect {
         width = theme.icon.sm,
         height = theme.icon.sm,
-        align_v = "Center",
+        align_v = "center",
         children = { glyph(icons.lock, theme.DIM, theme.icon.sm, {
-            align = "Center", align_v = "Center", visible = ap.secure,
+            align = "center", align_v = "center", visible = ap.secure,
         }) },
     }
     return panel_row {
@@ -198,14 +198,14 @@ local function access_point_row(entry)
         leading = row {
             width = LEADING_WIDTH,
             spacing = band == "2.4" and -theme.spacing.xs or -theme.spacing.xs / 2,
-            align_v = "Center",
+            align_v = "center",
             children = leading,
         },
         title = ap.ssid or "?",
         subtitle = entry.connecting and "Connecting…" or nil,
         selected = ap.active,
         opacity = entry.blocked and theme.opacity.disabled or nil,
-        trailing = row { spacing = theme.spacing.xs, align_v = "Center", children = trailing },
+        trailing = row { spacing = theme.spacing.xs, align_v = "center", children = trailing },
         on_activate = not ap.active and not entry.blocked and function()
             -- `hidden` is required; scanned `available_networks` entries are not hidden.
             mantle.network:connect(ap.ssid, false)
@@ -302,7 +302,7 @@ local body = {
         },
     },
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         visible = util.shown_when(mantle.network, function(network)
             return network.networking_enabled
@@ -338,14 +338,14 @@ local body = {
     -- two, so the name field is plain; only shown fields are armed, letting each step take the
     -- keyboard while the other is down.
     column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         visible = step:map(function(current)
             return current ~= ""
         end),
         children = {
-            cell(sheet_title, theme.FG, theme.font.sm, { width = "Fill" }),
-            -- `autofocus` rather than a click: `panel_host` turns keyboard `Exclusive` on the same
+            cell(sheet_title, theme.FG, theme.font.sm, { width = "fill" }),
+            -- `autofocus` rather than a click: `panel_host` turns keyboard `exclusive` on the same
             -- edge. The draft is stored per keystroke because Next has no other way to read it.
             input {
                 visible = during("name"),
@@ -371,7 +371,7 @@ local body = {
             },
             row {
                 spacing = theme.spacing.xs,
-                align_v = "Center",
+                align_v = "center",
                 visible = during("waiting"),
                 children = { spinner(during("waiting"), theme.icon.md), cell("Connecting…", theme.DIM, theme.font.xs) },
             },
@@ -384,8 +384,8 @@ local body = {
                 end),
             }),
             row {
-                width = "Fill",
-                align_h = "End",
+                width = "fill",
+                align_h = "end",
                 spacing = theme.spacing.sm,
                 children = {
                     action_button("Cancel", join.cancel_network_join, "network-sheet-cancel", { tone = "quiet" }),
@@ -416,12 +416,12 @@ local body = {
         slot = "network-hidden",
         leading = row {
             width = LEADING_WIDTH,
-            align_v = "Center",
-            children = { glyph(icons.wifi_hidden, theme.FG, theme.icon.md, { align_v = "Center" }) },
+            align_v = "center",
+            children = { glyph(icons.wifi_hidden, theme.FG, theme.icon.md, { align_v = "center" }) },
         },
         title = "Hidden network…",
         visible = radio_up_and_idle,
-        trailing = glyph(icons.chevron_right, theme.DIM, theme.font.sm, { align_v = "Center" }),
+        trailing = glyph(icons.chevron_right, theme.DIM, theme.font.sm, { align_v = "center" }),
         on_activate = join.open_hidden_prompt,
     },
     panel_empty_state(

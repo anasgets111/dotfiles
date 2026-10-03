@@ -35,18 +35,18 @@ local focused_icon = icon {
     end),
     -- The centre caption is the bar's one piece of prose, so its icon reads as an app.
     size = theme.control.sm,
-    align_v = "Center",
+    align_v = "center",
 }
 
 return row {
     height = theme.item_height,
-    align_h = "Center",
-    align_v = "Center",
+    align_h = "center",
+    align_v = "center",
     spacing = theme.spacing.xs,
     children = {
         focused_icon,
         cell(util.bold(computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
             return util.truncate(label(applications, workspaces), theme.title_limit)
-        end)), theme.FG, theme.font.sm, { align_v = "Center" }),
+        end)), theme.FG, theme.font.sm, { align_v = "center" }),
     },
 }

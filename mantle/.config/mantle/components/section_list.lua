@@ -9,7 +9,7 @@ local util = require("lib.util")
 ---@return Node
 return function(source, name, itemfn, visible)
     return list {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         scroll = scroll(name),
         visible = visible,

@@ -46,7 +46,7 @@ function M.open_panel(kind, rect)
     if kind == "notifications" then
         notification_state.open_history()
     end
-    -- A pending password left standing would keep the surface `Exclusive` over a fieldless panel.
+    -- A pending password left standing would keep the surface `exclusive` over a fieldless panel.
     network_join.clear_network_prompts()
     leave_panel()
     disclosure.reset()

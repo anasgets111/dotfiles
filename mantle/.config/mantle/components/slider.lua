@@ -116,7 +116,7 @@ return function(opts)
     end)
 
     local fill_opacity = opts.fill_visible and util.choose(opts.fill_visible, 1, 0)
-    local fill_animate = fill_opacity and { opacity = { duration = theme.animation_ms, easing = "OutCubic" } }
+    local fill_animate = fill_opacity and { opacity = { duration = theme.animation_ms, easing = "out_cubic" } }
 
     -- `%d` raises on a float in Lua 5.4.
     local function percent(value)
@@ -126,13 +126,13 @@ return function(opts)
     local function bar(width, color)
         return rect {
             width = width,
-            height = "Fill",
+            height = "fill",
             radius = opts.radius or theme.radius.sm,
             background = color,
             opacity = fill_opacity,
             animate = fill_animate,
             -- ponytail: the bar's square box clips its copy, so ink overhangs a pill's rounded end
-            -- by ~1.5px; `clip = "Rounded"` is exact for an offscreen target per bar.
+            -- by ~1.5px; `clip = "rounded"` is exact for an offscreen target per bar.
             children = { opts.label and opts.label(color) or nil },
         }
     end
@@ -147,11 +147,11 @@ return function(opts)
             return percent(math.min(value, split))
         end), opts.color or theme.ACCENT),
         opts.marker and row {
-            width = "Fill",
-            height = "Fill",
+            width = "fill",
+            height = "fill",
             children = {
                 rect { width = percent(split) },
-                rect { width = 1, height = "Fill", background = theme.with_opacity(theme.FG, theme.opacity.medium) },
+                rect { width = 1, height = "fill", background = theme.with_opacity(theme.FG, theme.opacity.medium) },
             },
         } or nil,
     }
@@ -161,11 +161,11 @@ return function(opts)
     end
 
     return rect {
-        width = opts.width or "Fill",
+        width = opts.width or "fill",
         height = opts.height or theme.slider_height,
         align_v = opts.align_v,
         radius = opts.radius or theme.radius.sm,
-        clip = "Rounded",
+        clip = "rounded",
         background = track,
         border_width = opts.border_width,
         border_color = opts.border_color,

@@ -39,7 +39,7 @@ local header = panel_header {
 -- indents it with tabs, which a shaper advances by rather than aligning to.
 local log_scroll = scroll("rescue_log")
 local log = list {
-    width = "Fill",
+    width = "fill",
     max_height = theme.rescue_log_height,
     scroll = log_scroll,
     source = error_log:map(function(text)
@@ -50,7 +50,7 @@ local log = list {
         return lines
     end),
     itemfn = function(line)
-        return cell(line, theme.FG, theme.font.xs, { width = "Fill", wrap = "Word", max_lines = 4 })
+        return cell(line, theme.FG, theme.font.xs, { width = "fill", wrap = "word", max_lines = 4 })
     end,
 }
 
@@ -59,7 +59,7 @@ return modal({
     reset_on_close = { log_scroll },
     card = panel_card({
         header,
-        panel_card({ log }, { width = "Fill", outlined = true }),
+        panel_card({ log }, { width = "fill", outlined = true }),
     }, {
         width = theme.rescue_modal_width,
         tone = "dialog",

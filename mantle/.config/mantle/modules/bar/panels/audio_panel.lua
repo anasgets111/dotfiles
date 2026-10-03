@@ -41,7 +41,7 @@ local function audio_control(opts)
         return (audio and audio[opts.devices]) or {}
     end)
     local choices = list {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         max_height = devices:map(function(items)
             return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function()
@@ -58,7 +58,7 @@ local function audio_control(opts)
                     height = theme.icon.md,
                     children = { glyph(util.audio_device_glyph(device, opts.is_input)
                         or (opts.is_input and icons.mic_on or icons.speaker), theme.FG, theme.icon.md,
-                        { align = "Center", align_v = "Center" }) },
+                        { align = "center", align_v = "center" }) },
                 },
                 title = util.device_name(device) or "?",
                 color = device.active and theme.ACCENT or nil,
@@ -97,7 +97,7 @@ local function audio_control(opts)
         leading = rect {
             width = theme.icon.md,
             height = theme.icon.md,
-            children = { glyph(leading_glyph, tint, theme.icon.md, { align = "Center", align_v = "Center" }) },
+            children = { glyph(leading_glyph, tint, theme.icon.md, { align = "center", align_v = "center" }) },
         },
         title = util.bold(opts.title),
         subtitle = util.label(mantle.audio, function(audio)
@@ -105,11 +105,11 @@ local function audio_control(opts)
         end),
         trailing = row {
             spacing = theme.spacing.sm,
-            align_v = "Center",
+            align_v = "center",
             children = {
                 cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
                     return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
-                end)), tint, theme.font.sm, { width = theme.control.lg, align = "End", align_v = "Center" }),
+                end)), tint, theme.font.sm, { width = theme.control.lg, align = "end", align_v = "center" }),
                 panel_action_icon(mute_glyph, function()
                     mantle.audio[opts.toggle_mute](mantle.audio)
                 end, {
@@ -124,7 +124,7 @@ local function audio_control(opts)
     }
     local children = {
         column {
-            width = "Fill",
+            width = "fill",
             children = devices:map(function(items)
                 local opts_row = util.with(header, "expanded", #items > 1 and picker or nil)
                 opts_row.details = #items > 1 and choices or nil
@@ -132,7 +132,7 @@ local function audio_control(opts)
             end),
         },
         column {
-            width = "Fill",
+            width = "fill",
             spacing = theme.spacing.sm,
             margin = { left = TRACK_INSET, right = theme.spacing.sm },
             children = util.concat({ slider {
@@ -157,7 +157,7 @@ local function audio_control(opts)
     }
 
     return panel_card(children, {
-        width = "Fill",
+        width = "fill",
         visible = opts.visible,
         spacing = theme.spacing.sm,
         padding = theme.spacing.sm,
@@ -171,12 +171,12 @@ local function stream_row(app)
         or util.app_entry(applications, app.name)
     local name = entry and entry.name or app.name or app.process_name or "Unknown"
     local icon_name = entry and entry.icon or app.icon
-    local leading = icon_name and icon { name = icon_name, size = theme.icon.md, align_v = "Center" }
-        or glyph(app.recording and icons.mic_on or icons.music_note, theme.FG, theme.icon.md, { align_v = "Center" })
+    local leading = icon_name and icon { name = icon_name, size = theme.icon.md, align_v = "center" }
+        or glyph(app.recording and icons.mic_on or icons.music_note, theme.FG, theme.icon.md, { align_v = "center" })
     local tint = app.muted and theme.DIM or theme.FG
     local held = state("audio_pending_app_" .. tostring(app.id), -1)
     return column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         children = {
             panel_row {
@@ -186,14 +186,14 @@ local function stream_row(app)
                 opacity = (app.muted or app.volume == nil) and theme.opacity.muted or nil,
                 trailing = row {
                     spacing = theme.spacing.sm,
-                    align_v = "Center",
+                    align_v = "center",
                     children = {
                         glyph(icons.mic_on, theme.DIM, theme.icon.sm,
-                            { align_v = "Center", visible = app.recording and icon_name ~= nil }),
+                            { align_v = "center", visible = app.recording and icon_name ~= nil }),
                         cell(held:map(function(value)
                             return percent(value >= 0 and value or app.volume)
                         end), tint, theme.font.sm, {
-                            width = theme.control.lg, align = "End", align_v = "Center",
+                            width = theme.control.lg, align = "end", align_v = "center",
                         }),
                         panel_action_icon(app.muted and icons.vol_muted or icons.vol_high, app.volume and function()
                             mantle.audio:set_app_muted(app.id, not app.muted)
@@ -202,7 +202,7 @@ local function stream_row(app)
                 },
             },
             column {
-                width = "Fill",
+                width = "fill",
                 margin = { left = TRACK_INSET, right = theme.spacing.sm },
                 children = { slider {
                     name = "audio_pending_app_" .. tostring(app.id),
@@ -265,9 +265,9 @@ local body = {
         headroom = true,
         under = {
             row {
-                width = "Fill",
+                width = "fill",
                 spacing = theme.spacing.sm,
-                align_v = "Center",
+                align_v = "center",
                 visible = util.shown_when(mantle.audio, function(audio)
                     return audio.balance ~= nil
                 end),
@@ -320,7 +320,7 @@ local body = {
             return #list > 0
         end),
         details = list {
-            width = "Fill",
+            width = "fill",
             max_height = streams:map(function(list)
                 return util.fit_height(list, theme.panel_list_height, theme.spacing.sm, function()
                     return STREAM_HEIGHT

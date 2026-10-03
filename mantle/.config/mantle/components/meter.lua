@@ -7,9 +7,9 @@ local util = require("lib.util")
 return function(signal, read, color, height, opts)
     height = height or theme.meter_height
     return row {
-        width = "Fill",
+        width = "fill",
         height = height,
-        align_v = "Center",
+        align_v = "center",
         background = theme.SURFACE,
         radius = height / 2,
         children = { rect {
@@ -19,7 +19,7 @@ return function(signal, read, color, height, opts)
                 -- Keep small increments visible on long countdowns.
                 return string.format("%.3f%%", math.max(0, math.min(100, pct)))
             end),
-            height = "Fill",
+            height = "fill",
             background = color,
             radius = height / 2,
             animate = util.lift((opts and opts.motion) or theme.animation_ms, function(motion) return { width = motion } end),

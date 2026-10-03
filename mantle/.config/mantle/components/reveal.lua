@@ -14,15 +14,15 @@ return function(heading, details, expanded, opts)
         return open or moving
     end) or util.linger(expanded, theme.animation_ms)
     return column {
-        width = "Fill",
+        width = "fill",
         spacing = util.choose(expanded, opts.spacing or theme.spacing.xs, 0),
         visible = opts.visible,
         animate = { spacing = theme.animation_ms },
         children = { heading, rect {
-            width = "Fill",
+            width = "fill",
             height = computed({ expanded, bounds }, function(open, measured) return open and measured.height or 0 end),
-            clip = "Box",
-            animate = { height = { duration = theme.animation_ms, easing = "OutCubic" } },
+            clip = "box",
+            animate = { height = { duration = theme.animation_ms, easing = "out_cubic" } },
             children = { details },
         } },
     }

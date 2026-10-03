@@ -11,7 +11,7 @@ local function children_for(opts)
     for _, name in ipairs(opts.lines and { "text", "detail", "secondary" } or {}) do
         opts[name] = opts.lines:map(function(lines) return lines[name] end)
     end
-    local align = (opts.detail ~= nil or opts.secondary ~= nil) and "Start" or "Center"
+    local align = (opts.detail ~= nil or opts.secondary ~= nil) and "start" or "center"
     local function text_line(content, color, font, visible)
         return cell(content, color, font, { align = align, visible = visible })
     end
@@ -56,9 +56,9 @@ return function(opts)
         width = opts.width,
         height = opts.height,
         grab = false,
-        anchor = "Bottom",
-        gravity = "Bottom",
-        constraint_adjustment = { "FlipY", "SlideX" },
+        anchor = "bottom",
+        gravity = "bottom",
+        constraint_adjustment = { "flip_y", "slide_x" },
         offset = { x = 0, y = theme.spacing.xs },
         child = panel_card(children_for(opts), {
             opacity = util.choose(shown, 1, 0),

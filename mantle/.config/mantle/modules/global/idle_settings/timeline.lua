@@ -33,36 +33,36 @@ return function(settings)
         end)
 
     return column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         visible = counting_down,
         children = {
-            row { width = "Fill", spacing = theme.spacing.sm, align_v = "Center", children = {
-                cell(progress:map(function(value) return value.title end), theme.FG, theme.font.sm, { width = "Fill" }),
+            row { width = "fill", spacing = theme.spacing.sm, align_v = "center", children = {
+                cell(progress:map(function(value) return value.title end), theme.FG, theme.font.sm, { width = "fill" }),
                 cell(progress:map(function(value) return value.time end), theme.DIM, theme.font.sm),
             } },
             rect {
-                width = "Fill",
+                width = "fill",
                 height = theme.meter_height,
                 radius = theme.meter_height / 2,
-                clip = "Rounded",
+                clip = "rounded",
                 children = {
                     meter(progress, function(value) return value.total end, theme.ACCENT, nil, {
                         motion = progress:map(function(value)
-                            return value.total > 0 and { duration = idle.TICK * 1000, easing = "Linear" }
-                                or { duration = theme.animation_fast_ms, easing = "OutCubic" }
+                            return value.total > 0 and { duration = idle.TICK * 1000, easing = "linear" }
+                                or { duration = theme.animation_fast_ms, easing = "out_cubic" }
                         end),
                     }),
                     rect { width = progress:map(function(value) return string.format("%.3f%%", value.completed) end),
-                        height = "Fill", background = theme.TEXT_MUTED },
-                    row { width = "Fill", height = "Fill", children = idle.schedule:map(function(plan)
+                        height = "fill", background = theme.TEXT_MUTED },
+                    row { width = "fill", height = "fill", children = idle.schedule:map(function(plan)
                         local marks = {}
                         for index, entry in ipairs(plan.list) do
                             marks[index] = rect {
-                                width = index == #plan.list and "Fill" or string.format("%.6f%%", entry.delay / plan.total * 100),
-                                height = "Fill",
+                                width = index == #plan.list and "fill" or string.format("%.6f%%", entry.delay / plan.total * 100),
+                                height = "fill",
                                 children = index < #plan.list and { rect {
-                                    width = theme.border_width_medium, height = "Fill", align_h = "End", background = theme.DIM,
+                                    width = theme.border_width_medium, height = "fill", align_h = "end", background = theme.DIM,
                                 } } or {},
                             }
                         end

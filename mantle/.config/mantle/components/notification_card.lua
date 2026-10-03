@@ -22,7 +22,7 @@ local reveal = require("components.reveal")
 -- records what happened, so its cards only fade; a slide there would end under the panel's padding.
 local SLIDE_EXIT = {
     duration = theme.notification_slide_ms,
-    easing = "InCubic",
+    easing = "in_cubic",
     translate = { x = theme.notification_width },
     opacity = 0,
 }
@@ -35,18 +35,18 @@ local STAGGER_MS = 60
 local POPUP_MEMBERS = 3
 
 -- Popup entry travels in from the right edge, fast off the mark and long to settle. Paint-only
--- `translate`, not `margin`, lays a `Fill`-width card out once instead of re-wrapping it as it moves.
+-- `translate`, not `margin`, lays a `fill`-width card out once instead of re-wrapping it as it moves.
 local function slide_in(delay)
     return {
         translate = {
             duration = theme.notification_slide_ms,
-            easing = "OutQuint",
+            easing = "out_quint",
             delay = delay,
             from = { x = theme.notification_width },
         },
         -- Hold the opacity too, so a waiting card is invisible where it waits. Shorter than the
         -- travel: the card is solid for the settle, not translucent while it is mostly in view.
-        opacity = { duration = theme.animation_ms, easing = "OutQuad", delay = delay, from = 0 },
+        opacity = { duration = theme.animation_ms, easing = "out_quad", delay = delay, from = 0 },
         exit = SLIDE_EXIT,
     }
 end
@@ -62,8 +62,8 @@ local function picture(path)
         width = theme.notification_image,
         height = theme.notification_image,
         radius = theme.radius.sm,
-        clip = "Rounded",
-        align_v = "Center",
+        clip = "rounded",
+        align_v = "center",
         children = { image { source = path, fit = "cover", width = theme.notification_image, height = theme.notification_image } },
     }
 end
@@ -81,21 +81,21 @@ local function message(notification, ui, opts)
     local heading = {}
     -- The summary is the card's line; the application name above it is only an eyebrow.
     heading[#heading + 1] = cell(util.bold(summary), theme.FG, theme.font.md, {
-        width = "Fill",
-        align_v = "Center",
-        wrap = "Word",
+        width = "fill",
+        align_v = "center",
+        wrap = "word",
         -- `0` means "no limit", so expansion needs no second tree.
         max_lines = expanded and 0 or 2,
         elided = clipped,
     })
     -- History says when it arrived. A popup says nothing until a held card is a minute old.
-    heading[#heading + 1] = cell(opts.age, theme.DIM, theme.font.xs, { align_v = "Center", visible = opts.age_shown })
+    heading[#heading + 1] = cell(opts.age, theme.DIM, theme.font.xs, { align_v = "center", visible = opts.age_shown })
     -- Title and body share the clipping result; keep the collapse button after restoring all lines.
     -- Reserve the slot so revealing the button cannot change the clipping result.
     heading[#heading + 1] = rect {
         width = theme.control.sm,
         height = theme.control.sm,
-        align_v = "Center",
+        align_v = "center",
         children = { expander(expanded, function()
             ui.toggle_message(id)
         end, "notification-expand-" .. tostring(id), expanded or clipped) },
@@ -105,20 +105,20 @@ local function message(notification, ui, opts)
             mantle.notifications:dismiss(id)
         end, { slot = "notification-close-" .. tostring(id) })
     elseif opts.grouped then
-        heading[#heading + 1] = rect { width = theme.control.sm, height = theme.control.sm, align_v = "Center" }
+        heading[#heading + 1] = rect { width = theme.control.sm, height = theme.control.sm, align_v = "center" }
     end
 
     local lines = { row {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
         spacing = theme.spacing.sm,
         children = heading,
     } }
 
     if #body > 0 then
         lines[#lines + 1] = cell(body, theme.DIM, theme.font.sm, {
-            width = "Fill",
-            wrap = "Word",
+            width = "fill",
+            wrap = "word",
             max_lines = expanded and 0 or 2,
             elided = clipped,
             -- Link clicks do not fire the message action. Expand to reach clipped links.
@@ -137,11 +137,11 @@ local function message(notification, ui, opts)
         for _, path in ipairs(images) do
             pictures[#pictures + 1] = picture(path)
         end
-        lines[#lines + 1] = row { width = "Fill", spacing = theme.spacing.sm, children = pictures }
+        lines[#lines + 1] = row { width = "fill", spacing = theme.spacing.sm, children = pictures }
     end
 
     -- Always shown when supported, with no Reply button: clicking the field focuses it and gives
-    -- niri's `OnDemand` layer the keyboard.
+    -- niri's `on_demand` layer the keyboard.
     if notification.has_reply then
         local reply_hover = hover("notification-reply-field-" .. tostring(id))
         local reply_ready = ui.reply_ready_id:map(function(ready_id) return ready_id == id end)
@@ -151,8 +151,8 @@ local function message(notification, ui, opts)
         lines[#lines + 1] = row {
             -- Keep the focused field with its message when optional body/image rows change.
             id = "notification-reply-" .. tostring(id),
-            width = "Fill",
-            align_v = "Center",
+            width = "fill",
+            align_v = "center",
             spacing = theme.spacing.sm,
             children = {
                 -- The shell's input well: a bare field draws only text and caret.
@@ -200,14 +200,14 @@ local function message(notification, ui, opts)
             end
         end, string.format("notification-action-%d-%d", id, index), {
             icon = action.icon_name,
-            width = "Fill",
+            width = "fill",
             tone = "subtle",
             max_lines = 2,
         })
     end
     if #buttons > 0 then
         lines[#lines + 1] = row {
-            width = "Fill",
+            width = "fill",
             spacing = theme.spacing.sm,
             children = buttons,
         }
@@ -227,7 +227,7 @@ local function message(notification, ui, opts)
     return column {
         -- Keep the newest message and its draft when the group unfolds.
         id = "notification-message-" .. tostring(id),
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         hover = hovered,
         radius = theme.radius.sm,
@@ -265,18 +265,18 @@ return function(group, ui, opts)
         rect {
             width = theme.notification_app_icon,
             height = theme.notification_app_icon,
-            align_v = "Center",
+            align_v = "center",
             children = { icon {
                 name = group.app_icon or "dialog-information",
                 size = theme.item_height,
-                align_h = "Center",
-                align_v = "Center",
+                align_h = "center",
+                align_v = "center",
             } },
         },
         -- An eyebrow, the summary below being the line: dim and small, as a panel row's subtitle.
         cell(group.app_name, theme.DIM, theme.font.sm, {
-            width = "Fill",
-            align_v = "Center",
+            width = "fill",
+            align_v = "center",
         }),
     }
     if is_group then
@@ -294,8 +294,8 @@ return function(group, ui, opts)
     end, { slot = "notification-group-close-" .. group.key })
 
     local children = { row {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
         spacing = theme.spacing.sm,
         children = header,
     } }
@@ -322,7 +322,7 @@ return function(group, ui, opts)
     if is_group then
         local open = ui.expanded_groups:map(function(groups) return groups[group.key] == true end)
         stack = reveal(members[1], column {
-            width = "Fill",
+            width = "fill",
             spacing = theme.spacing.sm * 2,
             padding = { top = theme.spacing.sm },
             children = { table.unpack(members, 2) },
@@ -333,7 +333,7 @@ return function(group, ui, opts)
         })
     else
         stack = column {
-            width = "Fill",
+            width = "fill",
             spacing = 0,
             animate = { spacing = theme.animation_ms },
             children = members,
@@ -342,7 +342,7 @@ return function(group, ui, opts)
     children[#children + 1] = stack
 
     return column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
         padding = theme.spacing.md,
         -- Resting pose: an exit eases from what the node holds.

@@ -16,17 +16,17 @@ return function(codepoint, content, opts)
     opts = opts or {}
     local ink, ground = table.unpack(TONES[opts.tone or "error"])
     return row {
-        width = "Fill",
+        width = "fill",
         height = opts.height,
-        align_v = "Center",
+        align_v = "center",
         spacing = theme.spacing.sm,
         padding = { left = theme.spacing.md, right = theme.spacing.sm, top = theme.spacing.xs, bottom = theme.spacing.xs },
         radius = opts.radius or theme.radius.sm,
         background = ground,
         visible = opts.visible,
         children = {
-            glyph(codepoint, ink, theme.icon.sm, { align_v = "Center" }),
-            cell(content, ink, theme.font.sm, { width = "Fill", align_v = "Center", wrap = "Word", max_lines = 2 }),
+            glyph(codepoint, ink, theme.icon.sm, { align_v = "center" }),
+            cell(content, ink, theme.font.sm, { width = "fill", align_v = "center", wrap = "word", max_lines = 2 }),
             opts.trailing,
         },
     }

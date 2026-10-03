@@ -23,7 +23,7 @@ local STAGGER        = 90
 -- A wrong password shakes the pill left and right, damping out.
 local SHAKE          = {
     duration = 60,
-    easing = "InOutQuad",
+    easing = "in_out_quad",
     keyframes = { { x = 0 }, { x = -10 }, { x = 10 }, { x = -6 }, { x = 6 }, { x = -2 }, { x = 0 } },
 }
 
@@ -50,10 +50,10 @@ local function entering(props, order, offset, scale)
     props.animate = up:map(function(on)
         local delay = on and order * STAGGER or 0
         return {
-            opacity = { duration = theme.animation_slow_ms, easing = "OutCubic", delay = delay, from = 0 },
-            translate = { duration = theme.animation_very_slow_ms, easing = "OutCubic", delay = delay, from = { y = offset } },
+            opacity = { duration = theme.animation_slow_ms, easing = "out_cubic", delay = delay, from = 0 },
+            translate = { duration = theme.animation_very_slow_ms, easing = "out_cubic", delay = delay, from = { y = offset } },
             scale = scale and
-                { duration = theme.animation_very_slow_ms, easing = "OutCubic", delay = delay, from = CLOSED_SCALE } or
+                { duration = theme.animation_very_slow_ms, easing = "out_cubic", delay = delay, from = CLOSED_SCALE } or
                 nil,
         }
     end)
@@ -101,8 +101,8 @@ local function status_item(icon_glyph, label, visible)
         spacing = theme.spacing.xs,
         visible = visible,
         children = {
-            glyph(icon_glyph, theme.DIM, theme.icon.md, { align_v = "Center" }),
-            cell(label, theme.FG, theme.font.md, { align_v = "Center" }),
+            glyph(icon_glyph, theme.DIM, theme.icon.md, { align_v = "center" }),
+            cell(label, theme.FG, theme.font.md, { align_v = "center" }),
         },
     }
 end
@@ -121,14 +121,14 @@ end)
 local function content(output)
     -- Passwords stay in the native buffer. Never attach `on_change` or `on_submit`.
     local password_field = textfield {
-        width = "Fill",
+        width = "fill",
         height = FIELD_HEIGHT,
         placeholder = "Password",
         mask_character = "•",
         secure_submit = { capability = "lock", action = "authenticate" },
         font_size = theme.font.lg,
         foreground = theme.FG,
-        align_v = "Center",
+        align_v = "center",
     }
 
     local unlock = icon_button(icons.chevron_right, nil, {
@@ -148,19 +148,19 @@ local function content(output)
 
     -- Lua rejects `%-d`; read the unpadded day from the date table.
     local time = column(entering({
-        align_h = "Center",
+        align_h = "center",
         spacing = theme.spacing.xs,
         children = {
-            cell(clock, theme.FG, theme.lock_clock, { align = "Center" }),
+            cell(clock, theme.FG, theme.lock_clock, { align = "center" }),
             cell(util.label(mantle.system, function(system)
                 return string.format("%s %d", os.date("%A, %B", system.time), os.date("*t", system.time).day)
-            end), theme.DIM, theme.font.xl, { align = "Center" }),
+            end), theme.DIM, theme.font.xl, { align = "center" }),
         },
     }, 0, -theme.spacing.md))
 
     local card = panel_card({
         row {
-            width = "Fill",
+            width = "fill",
             spacing = theme.spacing.md,
             children = {
                 rect {
@@ -170,25 +170,25 @@ local function content(output)
                     background = theme.GLASS_CONTROL,
                     children = {
                         cell(util.bold(identity.initials), theme.FG, theme.font.lg, {
-                            width = "Fill",
-                            align = "Center",
-                            align_v = "Center",
+                            width = "fill",
+                            align = "center",
+                            align_v = "center",
                         }),
                     },
                 },
                 column {
-                    width = "Fill",
-                    align_v = "Center",
+                    width = "fill",
+                    align_v = "center",
                     spacing = theme.spacing.xs,
                     children = {
-                        cell(util.bold(identity.full_name), theme.FG, theme.font.xl, { width = "Fill" }),
-                        cell(identity.account, theme.DIM, theme.font.sm, { width = "Fill" }),
+                        cell(util.bold(identity.full_name), theme.FG, theme.font.xl, { width = "fill" }),
+                        cell(identity.account, theme.DIM, theme.font.sm, { width = "fill" }),
                     },
                 },
             },
         },
         row {
-            width = "Fill",
+            width = "fill",
             height = FIELD_HEIGHT,
             padding = { right = BUTTON_INSET, left = ICON_INSET },
             spacing = theme.spacing.sm,
@@ -203,30 +203,30 @@ local function content(output)
             children = {
                 glyph(icons.lock, theme.DIM, theme.icon.md, {
                     width = theme.icon.md,
-                    align = "Center",
-                    align_v = "Center",
+                    align = "center",
+                    align_v = "center",
                 }),
                 password_field,
                 unlock,
             },
         },
         column {
-            width = "Fill",
+            width = "fill",
             padding = { left = ICON_INSET, right = BUTTON_INSET },
             spacing = theme.spacing.sm,
             children = {
                 row {
-                    width = "Fill",
+                    width = "fill",
                     height = theme.control.xs,
-                    align_v = "Center",
+                    align_v = "center",
                     spacing = theme.spacing.sm,
                     children = {
                         glyph(icons.keyboard, theme.DIM, theme.icon.sm, {
-                            width = theme.icon.md, align = "Center", align_v = "Center",
+                            width = theme.icon.md, align = "center", align_v = "center",
                         }),
                         cell(util.label(mantle.keyboard, function(keyboard)
                             return keyboard.active_layout
-                        end), theme.DIM, theme.font.md, { width = "Fill", align_v = "Center" }),
+                        end), theme.DIM, theme.font.md, { width = "fill", align_v = "center" }),
                         info_badge("Caps lock", theme.YELLOW, {
                             visible = util.shown_when(mantle.keyboard, function(keyboard)
                                 return keyboard.caps_lock == true
@@ -236,18 +236,18 @@ local function content(output)
                 },
                 -- Both lines stay reserved, so an error or Caps Lock never moves the input.
                 rect {
-                    width = "Fill",
+                    width = "fill",
                     height = theme.control.lg,
                     padding = { left = theme.icon.md + theme.spacing.sm },
                     children = { cell(feedback, util.choose(failed, theme.RED, theme.DIM), theme.font.lg, {
-                        width = "Fill", align = "Start", align_v = "Start", wrap = "Word", max_lines = 2,
+                        width = "fill", align = "start", align_v = "start", wrap = "word", max_lines = 2,
                     }) },
                 },
             },
         },
     }, {
         width = theme.dialog_width,
-        align_h = "Center",
+        align_h = "center",
         padding = theme.spacing.xl,
         spacing = theme.spacing.lg,
         background = theme.with_opacity(theme.ELEVATED, 0.3),
@@ -258,8 +258,8 @@ local function content(output)
 
     -- Context, not a control, so it sits on the wallpaper at the bottom edge.
     local status = row(entering({
-        align_h = "Center",
-        align_v = "End",
+        align_h = "center",
+        align_v = "end",
         margin = { bottom = theme.spacing.xl * 2 },
         spacing = theme.spacing.xl,
         children = {
@@ -292,8 +292,8 @@ local function content(output)
     }, 2, theme.spacing.md))
 
     return rect {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         -- Opaque through the exit: `ext_session_lock_v1` hides every client and niri paints solid
         -- red underneath, which a fade would reveal during `LEAVE_SLACK`.
         background = theme.BG,
@@ -301,8 +301,8 @@ local function content(output)
             image {
                 source = wallpaper.path_of(output),
                 fit = wallpaper.fit_of(output),
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
                 -- Reuse the desktop texture; `source_blur` would decode a second copy.
                 async = true,
             },
@@ -314,15 +314,15 @@ local function content(output)
                     end
                     return lock.unlocking and WALLPAPER_BLUR / 2 or WALLPAPER_BLUR
                 end),
-                animate = { backdrop_blur = { duration = theme.animation_slow_ms, easing = "OutCubic", from = 0 } },
+                animate = { backdrop_blur = { duration = theme.animation_slow_ms, easing = "out_cubic", from = 0 } },
             }),
             column {
-                align_h = "Center",
-                align_v = "Center",
+                align_h = "center",
+                align_v = "center",
                 spacing = theme.spacing.xl * 2,
                 children = {
                     time,
-                    column(entering({ align_h = "Center", children = { card } }, 1, -theme.spacing.md, true)),
+                    column(entering({ align_h = "center", children = { card } }, 1, -theme.spacing.md, true)),
                 },
             },
             status,

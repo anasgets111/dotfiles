@@ -79,7 +79,7 @@ function M.binder(open)
                 for step = 0, STEPS do
                     frames[#frames + 1] = value((on and step or STEPS - step) / STEPS)
                 end
-                runs[on][prop] = { duration = M.MS / STEPS, easing = "Linear", keyframes = frames }
+                runs[on][prop] = { duration = M.MS / STEPS, easing = "linear", keyframes = frames }
             end
         end
         node.animate = computed({ open, moving }, function(on, running)
@@ -118,7 +118,7 @@ function M.buttons(opts)
             width = SIZE,
             height = SIZE,
             margin = { left = OPEN_WIDTH + GAP + (index - 1) * SLOT },
-            clip = "None",
+            clip = "none",
             visible = shown,
             children = {
                 bind(rect { width = SIZE, height = SIZE, radius = SIZE / 2, behind_blur = true }, {
@@ -139,7 +139,7 @@ function M.buttons(opts)
                             opts.choose(entry.id)
                         end
                     end,
-                    children = { glyph(entry.icon, util.choose(selected, theme.FG, theme.DIM), theme.icon.lg, { align = "Center", align_v = "Center" }) },
+                    children = { glyph(entry.icon, util.choose(selected, theme.FG, theme.DIM), theme.icon.lg, { align = "center", align_v = "center" }) },
                 }, {
                     opacity = function(progress)
                         return reveal(index, progress)

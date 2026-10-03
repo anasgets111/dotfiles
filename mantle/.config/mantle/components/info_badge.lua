@@ -16,8 +16,8 @@ return function(label, ground, opts)
     return row {
         width = opts.diameter,
         height = diameter,
-        align_h = opts.diameter and "Center" or nil,
-        align_v = "Center",
+        align_h = opts.diameter and "center" or nil,
+        align_v = "center",
         visible = opts.visible,
         opacity = opts.opacity,
         padding = opts.diameter and 0 or { left = theme.spacing.sm, right = theme.spacing.sm },
@@ -26,8 +26,8 @@ return function(label, ground, opts)
         border_width = theme.border_width,
         border_color = theme.GLASS_BORDER,
         children = { cell(util.bold(label), ink, theme.font.xs, {
-            align = "Center",
-            align_v = "Center",
+            align = "center",
+            align_v = "center",
         }) },
     }
 end

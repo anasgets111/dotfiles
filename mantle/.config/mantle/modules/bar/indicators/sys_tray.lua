@@ -30,22 +30,22 @@ local hovered = computed({ util.hold(hovered_id), mantle.tray, mantle.applicatio
     return { label = label, said = not said:lower():find(label:lower(), 1, true) and said or "" }
 end)
 
--- Hide `Passive`: the spec treats it as no presentation, so disabling an application's tray icon
+-- Hide `passive`: the spec treats it as no presentation, so disabling an application's tray icon
 -- removes it.
 local function items_of(tray)
     local out = {}
     for _, item in ipairs((tray and tray.items) or {}) do
-        if item.status ~= "Passive" then
+        if item.status ~= "passive" then
             out[#out + 1] = item
         end
     end
     return out
 end
 
--- `NeedsAttention` uses the attention artwork when sent. Telegram instead rewrites `icon_name` to
+-- `needs_attention` uses the attention artwork when sent. Telegram instead rewrites `icon_name` to
 -- `-attention-symbolic`, so fall back to the base pair rather than draw nothing.
 local function artwork(item)
-    if item.status == "NeedsAttention" and (item.attention_icon_name or item.attention_icon_path) then
+    if item.status == "needs_attention" and (item.attention_icon_name or item.attention_icon_path) then
         return item.attention_icon_name or item.attention_icon_path
     end
     return item.icon_name or item.icon_path
@@ -66,10 +66,10 @@ local items = list {
     max_width = 6 * ITEM_WIDTH,
     -- Full height: a content-height row hangs the card 8px above every other tooltip's, and gives
     -- the pointer a shorter target.
-    height = "Fill",
-    direction = "Horizontal",
+    height = "fill",
+    direction = "horizontal",
     spacing = 0,
-    align_v = "Center",
+    align_v = "center",
     scroll = scroll("sys_tray"),
     visible = has_items,
     source = visible_items,
@@ -83,21 +83,21 @@ local items = list {
             face = icon {
                 name = art,
                 size = theme.icon.md,
-                align_h = "Center",
-                align_v = "Center",
+                align_h = "center",
+                align_v = "center",
                 foreground = theme.FG,
             }
         else
             -- Two 9px `DIM` letters beside 22px glyphs read as a rendering fault, so match the icon weight.
             face = cell((item.name or item.id or "?"):sub(1, 2), theme.FG, theme.font.sm,
-                { align = "Center", align_v = "Center" })
+                { align = "center", align_v = "center" })
         end
         -- Right opens a menu, left activates, middle is secondary activation. `item_is_menu` makes
         -- a left click open the menu instead of becoming a no-op.
         return rect {
             width = ITEM_WIDTH,
-            height = "Fill",
-            align_v = "Center",
+            height = "fill",
+            align_v = "center",
             hover = hover(SLOT .. "-" .. tostring(item.id)),
             on_hover = util.track_hover(hovered_id, item.id),
             on_click = function(rect_, mouse_button)
@@ -132,7 +132,7 @@ local items = list {
 
 -- `cell` takes no opacity, so the muted level is folded into the colour.
 local empty_label = cell("No tray items", theme.TEXT_MUTED, theme.font.xs, {
-    align_v = "Center",
+    align_v = "center",
     visible = has_items:map(function(any)
         return not any
     end),
@@ -140,7 +140,7 @@ local empty_label = cell("No tray items", theme.TEXT_MUTED, theme.font.xs, {
 
 local indicator = row {
     height = theme.item_height,
-    align_v = "Center",
+    align_v = "center",
     hover = hover(SLOT),
     radius = theme.item_radius,
     background = theme.GLASS_CONTROL,

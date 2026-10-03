@@ -23,7 +23,7 @@ local GROUND = {
 ---@param label string|Bound
 ---@param on_activate? fun() Absent on a `submit` button, whose click is the field's Enter.
 ---@param slot string A `hover` slot unique to this button; two buttons sharing one light up together.
----@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"Fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, submit?: boolean }
+---@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, submit?: boolean }
 return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
@@ -35,21 +35,21 @@ return function(label, on_activate, slot, opts)
         children[#children + 1] = icon {
             name = opts.icon,
             size = theme.icon.sm,
-            align_v = "Center",
+            align_v = "center",
             foreground = foreground,
         }
     end
     -- A Nerd Font glyph in the same slot, a `text` node, so it takes the button's ink.
     if opts.glyph then
-        children[#children + 1] = glyph(opts.glyph, foreground, theme.icon.sm, { align_v = "Center" })
+        children[#children + 1] = glyph(opts.glyph, foreground, theme.icon.sm, { align_v = "center" })
     end
     if label and label ~= "" then
         local label_content = type(label) == "string" and { { text = label, bold = true } } or label
         children[#children + 1] = cell(label_content, foreground, theme.font.sm, {
-            width = opts.width and "Fill" or nil,
-            align = "Center",
-            align_v = "Center",
-            wrap = opts.max_lines and "Word" or nil,
+            width = opts.width and "fill" or nil,
+            align = "center",
+            align_v = "center",
+            wrap = opts.max_lines and "word" or nil,
             max_lines = opts.max_lines,
         })
     end
@@ -58,7 +58,7 @@ return function(label, on_activate, slot, opts)
         width = opts.width,
         height = not opts.max_lines and height or nil,
         min_height = opts.max_lines and height or nil,
-        align_v = opts.max_lines and "Stretch" or "Center",
+        align_v = opts.max_lines and "stretch" or "center",
         radius = theme.radius.md,
         visible = opts.visible,
         -- Dims and ignores clicks, keeping the button's place in the row.
@@ -79,7 +79,7 @@ return function(label, on_activate, slot, opts)
                 on_activate()
             end
         end,
-        align_h = "Center",
+        align_h = "center",
         spacing = theme.spacing.xs,
         children = children,
     }

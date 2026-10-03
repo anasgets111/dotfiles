@@ -236,14 +236,14 @@ theme.workspace_drag_shadow_y  = 2
 theme.battery_pill_width       = s(80, 60)
 -- The hovered volume control holds "150%" plus a drag track.
 theme.volume_expanded_width    = s(220, 140)
--- Milliseconds for a node's `animate` table; the engine eases `InOutQuad` by default.
+-- Milliseconds for a node's `animate` table; the engine eases `in_out_quad` by default.
 theme.animation_ms             = 147
 theme.animation_fast_ms        = 100
 -- A pulse rather than a transition, slow enough to read as breathing.
 theme.animation_slow_ms        = 250
 theme.animation_very_slow_ms   = 400
 -- Notification travel: a card crosses its own width, so twice the base, with the tail of an
--- `OutQuint` settle. Derived so it follows the base rather than pinning 294.
+-- `out_quint` settle. Derived so it follows the base rather than pinning 294.
 theme.notification_slide_ms    = theme.animation_ms * 2
 -- How far a selected item's picture grows, shared by the launcher and wallpaper picker.
 theme.selected_scale           = 1.1

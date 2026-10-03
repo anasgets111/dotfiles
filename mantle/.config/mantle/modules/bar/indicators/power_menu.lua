@@ -103,11 +103,11 @@ local function slot(index)
     end)
     local slot_hovered = hover("power-" .. action.key)
     return pill.cell(rect {
-        align_h = "Center",
+        align_h = "center",
         hover = slot_hovered,
         radius = theme.item_radius,
         -- Plain fill bar cut by the circle's arc, under a clip.
-        clip = "Rounded",
+        clip = "rounded",
         background = computed({ slot_hovered, role }, function(is_hovered, what)
             return (is_hovered and what ~= "countdown") and theme.GLASS_CONTROL_HOVER or theme.GLASS_CONTROL
         end),
@@ -121,8 +121,8 @@ local function slot(index)
             if chosen then
                 eases.opacity = {
                     duration = theme.animation_slow_ms,
-                    easing = "InOutQuad",
-                    loops = "Infinite",
+                    easing = "in_out_quad",
+                    loops = "infinite",
                     keyframes = { 1, 0.4, 1 },
                 }
             end
@@ -138,7 +138,7 @@ local function slot(index)
                     local gone = math.max(0, COUNTDOWN - left)
                     return string.format("%d%%", math.floor(gone * 100 / COUNTDOWN + 0.5))
                 end),
-                height = "Fill",
+                height = "fill",
                 background = theme.ON_HOVER,
                 animate = { width = theme.animation_ms },
             },
@@ -160,8 +160,8 @@ local function slot(index)
                 font = role:map(function(what)
                     return what ~= "countdown" and theme.icon_font or nil
                 end),
-                align_h = "Center",
-                align_v = "Center",
+                align_h = "center",
+                align_v = "center",
             },
         },
         on_click = function(_, mouse_button)

@@ -100,7 +100,7 @@ local body = {
         subtitle = util.label(history_counts, summary),
         trailing = row {
             spacing = theme.spacing.sm,
-            align_v = "Center",
+            align_v = "center",
             children = {
                 -- Critical notifications bypass DND and never expire, so they get their own count.
                 info_badge(history_counts:map(function(counts)
@@ -138,7 +138,7 @@ local body = {
         end, ui.set_dnd_while_sharing, "notifications-dnd-sharing"),
     },
     list {
-        width = "Fill",
+        width = "fill",
         max_height = theme.notification_list_height,
         scroll = scroll("notification_feed"),
         spacing = theme.spacing.sm,

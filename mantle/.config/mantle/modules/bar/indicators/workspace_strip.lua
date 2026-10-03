@@ -200,8 +200,8 @@ end
 -- No ground of its own; the circles sit directly on the bar.
 local strip = pill.row({
     list {
-        direction = "Horizontal",
-        align_v = "Center",
+        direction = "horizontal",
+        align_v = "center",
         spacing = pill.spacing,
         animate = pill.animate,
         source = listed,
@@ -222,8 +222,8 @@ local drag_ghost = rect {
         local child = (name and name ~= "") and icon {
             name = name,
             size = theme.icon.lg,
-            align_h = "Center",
-            align_v = "Center",
+            align_h = "center",
+            align_v = "center",
             shadow_color = theme.workspace_drag_shadow,
             shadow_blur = theme.workspace_drag_icon_blur,
             shadow_offset = { x = 0, y = theme.workspace_drag_shadow_y },
@@ -231,8 +231,8 @@ local drag_ghost = rect {
             content = glyph or "",
             font_size = theme.font.md,
             foreground = theme.FG,
-            align_h = "Center",
-            align_v = "Center",
+            align_h = "center",
+            align_v = "center",
             shadow_color = theme.workspace_drag_shadow,
             shadow_blur = theme.workspace_drag_text_blur,
             shadow_offset = { x = 0, y = theme.workspace_drag_shadow_y },

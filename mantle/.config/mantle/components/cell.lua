@@ -1,4 +1,4 @@
--- `text` with the shell's defaults. `elide = "End"` cuts only a bounded `opts.width`, because
+-- `text` with the shell's defaults. `elide = "end"` cuts only a bounded `opts.width`, because
 -- "WWWWW" and "iiiii" differ in width and a character count is the wrong unit. `opts.wrap` moves the
 -- ellipsis to the last of `opts.max_lines`. It is off by default, since a second line grows bar slots.
 -- `opts.align` sets `text_align` inside the cell and `align_h` for a content-sized box in a stacking
@@ -12,7 +12,7 @@ local util = require("lib.util")
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound
 ---@param size? integer
----@param opts? { bold?: boolean|Bound, width?: integer|"Fill", align?: "Start"|"Center"|"End", align_v?: "Start"|"Center"|"End", visible?: boolean|Bound, wrap?: "None"|"Word"|Bound, max_lines?: integer|Bound, elided?: Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
+---@param opts? { bold?: boolean|Bound, width?: integer|"fill", align?: "start"|"center"|"end", align_v?: "start"|"center"|"end", visible?: boolean|Bound, wrap?: "none"|"word"|Bound, max_lines?: integer|Bound, elided?: Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
 return function(content, color, size, opts)
     opts = opts or {}
     return text {
@@ -27,7 +27,7 @@ return function(content, color, size, opts)
         align_h = opts.align,
         visible = opts.visible,
         text_align = opts.align,
-        elide = "End",
+        elide = "end",
         elided = opts.elided,
         wrap = opts.wrap,
         max_lines = opts.max_lines,

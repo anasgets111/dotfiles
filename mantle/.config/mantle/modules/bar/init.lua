@@ -21,19 +21,19 @@ local function side(names, name, align)
     end
     -- Fill sides share the remainder; the centre measures each content-sized inner row.
     return row {
-        width = "Fill", height = "Fill", align_h = align, align_v = "Center",
+        width = "fill", height = "fill", align_h = align, align_v = "center",
         children = { row {
-            geometry = geometry("bar-" .. name), height = "Fill", align_v = "Center",
+            geometry = geometry("bar-" .. name), height = "fill", align_v = "center",
             spacing = theme.spacing.sm, children = children,
         } },
     }
 end
 
 local indicator = row {
-    width = "Fill", height = theme.bar_height,
+    width = "fill", height = theme.bar_height,
     background = theme.GLASS_SURFACE, behind_blur = true,
     padding = { left = theme.spacing.md, right = theme.spacing.md },
-    children = { side(LEFT, "left", "Start"), center, side(RIGHT, "right", "End") },
+    children = { side(LEFT, "left", "start"), center, side(RIGHT, "right", "end") },
 }
 tooltips[#tooltips + 1] = audio_panel.output_tooltip
 tooltips[#tooltips + 1] = audio_panel.input_tooltip

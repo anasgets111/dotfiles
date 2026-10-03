@@ -39,11 +39,11 @@ end)
 -- Building blocks
 
 local function label(content, color, size)
-    return text { content = content, foreground = color or theme.FG, font_size = size or theme.font.sm, align_v = "Center" }
+    return text { content = content, foreground = color or theme.FG, font_size = size or theme.font.sm, align_v = "center" }
 end
 
 local function centred(child)
-    return column { align_h = "Center", align_v = "Center", clip = "None", children = { child } }
+    return column { align_h = "center", align_v = "center", clip = "none", children = { child } }
 end
 
 -- A slider on one line, updating while dragged.
@@ -54,8 +54,8 @@ local function knob(name, title, max, initial, steps, format)
         return h >= 0 and h or v
     end)
     local node = row {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
         spacing = theme.spacing.sm,
         children = {
             label(title, INK_DIM, theme.font.xs),
@@ -67,7 +67,7 @@ local function knob(name, title, max, initial, steps, format)
                 on_commit = function(v) value:set(v) end,
                 max = max,
                 steps = steps,
-                width = "Fill",
+                width = "fill",
                 height = 10,
             },
             label(live:map(function(v) return string.format(format, v) end), INK, theme.font.xs),
@@ -125,12 +125,12 @@ local function island(title, width, scene, controls, ground)
         padding = INSET,
         children = {
             column {
-                width = "Fill",
+                width = "fill",
                 spacing = INSET,
                 children = {
                     row { height = TITLE_H, padding = { left = theme.spacing.xs }, children = { label(title, INK, theme.font.sm) } },
-                    rect { width = "Fill", height = STAGE_H, radius = theme.radius.md, clip = "Rounded", background = ground, children = scene },
-                    row { width = "Fill", height = STRIP_H, align_v = "Center", spacing = theme.spacing.md, padding = { left = theme.spacing.xs, right = theme.spacing.xs }, children = controls },
+                    rect { width = "fill", height = STAGE_H, radius = theme.radius.md, clip = "rounded", background = ground, children = scene },
+                    row { width = "fill", height = STRIP_H, align_v = "center", spacing = theme.spacing.md, padding = { left = theme.spacing.xs, right = theme.spacing.xs }, children = controls },
                 },
             },
         },
@@ -162,32 +162,32 @@ local function pill(title, props)
     for key, value in pairs(props) do
         node[key] = value
     end
-    return column { align_h = "Center", clip = "None", spacing = theme.spacing.xs, children = { rect(node), label(title, INK, theme.font.xs) } }
+    return column { align_h = "center", clip = "none", spacing = theme.spacing.xs, children = { rect(node), label(title, INK, theme.font.xs) } }
 end
 
 local shader_island = island("Shader & blur", WIDE_W, {
     shader {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         source = SHADERS .. "probe_goo.frag",
         progress = shader_mode:map(function(m) return m == "Open" and 1 or 0 end),
         params = softness:map(function(s) return { tint = { 0.95, 0.45, 0.75, 0.85 }, softness = s, stagger = 0.15 } end),
         animate = shader_mode:map(function(m)
             if m == "Loop" then
-                return { progress = { duration = 1600, easing = "InOutCubic", keyframes = { 0, 1, 1, 0 }, loops = "Infinite" } }
+                return { progress = { duration = 1600, easing = "in_out_cubic", keyframes = { 0, 1, 1, 0 }, loops = "infinite" } }
             end
             return { progress = { spring = { stiffness = 140, damping = 10 } } }
         end),
     },
     centred(row {
         translate = { x = 0, y = 44 },
-        clip = "None",
+        clip = "none",
         spacing = theme.spacing.lg,
         children = {
             pill("no blur", {}),
             -- The whole pill blurs, text included, since a flat fill blurs into itself and looks
             -- unchanged. The rounded clip keeps the 3-sigma spread inside the pill.
-            pill("content_blur", { clip = "Rounded", content_blur = sigma }),
+            pill("content_blur", { clip = "rounded", content_blur = sigma }),
             pill("backdrop_blur", { backdrop_blur = sigma }),
         },
     }),
@@ -211,7 +211,7 @@ local shadow_island = island("Shadow", SIDE_W, {
         shadow_blur = lifted:map(function(on) return on and 36 or 12 end),
         shadow_offset = lifted:map(function(on) return { x = 0, y = on and 20 or 6 } end),
         translate = lifted:map(function(on) return { x = 0, y = on and -8 or 0 } end),
-        shadow_mode = shadow_mode,
+        shadow_mode = shadow_mode:map(string.lower),
         animate = { shadow_blur = theme.animation_slow_ms, shadow_offset = theme.animation_slow_ms, translate = theme.animation_slow_ms },
         children = { centred(label("hover me", theme.CRUST, theme.font.md)) },
     }),
@@ -226,8 +226,8 @@ local mask_node, mask_mode = choice("mask_mode", { "Fade", "Star", "Off" }, "Fad
 
 local gradient_island = island("Gradient & mask", SIDE_W, {
     row {
-        align_h = "Center",
-        align_v = "Center",
+        align_h = "center",
+        align_v = "center",
         spacing = theme.spacing.xl,
         children = {
             rect {
@@ -235,17 +235,17 @@ local gradient_island = island("Gradient & mask", SIDE_W, {
                 height = 120,
                 radius = theme.radius.lg,
                 rotate = 0,
-                animate = { rotate = { duration = 9000, easing = "Linear", keyframes = { 0, 360 }, loops = "Infinite" } },
+                animate = { rotate = { duration = 9000, easing = "linear", keyframes = { 0, 360 }, loops = "infinite" } },
                 background = kind:map(function(k)
-                    return { gradient = k, angle = k ~= "Radial" and 90 or nil, stops = { { 0, "#cba6f7" }, { 0.5, "#f38ba8" }, { 1, "#89b4fa" } } }
+                    return { gradient = k:lower(), angle = k ~= "Radial" and 90 or nil, stops = { { 0, "#cba6f7" }, { 0.5, "#f38ba8" }, { 1, "#89b4fa" } } }
                 end),
             },
             rect {
                 width = 120,
                 height = 120,
                 radius = theme.radius.lg,
-                clip = "Rounded",
-                children = { image { source = picture, width = "Fill", height = "Fill", fit = "cover", async = true } },
+                clip = "rounded",
+                children = { image { source = picture, width = "fill", height = "fill", fit = "cover", async = true } },
                 mask = computed({ mask_mode, kind }, function(m, k)
                     if m == "Off" then
                         return nil
@@ -254,7 +254,7 @@ local gradient_island = island("Gradient & mask", SIDE_W, {
                         return { source = SHADERS .. "probe_mask.svg" }
                     end
                     return {
-                        gradient = k,
+                        gradient = k:lower(),
                         angle = k ~= "Radial" and 90 or nil,
                         stops = { { 0, "#ffffff00" }, { 0.3, "#ffffff" }, { 0.7, "#ffffff" }, { 1, "#ffffff00" } },
                     }
@@ -271,8 +271,8 @@ local live_node, live = choice("cap_live", { "60 fps", "Uncapped", "Still" }, "6
 
 local capture_island = island("Live capture", WIDE_W, {
     capture {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         output = first_output,
         fit = "cover",
         live = live:map(function(v)
@@ -300,8 +300,8 @@ colours_node, colours = choice("pal_colours", { 8, 16, 32 }, 8, quantize)
 -- A grid of eight per row, since `list` lays out one line.
 local palette_island = island("Palette", SIDE_W, {
     column {
-        align_h = "Center",
-        align_v = "Center",
+        align_h = "center",
+        align_v = "center",
         spacing = theme.spacing.xs,
         children = swatches:map(function(found)
             local grid = {}
@@ -331,7 +331,7 @@ local palette_island = island("Palette", SIDE_W, {
     for i, swatch in ipairs(found) do
         stops[i] = { (i - 1) / (#found - 1), swatch.color }
     end
-    return { gradient = "Linear", angle = 90, stops = stops }
+    return { gradient = "linear", angle = 90, stops = stops }
 end))
 
 ---------------------------------------------------------------------------------------------------
@@ -349,14 +349,14 @@ end)
 local windows_island = island("Windows", SIDE_W, {
     list {
         source = window_list,
-        width = "Fill",
+        width = "fill",
         padding = INSET,
         spacing = theme.spacing.xs,
         limit = 7,
         key = function(w) return w.id end,
         itemfn = function(w)
             return rect {
-                width = "Fill",
+                width = "fill",
                 height = 26,
                 radius = 999,
                 padding = { left = 12, right = 12 },
@@ -367,9 +367,9 @@ local windows_island = island("Windows", SIDE_W, {
                     background = theme.animation_ms,
                     exit = { duration = theme.animation_very_slow_ms, opacity = 0, scale = 0.5 },
                 },
-                children = { row { width = "Fill", height = "Fill", align_v = "Center", spacing = theme.spacing.sm, children = {
-                    text { content = w.app_id, foreground = w.focused and theme.ACCENT or theme.FG, font_size = theme.font.xs, max_width = 120, elide = "End", align_v = "Center" },
-                    text { content = w.title, foreground = theme.DIM, font_size = theme.font.xs, width = "Fill", elide = "End", align_v = "Center" },
+                children = { row { width = "fill", height = "fill", align_v = "center", spacing = theme.spacing.sm, children = {
+                    text { content = w.app_id, foreground = w.focused and theme.ACCENT or theme.FG, font_size = theme.font.xs, max_width = 120, elide = "end", align_v = "center" },
+                    text { content = w.title, foreground = theme.DIM, font_size = theme.font.xs, width = "fill", elide = "end", align_v = "center" },
                 } } },
             }
         end,
@@ -408,8 +408,8 @@ local pane = rect {
     end,
     children = {
         column {
-            align_h = "Center",
-            align_v = "Center",
+            align_h = "center",
+            align_v = "center",
             spacing = 4,
             children = {
                 -- Red, so a pill visibly covers it: white under translucent white composites to
@@ -461,20 +461,20 @@ return { window {
     min_size = { width = WIN_W, height = WIN_H },
     background = theme.CRUST,
     child = rect {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         children = {
-            image { source = picture, width = "Fill", height = "Fill", fit = "cover", async = true },
+            image { source = picture, width = "fill", height = "fill", fit = "cover", async = true },
             column {
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
                 padding = PAD,
                 spacing = GAP,
                 children = {
                     row {
-                        width = "Fill",
+                        width = "fill",
                         height = HEADER_H,
-                        align_v = "Center",
+                        align_v = "center",
                         spacing = theme.spacing.md,
                         children = {
                             glass {
@@ -482,12 +482,12 @@ return { window {
                                 padding = { left = 14, right = 14, top = 5, bottom = 5 },
                                 children = { label("Mantle effects demo", INK, theme.font.md) },
                             },
-                            rect { width = "Fill" },
+                            rect { width = "fill" },
                             badge(cpu),
                         },
                     },
-                    row { width = "Fill", spacing = GAP, children = { shader_island, shadow_island, gradient_island } },
-                    row { width = "Fill", spacing = GAP, children = { capture_island, palette_island, windows_island } },
+                    row { width = "fill", spacing = GAP, children = { shader_island, shadow_island, gradient_island } },
+                    row { width = "fill", spacing = GAP, children = { capture_island, palette_island, windows_island } },
                 },
             },
             pane,

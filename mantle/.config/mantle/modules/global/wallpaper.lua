@@ -1,4 +1,4 @@
--- A `Background` panel with one image per output. `child` is keyed by output name, so a monitor
+-- A `background` panel with one image per output. `child` is keyed by output name, so a monitor
 -- plugged in later gets its own file and fit. `async` decodes off the render thread (a synchronous
 -- decode stalls it ~160ms per change) and `transition` holds the old image until the cross-fade.
 local wallpaper = require("lib.wallpaper")
@@ -6,15 +6,15 @@ local theme = require("config.theme")
 
 -- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it.
 local function wallpaper_panel(id, visible)
-    -- `"Ignore"` (layer-shell `-1`) covers the output; `false` would yield to the bar's reservation.
+    -- `"ignore"` (layer-shell `-1`) covers the output; `false` would yield to the bar's reservation.
     return panel {
         id = id,
         visible = visible, -- `nil` on the desktop, which is never conditional.
-        layer = "Background",
+        layer = "background",
         anchor = { top = true, bottom = true, left = true, right = true },
-        exclusive_zone = "Ignore",
-        width = "Fill",
-        height = "Fill",
+        exclusive_zone = "ignore",
+        width = "fill",
+        height = "fill",
         -- A failed decode shows dark rather than looking like an unmapped surface.
         background = theme.CRUST,
         child = function(output)
@@ -27,8 +27,8 @@ local function wallpaper_panel(id, visible)
                 async = true,
                 -- Implies `retain`; the shader is a `.frag` from `wallpaper.SHADER_FOLDER`.
                 transition = wallpaper.transition(),
-                width = "Fill",
-                height = "Fill",
+                width = "fill",
+                height = "fill",
             }
         end,
     }

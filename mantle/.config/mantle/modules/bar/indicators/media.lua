@@ -13,11 +13,11 @@ end
 
 return rect {
     width = theme.center_zone_width,
-    height = "Fill",
+    height = "fill",
     padding = theme.spacing.xs,
     children = { shader {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         source = store.media_visualizer:map(function(kind)
             return mantle.config_dir .. (kind == "bars" and "/shaders/cava_bars.frag" or "/shaders/cava_wave.frag")
         end),

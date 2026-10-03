@@ -87,10 +87,10 @@ local function row_for(row_entry)
     local pad = theme.spacing.sm + row_entry.depth * theme.spacing.md
     if entry.menu_type == "separator" then
         return rect {
-            width = "Fill",
+            width = "fill",
             height = SEPARATOR_HEIGHT,
             children = { rect {
-                width = "Fill", height = theme.border_width, align_v = "Center",
+                width = "fill", height = theme.border_width, align_v = "center",
                 margin = { left = pad, right = theme.spacing.sm }, background = theme.GLASS_BORDER,
             } },
         }
@@ -101,7 +101,7 @@ local function row_for(row_entry)
         children[#children + 1] = rect {
             width = theme.icon.sm,
             height = theme.icon.sm,
-            align_v = "Center",
+            align_v = "center",
             children = { entry.icon_name and entry.icon_name ~= "" and icon {
                 name = entry.icon_name,
                 size = theme.icon.sm,
@@ -110,15 +110,15 @@ local function row_for(row_entry)
         }
     end
     children[#children + 1] = cell(strip_mnemonics(entry.label), theme.FG, theme.font.sm, {
-        width = "Fill",
-        align_v = "Center",
+        width = "fill",
+        align_v = "center",
     })
     local trailing = marker(entry)
     if trailing ~= "" then
-        children[#children + 1] = cell(trailing, theme.FG, theme.font.sm, { align_v = "Center" })
+        children[#children + 1] = cell(trailing, theme.FG, theme.font.sm, { align_v = "center" })
     end
     return row {
-        width = "Fill",
+        width = "fill",
         height = theme.control.md,
         radius = theme.radius.md,
         hover = hovered,
@@ -139,7 +139,7 @@ end
 local body = item_id:map(function(id)
     return { list {
         id = "tray-menu-" .. tostring(id),
-        width = "Fill",
+        width = "fill",
         spacing = 0,
         max_height = rows:map(function(list)
             return util.fit_height(list, theme.tray_menu_height, 0, function(row_entry)

@@ -19,7 +19,7 @@ cava.levels = state("cava_levels", ZERO)
 
 local function playing(mpris)
     for _, player in ipairs((mpris and mpris.players) or {}) do
-        if player.play_state == "Playing" then
+        if player.play_state == "playing" then
             return true
         end
     end

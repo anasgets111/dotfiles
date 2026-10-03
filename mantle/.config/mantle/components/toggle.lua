@@ -27,9 +27,9 @@ return function(signal, read, on_change, slot, label)
     node.children = { cell(label or util.choose(on, "On", "Off"),
         tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM), theme.font.xs, {
             bold = on,
-            width = "Fill",
-            align = "Center",
-            align_v = "Center",
+            width = "fill",
+            align = "center",
+            align_v = "center",
             animate = { foreground = theme.animation_ms },
         }) }
     return rect(node)

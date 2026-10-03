@@ -76,7 +76,7 @@ local function web_ms(fraction)
 end
 
 local function press(rest, pressed, entering)
-    local ease = "InOutQuad"
+    local ease = "in_out_quad"
     return {
         duration = WEB_MS,
         keyframes = {
@@ -100,7 +100,7 @@ end
 
 -- The pill's reveal runs over 36-80% of the web transition, mirrored on exit.
 local pill_motion = web:map(function(on)
-    local window = { duration = web_ms(0.44), delay = web_ms(on and 0.36 or 0.2), easing = "InOutQuad" }
+    local window = { duration = web_ms(0.44), delay = web_ms(on and 0.36 or 0.2), easing = "in_out_quad" }
     return { width = window, opacity = window, scale = window }
 end)
 
@@ -260,26 +260,26 @@ local function app_tile(app)
         width = theme.launcher_tile_width,
         height = theme.launcher_tile_height,
         radius = theme.radius.md,
-        align_v = "Center",
+        align_v = "center",
         spacing = theme.spacing.xs,
         padding = theme.spacing.xs,
         children = {
             icon {
                 name = app.icon or "application-x-executable",
                 size = theme.icon.xl,
-                align_h = "Center",
+                align_h = "center",
                 scale = effective_selected:map(function(selected)
                     return selected == app.id and theme.selected_scale or 1
                 end),
-                animate = { scale = { duration = theme.animation_fast_ms, easing = "OutCubic" } },
+                animate = { scale = { duration = theme.animation_fast_ms, easing = "out_cubic" } },
             },
-            cell(app.name, theme.FG, theme.font.md, { width = "Fill", align = "Center" }),
+            cell(app.name, theme.FG, theme.font.md, { width = "fill", align = "center" }),
         },
     }))
 end
 
 local grid = list {
-    width = "Fill",
+    width = "fill",
     height = rows:map(function(chunks)
         return math.min(#chunks, VISIBLE_ROWS) * theme.launcher_tile_height
     end),
@@ -290,7 +290,7 @@ local grid = list {
         for i, app in ipairs(apps) do
             tiles[i] = app_tile(app)
         end
-        return row { width = "Fill", children = tiles }
+        return row { width = "fill", children = tiles }
     end,
     key = function(apps)
         local ids = {}
@@ -310,7 +310,7 @@ end
 -- Leading glyph, title over subtitle, then the action hint.
 local special_row = row(selectable(SPECIAL, {
     hover = hover("launcher-special"),
-    width = "Fill",
+    width = "fill",
     height = theme.control.xl,
     radius = theme.radius.md,
     visible = special_shown,
@@ -320,20 +320,20 @@ local special_row = row(selectable(SPECIAL, {
         -- One node, the family chosen by signal: under the Icon family a regional indicator never
         -- reaches the colour emoji face at the end of the fallback chain.
         cell(special_field("icon"), theme.FG, theme.icon.xl, {
-            align_v = "Center",
+            align_v = "center",
             font = special:map(function(row)
                 return (row and row.icon_is_text) and "Body" or "Icon"
             end),
         }),
         column {
-            width = "Fill",
-            align_v = "Center",
+            width = "fill",
+            align_v = "center",
             children = {
-                cell(special_field("title"), theme.FG, theme.font.lg, { width = "Fill" }),
-                cell(special_field("subtitle"), theme.DIM, theme.font.sm, { width = "Fill" }),
+                cell(special_field("title"), theme.FG, theme.font.lg, { width = "fill" }),
+                cell(special_field("subtitle"), theme.DIM, theme.font.sm, { width = "fill" }),
             },
         },
-        cell(special_field("hint"), theme.DIM, theme.font.sm, { align_v = "Center" }),
+        cell(special_field("hint"), theme.DIM, theme.font.sm, { align_v = "center" }),
     },
 }))
 
@@ -363,7 +363,7 @@ local function tip(label, hovered, x)
         animate = { opacity = theme.animation_fast_ms },
         radius = theme.radius.md,
         background = theme.ELEVATED,
-        children = { cell(label, theme.FG, theme.font.sm, { align = "Center", align_v = "Center" }) },
+        children = { cell(label, theme.FG, theme.font.sm, { align = "center", align_v = "center" }) },
     }
 end
 
@@ -376,8 +376,8 @@ local pill_close_hover = hover("launcher-pill-close")
 
 local search = on_rail(row {
     height = SIZE,
-    clip = "None",
-    align_v = "Center",
+    clip = "none",
+    align_v = "center",
     spacing = theme.spacing.sm,
     padding = { left = SEARCH_PADDING, right = SEARCH_PADDING },
     children = {
@@ -385,42 +385,42 @@ local search = on_rail(row {
             hover = return_hover,
             width = theme.icon.lg,
             height = theme.icon.lg,
-            align_v = "Center",
+            align_v = "center",
             radius = theme.icon.lg / 2,
             background = util.choose(return_hover, theme.ACCENT_SUBTLE, theme.CLEAR),
             animate = { background = theme.animation_fast_ms },
             on_click = function()
                 choose_mode("search")
             end,
-            children = { glyph(icons.search, theme.DIM, theme.icon.lg, { align = "Center", align_v = "Center" }) },
+            children = { glyph(icons.search, theme.DIM, theme.icon.lg, { align = "center", align_v = "center" }) },
         },
         rect {
             width = computed({ web, pill_width }, function(on, width)
                 return on and width or 0
             end),
             height = theme.control.md,
-            align_v = "Center",
+            align_v = "center",
             radius = theme.control.md / 2,
             background = theme.ACCENT_LIGHT,
-            clip = "Rounded",
+            clip = "rounded",
             opacity = util.choose(web, 1, 0),
             scale = util.choose(web, 1, 0.92),
             animate = pill_motion,
             children = { row {
-                width = "Fill",
-                height = "Fill",
-                align_v = "Center",
+                width = "fill",
+                height = "fill",
+                align_v = "center",
                 padding = { left = theme.spacing.md },
                 children = {
-                    cell(web_provider.ENGINE, theme.FG, theme.font.md, { width = "Fill", align_v = "Center" }),
+                    cell(web_provider.ENGINE, theme.FG, theme.font.md, { width = "fill", align_v = "center" }),
                     rect {
                         hover = pill_close_hover,
                         width = theme.control.sm,
-                        height = "Fill",
+                        height = "fill",
                         on_click = function()
                             choose_mode("search")
                         end,
-                        children = { glyph(icons.close, theme.DIM, theme.icon.sm, { align = "Center", align_v = "Center" }) },
+                        children = { glyph(icons.close, theme.DIM, theme.icon.sm, { align = "center", align_v = "center" }) },
                     },
                 },
             } },
@@ -428,8 +428,8 @@ local search = on_rail(row {
         textfield {
             id = "launcher_input",
             focus_target = search_focus,
-            width = "Fill",
-            height = "Fill",
+            width = "fill",
+            height = "fill",
             autofocus = true,
             font_size = theme.font.xl,
             foreground = theme.FG,
@@ -479,11 +479,11 @@ local search = on_rail(row {
 }, { width = mode_rail.width })
 
 local search_layers = {
-    on_rail(rect { height = "Fill", radius = SIZE / 2, behind_blur = true }, { width = mode_rail.width }),
+    on_rail(rect { height = "fill", radius = SIZE / 2, behind_blur = true }, { width = mode_rail.width }),
     shader {
         -- Leave room for the last circle's spring overshoot.
         width = theme.launcher_width + theme.spacing.md,
-        height = "Fill",
+        height = "fill",
         source = mantle.config_dir .. "/shaders/launcher_sheen.frag",
         params = {
             fill = theme.rgba(theme.LAUNCHER_FILL),
@@ -498,7 +498,7 @@ local search_layers = {
         shadow_blur = theme.launcher_shadow_blur,
         shadow_offset = { x = 0, y = theme.launcher_shadow_y },
         animate = computed({ web_moving, web }, function(moving, on)
-            local run = { progress = { duration = mode_rail.MS, easing = "Linear" } }
+            local run = { progress = { duration = mode_rail.MS, easing = "linear" } }
             if moving then
                 run.shadow_blur, run.shadow_offset = press_runs[on].shadow_blur, press_runs[on].shadow_offset
             end
@@ -531,36 +531,36 @@ return modal({
     card = column {
         width = theme.launcher_width,
         height = card_height,
-        clip = "None",
-        align_h = "Center",
-        align_v = "Start",
+        clip = "none",
+        align_h = "center",
+        align_v = "start",
         margin = { top = theme.launcher_top_margin },
         spacing = theme.spacing.md,
         children = {
             rect {
-                width = "Fill",
+                width = "fill",
                 height = SIZE,
-                clip = "None",
+                clip = "none",
                 animate = computed({ web_moving, web }, function(moving, on)
                     return moving and { scale = press_runs[on].scale } or {}
                 end),
                 children = search_layers,
             },
             column {
-                width = "Fill",
+                width = "fill",
                 height = body_height,
                 visible = util.linger(expanded, PANEL_MS),
                 opacity = util.choose(expanded, 1, 0),
                 animate = {
-                    height = { duration = PANEL_MS, easing = "OutCubic" },
-                    opacity = { duration = PANEL_MS, easing = "OutCubic", from = 0 },
+                    height = { duration = PANEL_MS, easing = "out_cubic" },
+                    opacity = { duration = PANEL_MS, easing = "out_cubic", from = 0 },
                 },
                 spacing = theme.spacing.xs,
                 padding = RESULTS_PADDING,
                 background = theme.LAUNCHER_RESULTS,
                 behind_blur = expanded,
                 radius = theme.launcher_radius,
-                clip = "Rounded",
+                clip = "rounded",
                 border_width = theme.border_width,
                 border_color = theme.GLASS_BORDER,
                 shadow_color = theme.LAUNCHER_SHADOW,
@@ -568,7 +568,7 @@ return modal({
                 shadow_offset = { x = 0, y = theme.launcher_shadow_y },
                 children = {
                     column {
-                        width = "Fill",
+                        width = "fill",
                         visible = rows:map(function(chunks)
                             return #chunks > 0
                         end),

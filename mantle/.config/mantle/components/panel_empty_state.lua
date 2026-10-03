@@ -14,13 +14,13 @@ return function(message, visible, opts)
     if type(mark) == "table" then
         lines[#lines + 1] = mark
     elseif mark then
-        lines[#lines + 1] = glyph(mark, theme.DIM, theme.icon.xl, { align = "Center" })
+        lines[#lines + 1] = glyph(mark, theme.DIM, theme.icon.xl, { align = "center" })
     end
-    lines[#lines + 1] = cell(message, theme.DIM, theme.font.sm, { align = "Center" })
+    lines[#lines + 1] = cell(message, theme.DIM, theme.font.sm, { align = "center" })
     return column {
-        width = "Fill",
+        width = "fill",
         height = opts.icon and theme.panel_empty_height or theme.control.lg,
-        align_v = "Center",
+        align_v = "center",
         spacing = theme.spacing.sm,
         visible = visible,
         children = lines,

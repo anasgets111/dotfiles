@@ -26,8 +26,8 @@ local function swallow_presses(card)
         width = card.width,
         height = card.height,
         margin = card.margin,
-        align_h = card.align_h or "Center",
-        align_v = card.align_v or "Center",
+        align_h = card.align_h or "center",
+        align_v = card.align_v or "center",
         clip = card.clip,
         children = { card },
     }
@@ -48,8 +48,8 @@ return function(opts)
             -- Keyed, since siblings otherwise match by position: opening a modal listed earlier
             -- would hand a closing card's slot to it and replay the entry.
             id = opts.kind,
-            width = "Fill",
-            height = "Fill",
+            width = "fill",
+            height = "fill",
             -- Every card centres in the space the bar leaves, so modals share one resting place.
             padding = { top = theme.bar_height },
             children = { card },

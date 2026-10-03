@@ -2,7 +2,7 @@ local icons = require("config.icons")
 local theme = require("config.theme")
 local glyph = require("components.glyph")
 
-local TURN = { rotate = { duration = 1000, easing = "Linear", keyframes = { 0, 360 }, loops = "Infinite" } }
+local TURN = { rotate = { duration = 1000, easing = "linear", keyframes = { 0, 360 }, loops = "infinite" } }
 
 -- `animate` follows `visible`, so a hidden spinner stops asking for a frame every frame.
 ---@param visible Signal
@@ -10,8 +10,8 @@ local TURN = { rotate = { duration = 1000, easing = "Linear", keyframes = { 0, 3
 ---@param color? Color|Bound
 return function(visible, size, color)
     return glyph(icons.refresh, color or theme.DIM, size, {
-        align = "Center",
-        align_v = "Center",
+        align = "center",
+        align_v = "center",
         visible = visible,
         animate = visible:map(function(on)
             return on and TURN or {}

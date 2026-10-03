@@ -17,8 +17,8 @@ local panel_empty_state = require("components.panel_empty_state")
 local store = require("lib.store")
 
 local SEEK_STEP_US = 5 * 1000 * 1000
-local NEXT_LOOP = { None = "Playlist", Playlist = "Track", Track = "None" }
-local LOOP_ICONS = { Track = icons.repeat_one, Playlist = icons.repeat_all }
+local NEXT_LOOP = { none = "playlist", playlist = "track", track = "none" }
+local LOOP_ICONS = { track = icons.repeat_one, playlist = icons.repeat_all }
 
 -- `players` is longest-running first and stable across position updates. The list shrinks without
 -- notice, so the index wraps on read instead of clamping on write.
@@ -75,7 +75,7 @@ local position_us = computed({ selected, mantle.system, anchor, seek_base }, fun
     end
     local position = base >= 0 and base or reported
     local now = (system and system.monotonic) or 0
-    if player.play_state == "Playing" and anchored > 0 and now > anchored then
+    if player.play_state == "playing" and anchored > 0 and now > anchored then
         position = position + (now - anchored) * 1000 * 1000
     end
     -- A `nil` length is a stream, which has no end to clamp to.
@@ -173,7 +173,7 @@ local body = {
         },
     },
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.md,
         visible = has_player,
         children = {
@@ -182,10 +182,10 @@ local body = {
                 height = theme.media_artwork,
                 radius = theme.radius.md,
                 background = theme.GLASS_CONTROL,
-                align_v = "Start",
+                align_v = "start",
                 children = {
                     -- An empty `image.source` draws nothing, so the note shows until a cover lands.
-                    glyph(icons.media, theme.DIM, theme.icon.xl, { align = "Center", align_v = "Center" }),
+                    glyph(icons.media, theme.DIM, theme.icon.xl, { align = "center", align_v = "center" }),
                     image {
                         source = selected:map(function(player)
                             return (player and player.album_art_path) or ""
@@ -193,19 +193,19 @@ local body = {
                         fit = "cover",
                         -- An inline decode would stall the frame that opens the card.
                         async = true,
-                        width = "Fill",
-                        height = "Fill",
+                        width = "fill",
+                        height = "fill",
                     },
                 },
             },
             column {
-                width = "Fill",
+                width = "fill",
                 spacing = theme.spacing.xs,
                 children = {
                     -- An empty title is normal between tracks, not a failure.
                     cell(util.bold(util.label(selected, function(player)
                         return first_nonempty(player and player.title, player and player.identity, "Unknown track")
-                    end)), theme.FG, theme.font.lg, { width = "Fill" }),
+                    end)), theme.FG, theme.font.lg, { width = "fill" }),
                     -- PlayerState exposes album: show artist and album, falling back cleanly.
                     cell(util.label(selected, function(player)
                         if not player then
@@ -215,11 +215,11 @@ local body = {
                             return player.artist .. " • " .. player.album
                         end
                         return first_nonempty(player.artist, player.album, player.identity, "Unknown artist")
-                    end), theme.DIM, theme.font.sm, { width = "Fill" }),
+                    end), theme.DIM, theme.font.sm, { width = "fill" }),
                     row {
-                        width = "Fill",
+                        width = "fill",
                         -- Main-axis on a `row`, so the controls centre in the column, not against the artwork.
-                        align_h = "Center",
+                        align_h = "center",
                         spacing = theme.spacing.xs,
                         children = {
                             panel_action_icon(icons.shuffle, with_player(function(player)
@@ -235,16 +235,16 @@ local body = {
                             end)),
                             transport("media-rewind", icons.rewind, nil, -SEEK_STEP_US, nil, cannot_seek),
                             transport("media-playpause", selected:map(function(player)
-                                return (player and player.play_state == "Playing") and icons.pause or icons.play
+                                return (player and player.play_state == "playing") and icons.pause or icons.play
                             end), "play_pause", nil, "md", selected:map(function(p)
                                 if not p then
                                     return true
                                 end
-                                return (p.play_state == "Playing" and not p.can_pause)
-                                    or (p.play_state ~= "Playing" and not p.can_play)
+                                return (p.play_state == "playing" and not p.can_pause)
+                                    or (p.play_state ~= "playing" and not p.can_play)
                             end)),
                             transport("media-stop", icons.stop, "stop", nil, nil, selected:map(function(p)
-                                return not p or p.play_state == "Stopped"
+                                return not p or p.play_state == "stopped"
                             end)),
                             transport("media-forward", icons.fast_forward, nil, SEEK_STEP_US, nil, cannot_seek),
                             transport("media-next", icons.next, "next", nil, nil, selected:map(function(p)
@@ -253,7 +253,7 @@ local body = {
                             panel_action_icon(selected:map(function(player)
                                 return LOOP_ICONS[player and player.loop_status] or icons.repeat_off
                             end), with_player(function(player)
-                                mantle.mpris:set_loop_status(player.id, NEXT_LOOP[player.loop_status] or "Playlist")
+                                mantle.mpris:set_loop_status(player.id, NEXT_LOOP[player.loop_status] or "playlist")
                             end), {
                                 slot = "media-loop",
                                 active = selected:map(function(player)
@@ -302,9 +302,9 @@ local body = {
                         end),
                     },
                     row {
-                        width = "Fill",
+                        width = "fill",
                         children = {
-                            cell(position_us:map(clock), theme.DIM, theme.font.xs, { width = "Fill" }),
+                            cell(position_us:map(clock), theme.DIM, theme.font.xs, { width = "fill" }),
                             cell(selected:map(function(player)
                                 return clock(player and player.length or nil)
                             end), theme.DIM, theme.font.xs),

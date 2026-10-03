@@ -75,7 +75,7 @@ return {
         headroom_color = headroom,
         width = width,
         height = theme.item_height,
-        align_v = "Center",
+        align_v = "center",
         hover = hovered,
         dragging = dragging,
         radius = theme.item_radius,
@@ -103,15 +103,15 @@ return {
             local ink = under:map(theme.text_contrast)
             return row {
                 width = width,
-                height = "Fill",
-                align_h = "Center",
-                align_v = "Center",
+                height = "fill",
+                align_h = "center",
+                align_v = "center",
                 spacing = theme.spacing.xs,
                 animate = { width = theme.animation_ms },
                 children = {
-                    glyph(volume_glyph, ink, theme.icon.lg, { align_v = "Center" }),
+                    glyph(volume_glyph, ink, theme.icon.lg, { align_v = "center" }),
                     -- A hidden percentage costs no width or spacing gap.
-                    cell(readout, ink, theme.font.sm, { align_v = "Center", visible = expanded }),
+                    cell(readout, ink, theme.font.sm, { align_v = "center", visible = expanded }),
                 },
             }
         end,

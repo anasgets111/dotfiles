@@ -43,7 +43,7 @@ local screenshare_tooltip = tooltip({
 -- Camera and screencast circles are readouts. The microphone circle toggles source mute, which does
 -- not end capture, so it stays up.
 local indicator = row {
-    align_v = "Center",
+    align_v = "center",
     spacing = theme.spacing.sm,
     -- Invisible children leave layout, but the row still takes the bar's gap, so the group
     -- hides itself. Keyed on `mic_shown`: a muted microphone appears without a user.

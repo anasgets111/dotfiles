@@ -35,7 +35,7 @@ local function day_cell(day, is_today, is_saturday)
                 is_today and theme.text_contrast(theme.ACCENT)
                 or is_saturday and theme.ACCENT
                 or theme.FG,
-                theme.font.sm, { width = "Fill", align = "Center", align_v = "Center" }) or nil,
+                theme.font.sm, { width = "fill", align = "center", align_v = "center" }) or nil,
         },
     }
 end
@@ -52,7 +52,7 @@ local function week_rows(now)
             local in_month = day >= 1 and day <= days_in_month
             days[column] = day_cell(in_month and day or nil, day == today.day, column == COLUMNS)
         end
-        rows[#rows + 1] = row { width = "Fill", spacing = theme.spacing.xs, children = days }
+        rows[#rows + 1] = row { width = "fill", spacing = theme.spacing.xs, children = days }
     end
     return rows
 end
@@ -60,7 +60,7 @@ end
 local day_names = {}
 for column, name in ipairs(DAY_NAMES) do
     day_names[column] = cell(util.bold(name), column == COLUMNS and theme.ACCENT or theme.FG,
-        theme.font.xs, { width = DAY_SIDE, align = "Center" })
+        theme.font.xs, { width = DAY_SIDE, align = "center" })
 end
 
 -- A popup surface's size is explicit, so height follows row count: a five-week month is one
@@ -77,15 +77,15 @@ return {
         return line_of(theme.font.sm) + line_of(theme.font.xs) + rows * DAY_SIDE + (rows + 1) * theme.spacing.xs
     end),
     node = column {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         children = {
             cell(util.bold(util.today:map(function(today)
                 return os.date("%B %Y", today)
-            end)), theme.FG, theme.font.sm, { width = "Fill", align = "Center" }),
-            row { width = "Fill", spacing = theme.spacing.xs, children = day_names },
+            end)), theme.FG, theme.font.sm, { width = "fill", align = "center" }),
+            row { width = "fill", spacing = theme.spacing.xs, children = day_names },
             column {
-                width = "Fill",
+                width = "fill",
                 spacing = theme.spacing.xs,
                 children = util.today:map(week_rows),
             },

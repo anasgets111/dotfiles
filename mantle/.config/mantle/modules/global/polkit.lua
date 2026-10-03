@@ -27,25 +27,25 @@ local shown = util.linger(active, theme.animation_ms)
 return panel {
     id = "polkit_dialog",
     -- One instance, on the output the compositor picks at each show.
-    output = "Active",
+    output = "active",
     namespace = "mantle-polkit",
-    layer = "Overlay",
+    layer = "overlay",
     anchor = { top = true, bottom = true, left = true, right = true },
     exclusive_zone = false,
-    width = "Fill",
-    height = "Fill",
+    width = "fill",
+    height = "fill",
     visible = shown,
     -- Exclusive while open: the sole `secure_submit` field is armed on keyboard focus, so no click
     -- is needed (see `modules/global/lock.lua`).
-    keyboard_interactivity = util.choose(shown, "Exclusive", "None"),
+    keyboard_interactivity = util.choose(shown, "exclusive", "none"),
     child = rect {
-        width = "Fill",
-        height = "Fill",
+        width = "fill",
+        height = "fill",
         children = {
             scrim(active),
             modal({ kind = "polkit", showing = active, card = panel_card({
                 row {
-                    width = "Fill",
+                    width = "fill",
                     spacing = theme.spacing.lg,
                     children = {
                         icon {
@@ -53,11 +53,11 @@ return panel {
                                 return polkit.icon_name ~= "" and polkit.icon_name or "dialog-password"
                             end),
                             size = theme.icon.xl,
-                            align_v = "Center",
+                            align_v = "center",
                         },
                         cell(util.bold(util.label(mantle.polkit, function(polkit)
                             return polkit.message
-                        end)), theme.FG, theme.font.md, { width = "Fill", wrap = "Word", align_v = "Center" }),
+                        end)), theme.FG, theme.font.md, { width = "fill", wrap = "word", align_v = "center" }),
                     },
                 },
                 input {
@@ -72,14 +72,14 @@ return panel {
                     end),
                 },
                 cell("Checking…", theme.DIM, theme.font.sm, {
-                    width = "Fill",
+                    width = "fill",
                     visible = util.shown_when(mantle.polkit, function(polkit)
                         return polkit.authenticating
                     end),
                 }),
                 row {
-                    width = "Fill",
-                    align_h = "End",
+                    width = "fill",
+                    align_h = "end",
                     spacing = theme.spacing.sm,
                     children = {
                         action_button("Cancel", cancel, "polkit-cancel", { tone = "quiet" }),

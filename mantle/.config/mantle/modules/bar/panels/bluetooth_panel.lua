@@ -151,7 +151,7 @@ local function device_row(item)
         width = theme.icon.md,
         height = theme.icon.md,
         children = { glyph(device_icon(device), item.status == "connected" and theme.ACCENT or theme.FG,
-            theme.icon.md, { align = "Center", align_v = "Center" }) },
+            theme.icon.md, { align = "center", align_v = "center" }) },
     }
     if device.busy ~= nil then
         -- No click, so a second pair or connect cannot start over the first.
@@ -186,7 +186,7 @@ local function device_row(item)
         end
     elseif item.card ~= nil then
         trailing[#trailing + 1] = glyph(item.codec_open and icons.chevron_down or icons.chevron_right,
-            theme.DIM, theme.icon.sm, { align_v = "Center" })
+            theme.DIM, theme.icon.sm, { align_v = "center" })
         on_activate = function()
             local open_for = codec_for:get()
             codec_for:set(open_for == device.mac and "" or device.mac)
@@ -199,7 +199,7 @@ local function device_row(item)
         subtitle = connected and codec
             or device.blocked and "Blocked" or nil,
         selected = connected,
-        trailing = row { spacing = theme.spacing.xs, align_v = "Center", children = trailing },
+        trailing = row { spacing = theme.spacing.xs, align_v = "center", children = trailing },
         on_activate = on_activate,
     }
 end
@@ -231,7 +231,7 @@ local body = {
     },
     -- "visible" lets devices find this one, and the agent asks before any pairs. "scan" is discovery.
     row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.xs,
         visible = util.shown_when(mantle.bluetooth, enabled),
         children = {

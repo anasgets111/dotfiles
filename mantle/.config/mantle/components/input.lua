@@ -12,8 +12,8 @@ local util = require("lib.util")
 ---@param opts InputOpts
 return function(opts)
     local field = opts.field
-    field.width = field.width or "Fill"
-    field.height = field.height or "Fill"
+    field.width = field.width or "fill"
+    field.height = field.height or "fill"
     field.font_size = field.font_size or theme.font.sm
     field.foreground = field.foreground or theme.FG
     local error = opts.error
@@ -22,7 +22,7 @@ return function(opts)
     end)
     local children = {
         rect {
-            width = "Fill",
+            width = "fill",
             height = theme.control.md,
             background = theme.GLASS_INPUT,
             radius = theme.radius.md,
@@ -45,7 +45,7 @@ return function(opts)
 
     if error and error_shown then
         children[2] = row {
-            width = "Fill",
+            width = "fill",
             visible = util.linger(error_shown, theme.animation_ms),
             opacity = util.choose(error_shown, 1, 0),
             animate = { opacity = theme.animation_ms },
@@ -56,7 +56,7 @@ return function(opts)
     end
 
     return column {
-        width = "Fill",
+        width = "fill",
         visible = opts.visible,
         spacing = theme.spacing.xs,
         children = children,

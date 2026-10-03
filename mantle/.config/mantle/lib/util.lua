@@ -86,7 +86,7 @@ function util.with(source, key, value)
 end
 
 function util.battery_is_draining(state)
-    return state == "Discharging" or state == "Empty"
+    return state == "discharging" or state == "empty"
 end
 
 -- Shared percentages for the indicator, notifications and automatic suspend.
@@ -103,10 +103,10 @@ function util.battery_glyph(battery)
         return icons.battery_ac
     end
     -- Charge-limited machines normally show the plug; a stopped charge gets the bolt.
-    if battery.state == "PendingCharge" then
+    if battery.state == "pending_charge" then
         return icons.battery_pending
     end
-    if battery.state == "Charging" or battery.state == "FullyCharged" then
+    if battery.state == "charging" or battery.state == "fully_charged" then
         return icons.battery_ac
     end
     local bucket = math.floor((battery.percent or 0) / 20) + 1

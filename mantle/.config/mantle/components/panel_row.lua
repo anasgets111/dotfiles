@@ -1,5 +1,5 @@
 -- Panel-list row with a leading icon, title, optional subtitle and trailing action slot.
--- `width = "Fill"` keeps the trailing slot at the right edge and elides the title.
+-- `width = "fill"` keeps the trailing slot at the right edge and elides the title.
 --
 -- `selected` gets a ring, a tinted ground and an accent title; colour alone reads as a different
 -- kind of row. Rows without `on_activate` leave clicks to their children or parent.
@@ -38,9 +38,9 @@ return function(opts)
     local expanded = opts.expanded
     if expanded then
         local chevron = glyph(util.choose(expanded, icons.chevron_down, icons.chevron_right), theme.DIM, theme.icon.sm,
-            { align_v = "Center" })
+            { align_v = "center" })
         opts.trailing = opts.trailing
-            and row { spacing = theme.spacing.xs, align_v = "Center", children = { opts.trailing, chevron } }
+            and row { spacing = theme.spacing.xs, align_v = "center", children = { opts.trailing, chevron } }
             or chevron
         opts.on_activate = function()
             expanded:set(not expanded:get())
@@ -53,12 +53,12 @@ return function(opts)
         title = { { text = title, bold = true } }
     end
     local title_lines = { cell(title, title_color, opts.title_size or theme.font.sm, {
-        width = "Fill",
+        width = "fill",
         animate = { foreground = theme.animation_ms },
     }) }
     if opts.subtitle then
         title_lines[#title_lines + 1] = cell(opts.subtitle, theme.DIM, opts.subtitle_size or theme.font.xs,
-            { width = "Fill" })
+            { width = "fill" })
     end
 
     local children = {}
@@ -67,20 +67,20 @@ return function(opts)
     elseif opts.icon then
         -- A glyph, not a themed icon, which `PaintStyle::Icon` cannot tint.
         children[#children + 1] = glyph(opts.icon, opts.icon_color or title_color, theme.icon.md, {
-            align_v = "Center",
+            align_v = "center",
             animate = { foreground = theme.animation_ms },
         })
     end
-    children[#children + 1] = column { width = "Fill", align_v = "Center", children = title_lines }
+    children[#children + 1] = column { width = "fill", align_v = "center", children = title_lines }
     if opts.trailing then
-        opts.trailing.align_v = opts.trailing.align_v or "Center"
+        opts.trailing.align_v = opts.trailing.align_v or "center"
         children[#children + 1] = opts.trailing
     end
 
     local body = row {
-        width = "Fill",
+        width = "fill",
         spacing = theme.spacing.sm,
-        align_v = "Center",
+        align_v = "center",
         padding = { left = theme.spacing.sm, right = theme.spacing.sm },
         children = children,
     }
@@ -95,9 +95,9 @@ return function(opts)
 
     local shell = {
         hover = hovered,
-        width = "Fill",
+        width = "fill",
         height = opts.height or theme.control.lg,
-        align_v = "Center",
+        align_v = "center",
         radius = theme.radius.md,
         visible = opts.details == nil and opts.visible or nil,
         opacity = opts.opacity,
@@ -107,7 +107,7 @@ return function(opts)
         animate = {
             background = theme.animation_ms,
             border_color = theme.animation_ms,
-            opacity = { duration = theme.animation_ms, easing = "OutCubic" },
+            opacity = { duration = theme.animation_ms, easing = "out_cubic" },
         },
         children = { body },
     }
@@ -126,7 +126,7 @@ return function(opts)
     if not opts.animate_details then
         opts.details.visible = expanded
         return column {
-            width = "Fill",
+            width = "fill",
             spacing = opts.details_spacing or theme.spacing.xs,
             visible = opts.visible,
             children = { control, opts.details },

@@ -73,26 +73,26 @@ end)
 return panel {
     id = "notification_area",
     -- One instance, on the output the compositor picks at each show.
-    output = "Active",
-    layer = "Overlay",
+    output = "active",
+    layer = "overlay",
     anchor = { top = true, bottom = true, right = true },
     margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md, bottom = theme.spacing.md },
     width = theme.notification_width,
     -- As with the bar panels, keep the surface stable: Hyprland stretches buffers during layer resizes.
-    height = "Fill",
+    height = "fill",
     -- Held past the last card, since hiding the surface would skip its exit.
     visible = util.linger(visible_groups:map(function(shown)
         return #shown > 0
     end), theme.notification_slide_ms),
     -- Bound, not constant: niri focuses an `on_demand` surface on map, which would steal the
-    -- keyboard on every notification. `OnDemand` because a small surface has no outside click to
-    -- release `Exclusive`; niri focuses it on the click, so hover arms the binding first, and a
+    -- keyboard on every notification. `on_demand` because a small surface has no outside click to
+    -- release `exclusive`; niri focuses it on the click, so hover arms the binding first, and a
     -- pending draft holds it after the pointer leaves.
     keyboard_interactivity = computed({ HOVER, notification_state.reply_pending }, function(hovered, pending)
-        return (hovered or pending) and "OnDemand" or "None"
+        return (hovered or pending) and "on_demand" or "none"
     end),
     child = column {
-        width = "Fill",
+        width = "fill",
         -- The stack sizes to content inside the fixed surface; empty space takes no input.
         -- One region for the stack: per-card regions would order enter/leave against each other and
         -- release a hold just acquired.
@@ -102,7 +102,7 @@ return panel {
         end,
         children = {
             list {
-                width = "Fill",
+                width = "fill",
                 spacing = theme.spacing.sm,
                 source = visible_groups,
                 limit = MAX_CARDS,
