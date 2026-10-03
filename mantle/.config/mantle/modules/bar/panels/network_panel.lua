@@ -32,9 +32,9 @@ local function detail_line(first, second)
     return first and second and (first .. " · " .. second) or first or second or ""
 end
 
--- NetworkManager reports Mb/s, with `0` for unknown.
+-- NetworkManager reports Mb/s, `nil` when unknown.
 local function speed_text(mbps)
-    return mbps >= 1000 and string.format("%g Gb/s", mbps / 1000) or mbps > 0 and string.format("%d Mb/s", mbps) or nil
+    return mbps and (mbps >= 1000 and string.format("%g Gb/s", mbps / 1000) or string.format("%d Mb/s", mbps))
 end
 
 -- A radio's toggle tile: `radio` prefixes its `_present`/`_enabled` fields and `set_*_enabled` action.

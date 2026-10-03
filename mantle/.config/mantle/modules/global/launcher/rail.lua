@@ -102,7 +102,7 @@ end
 ---@field bind fun(node: table, fields: table, extra?: table): table From `binder(open)`.
 
 -- ponytail: the blur covers the pill and the buttons but not the necks the shader melts between
--- them, since `blur` ignores `mask` and shaders. Shape the blur from the shader once the engine can.
+-- them, since `behind_blur` ignores `mask` and shaders. Shape the blur from the shader once the engine can.
 ---@param opts RailOpts
 ---@return table[]
 function M.buttons(opts)
@@ -121,7 +121,7 @@ function M.buttons(opts)
             clip = "None",
             visible = shown,
             children = {
-                bind(rect { width = SIZE, height = SIZE, radius = SIZE / 2, blur = true }, {
+                bind(rect { width = SIZE, height = SIZE, radius = SIZE / 2, behind_blur = true }, {
                     scale = function(progress)
                         return growth(index, progress)
                     end,

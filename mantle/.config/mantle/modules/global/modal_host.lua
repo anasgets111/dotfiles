@@ -55,11 +55,11 @@ end)
 return panel {
     id = "modal_host",
     -- One instance, on the output the compositor picks at each show.
-    monitor = "Active",
+    output = "Active",
     namespace = "mantle-modal-host",
     layer = "Top",
     anchor = { top = true, bottom = true, left = true, right = true },
-    exclusive = false,
+    exclusive_zone = false,
     width = "Fill",
     height = "Fill",
     visible = shown,

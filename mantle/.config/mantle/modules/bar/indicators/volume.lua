@@ -49,7 +49,7 @@ local readout = computed({ mantle.audio, held }, function(audio, pending)
     elseif audio.muted then
         return "Muted"
     end
-    return string.format("%d%%", math.floor((pending >= 0 and pending or audio.volume) * 100 + 0.5))
+    return string.format("%d%%", math.floor((pending >= 0 and pending or audio.volume) + 0.5))
 end)
 
 local track = geometry("bar-volume")
@@ -69,7 +69,8 @@ return {
             mantle.audio:set_muted(false)
         end,
         max = util.MAX_VOLUME,
-        split_at = 1,
+        steps = util.MAX_VOLUME / 5,
+        split_at = 100,
         pending = held,
         headroom_color = headroom,
         width = width,

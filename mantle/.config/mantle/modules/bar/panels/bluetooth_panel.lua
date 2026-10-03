@@ -46,7 +46,7 @@ end
 
 local function battery_badge(device)
     local level = device.battery
-    if not (level and level >= 0) then
+    if not level then
         return nil
     end
     return info_badge(string.format("%d%%", level),

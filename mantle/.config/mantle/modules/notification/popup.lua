@@ -73,7 +73,7 @@ end)
 return panel {
     id = "notification_area",
     -- One instance, on the output the compositor picks at each show.
-    monitor = "Active",
+    output = "Active",
     layer = "Overlay",
     anchor = { top = true, bottom = true, right = true },
     margin = { top = theme.bar_height + theme.spacing.md, right = theme.spacing.md, bottom = theme.spacing.md },

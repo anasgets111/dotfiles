@@ -352,7 +352,7 @@ return function(group, ui, opts)
         animate = in_history and { opacity = { duration = theme.animation_ms, from = 0 }, exit = FADE_EXIT }
             or slide_in((group.rank - 1) * STAGGER_MS),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
-        blur = not in_history,
+        behind_blur = not in_history,
         radius = theme.radius.md,
         border_width = in_history and theme.border_width or theme.border_width_medium,
         border_color = group.urgency == "critical" and theme.RED or theme.GLASS_BORDER,

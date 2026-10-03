@@ -130,8 +130,8 @@ function util.app_icon(entry)
     end)
 end
 
--- The engine's `set_volume` clamp.
-util.MAX_VOLUME = 1.5
+-- The engine's `set_volume` clamp, in percent.
+util.MAX_VOLUME = 150
 
 -- Noon today: it changes once a day, so a reader re-resolves at midnight, not on each clock tick.
 util.today = mantle.system:map(function(system)
@@ -189,7 +189,7 @@ function util.volume_glyph(audio)
     elseif audio.muted then
         return icons.vol_muted
     end
-    local percent = audio.volume * 100
+    local percent = audio.volume
     if percent < 1 then
         return icons.vol_zero
     elseif percent < 33 then

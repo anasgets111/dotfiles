@@ -61,7 +61,7 @@ local selected_id = state("launcher_selected", "")
 local mode = state("launcher_mode", "search")
 local rail = state("launcher_rail", false)
 local rail_focus = state("launcher_rail_focus", 1)
-local search_focus = focus("launcher_search")
+local search_focus = focus_target("launcher_search")
 local web = mode:map(function(current)
     return current == "web"
 end)
@@ -427,7 +427,7 @@ local search = on_rail(row {
         },
         textfield {
             id = "launcher_input",
-            focus = search_focus,
+            focus_target = search_focus,
             width = "Fill",
             height = "Fill",
             autofocus = true,
@@ -479,7 +479,7 @@ local search = on_rail(row {
 }, { width = mode_rail.width })
 
 local search_layers = {
-    on_rail(rect { height = "Fill", radius = SIZE / 2, blur = true }, { width = mode_rail.width }),
+    on_rail(rect { height = "Fill", radius = SIZE / 2, behind_blur = true }, { width = mode_rail.width }),
     shader {
         -- Leave room for the last circle's spring overshoot.
         width = theme.launcher_width + theme.spacing.md,
@@ -558,7 +558,7 @@ return modal({
                 spacing = theme.spacing.xs,
                 padding = RESULTS_PADDING,
                 background = theme.LAUNCHER_RESULTS,
-                blur = expanded,
+                behind_blur = expanded,
                 radius = theme.launcher_radius,
                 clip = "Rounded",
                 border_width = theme.border_width,

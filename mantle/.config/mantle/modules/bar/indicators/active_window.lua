@@ -8,11 +8,11 @@ local cell = require("components.cell")
 local EMPTY_LABEL = "Desktop"
 
 -- The client is `nil` before the first snapshot and whenever nothing holds focus; the supervisor
--- omits the key rather than sending null (`workspaces/controller.rs`). `active_client.class` is the
--- toplevel `app_id`, which `util.app_entry` maps to a `.desktop` entry.
+-- omits the key rather than sending null (`workspaces/controller.rs`). `util.app_entry` maps
+-- `active_client.app_id` to a `.desktop` entry.
 local function focused(applications, workspaces)
     local client = workspaces and workspaces.active_client
-    return client, client and util.app_entry(applications, client.class)
+    return client, client and util.app_entry(applications, client.app_id)
 end
 
 -- Title, then the desktop entry's name, then the raw `app_id`: a splash or a freshly mapped terminal
@@ -25,7 +25,7 @@ local function label(applications, workspaces)
     if client.title ~= nil and client.title ~= "" then
         return client.title
     end
-    return (entry and entry.name) or client.class or EMPTY_LABEL
+    return (entry and entry.name) or client.app_id or EMPTY_LABEL
 end
 
 local focused_icon = icon {

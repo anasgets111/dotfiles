@@ -17,7 +17,7 @@ local mixer_open = disclosure.state("audio_mixer_open", false)
 local TRACK_INSET = theme.spacing.sm * 2 + theme.icon.md
 
 local function percent(value)
-    return value and string.format("%d%%", math.floor(value * 100 + 0.5)) or "--"
+    return value and string.format("%d%%", math.floor(value + 0.5)) or "--"
 end
 
 ---@class AudioControlOpts
@@ -84,6 +84,7 @@ local function audio_control(opts)
             and util.audio_device_glyph(util.active_device(audio[opts.devices]), opts.is_input) or fallback
     end)
     local held = state("audio_pending_" .. opts.name, -1)
+    local max = opts.headroom and util.MAX_VOLUME or 100
     tooltips[opts.name] = tooltip({
         id = "audio_mute_" .. opts.name .. "_tooltip",
         in_panel = true,
@@ -144,8 +145,9 @@ local function audio_control(opts)
                     mantle.audio[opts.set_volume](mantle.audio, value)
                 end,
                 pending = held,
-                max = opts.headroom and util.MAX_VOLUME or nil,
-                split_at = opts.headroom and 1 or nil,
+                max = max,
+                steps = max / 5,
+                split_at = opts.headroom and 100 or nil,
                 marker = opts.headroom,
                 headroom_color = util.choose(is_muted, theme.INACTIVE, theme.RED),
                 height = theme.audio_slider_height,
@@ -213,6 +215,8 @@ local function stream_row(app)
                     on_commit = function(value)
                         mantle.audio:set_app_volume(app.id, value)
                     end,
+                    max = 100,
+                    steps = 20,
                     color = app.muted and theme.INACTIVE or theme.ACCENT,
                 } },
             },

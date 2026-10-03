@@ -12,7 +12,7 @@ local function wallpaper_panel(id, visible)
         visible = visible, -- `nil` on the desktop, which is never conditional.
         layer = "Background",
         anchor = { top = true, bottom = true, left = true, right = true },
-        exclusive = "Ignore",
+        exclusive_zone = "Ignore",
         width = "Fill",
         height = "Fill",
         -- A failed decode shows dark rather than looking like an unmapped surface.

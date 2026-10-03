@@ -39,7 +39,7 @@ local bluetooth_text = mantle.bluetooth:map(function(bluetooth)
     local first = devices[1]
     local detail
     if first ~= nil then
-        local battery = first.battery and first.battery >= 0 and string.format(" · Battery: %d%%", first.battery) or ""
+        local battery = first.battery and string.format(" · Battery: %d%%", first.battery) or ""
         local name = first.name ~= nil and first.name ~= "" and first.name or first.mac or "?"
         detail = string.format("Top: %s%s", name, battery)
     elseif bluetooth.discovering then

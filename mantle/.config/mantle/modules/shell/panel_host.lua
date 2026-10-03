@@ -122,7 +122,7 @@ local function inverted_corner(corner, glass_on_right, margin)
             radius = radius,
             corner_shape = "Scoop",
             background = glass and theme.GLASS_SURFACE or nil,
-            blur = not glass,
+            behind_blur = not glass,
         }
     end
     return rect {
@@ -146,7 +146,7 @@ return panel {
     layer = "Top",
     -- Three edges and a pixel zone: anchored to all four, a surface reserves nothing.
     anchor = { top = true, left = true, right = true },
-    exclusive = theme.bar_height,
+    exclusive_zone = theme.bar_height,
     width = "Fill",
     -- Screen-tall: Hyprland animates a layer resize by stretching the old buffer.
     height = "100%",
@@ -229,7 +229,7 @@ return panel {
                                                         height = { duration = theme.animation_ms, easing = "OutCubic" },
                                                     },
                                                     background = theme.GLASS_SURFACE,
-                                                    blur = true,
+                                                    behind_blur = true,
                                                     padding = { top = CARD_PADDING + theme.radius.md, right = CARD_PADDING,
                                                         bottom = CARD_PADDING, left = CARD_PADDING },
                                                 }),

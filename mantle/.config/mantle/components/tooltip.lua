@@ -64,7 +64,7 @@ return function(opts)
             opacity = util.choose(shown, 1, 0),
             animate = { opacity = theme.animation_ms },
             background = theme.GLASS_SURFACE,
-            blur = true,
+            behind_blur = true,
             border_width = theme.border_width,
             border_color = theme.GLASS_BORDER,
             padding = {

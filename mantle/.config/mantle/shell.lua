@@ -2,7 +2,7 @@
 -- functions, and `modules/` assembles them. Capabilities push their own signals on `mantle`, so
 -- there is no data layer here.
 --
--- Editing reloads in place. Changing a surface's `id`/`layer`/`anchor`/`monitor`/`namespace`
+-- Editing reloads in place. Changing a surface's `id`/`layer`/`anchor`/`output`/`namespace`
 -- rebuilds that surface; other edits update it live.
 --
 -- Bind every `require` to a local: in a table it expands its second return value and fails with

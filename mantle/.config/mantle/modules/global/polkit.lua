@@ -27,11 +27,11 @@ local shown = util.linger(active, theme.animation_ms)
 return panel {
     id = "polkit_dialog",
     -- One instance, on the output the compositor picks at each show.
-    monitor = "Active",
+    output = "Active",
     namespace = "mantle-polkit",
     layer = "Overlay",
     anchor = { top = true, bottom = true, left = true, right = true },
-    exclusive = false,
+    exclusive_zone = false,
     width = "Fill",
     height = "Fill",
     visible = shown,

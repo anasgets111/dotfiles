@@ -57,14 +57,14 @@ mantle.audio:on_change(function(audio, previous)
     if previous == nil then
         return
     end
-    local percent = audio.volume and math.floor(audio.volume * 100 + 0.5)
-    local was = previous.volume and math.floor(previous.volume * 100 + 0.5)
+    local percent = audio.volume and math.floor(audio.volume + 0.5)
+    local was = previous.volume and math.floor(previous.volume + 0.5)
     if percent and was and (audio.muted ~= previous.muted or percent ~= was) then
         -- Muted keeps the level and greys it: the volume is still set, only silenced.
         osd.show("volume", {
             glyph = util.volume_glyph(audio),
             text = audio.muted and "Muted" or string.format("%d%%", percent),
-            level = percent / util.MAX_VOLUME,
+            level = percent / util.MAX_VOLUME * 100,
             color = audio.muted and theme.DIM or theme.ACCENT,
         })
     end
@@ -117,8 +117,8 @@ mantle.keyboard:on_change(function(keyboard, previous)
     if keyboard.scroll_lock ~= previous.scroll_lock then
         toggle("locks", keyboard.scroll_lock, icons.keyboard, icons.keyboard, "Scroll lock")
     end
-    if keyboard.backlight_pct >= 0 and keyboard.backlight_pct ~= previous.backlight_pct then
-        percent_level("backlight", icons.keyboard, keyboard.backlight_pct)
+    if keyboard.backlight_percent and keyboard.backlight_percent ~= previous.backlight_percent then
+        percent_level("backlight", icons.keyboard, keyboard.backlight_percent)
     end
 end)
 

@@ -95,7 +95,7 @@ local fact_row = row {
 return panel {
     id = "osd",
     -- One instance, on the output the compositor picks at each show.
-    monitor = "Active",
+    output = "Active",
     layer = "Overlay",
     -- No `left`/`right`: the protocol centres an axis with neither edge anchored and leaves its
     -- width measurable, where two anchored edges would span the output.
@@ -127,7 +127,7 @@ return panel {
         end),
         -- The same sheet and edge as a notification card: both float over wallpaper.
         background = theme.GLASS,
-        blur = true,
+        behind_blur = true,
         radius = theme.radius.md,
         border_width = theme.border_width_medium,
         border_color = theme.GLASS_BORDER,

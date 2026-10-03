@@ -42,7 +42,7 @@ end
 
 -- Keyed on the `position` value, not the push. A browser answers `Position` with the same number all
 -- track, which would reset the elapsed term on every push.
-local anchored_position = -1
+local anchored_position
 
 -- The last seek target, or `-1` while the player's reading holds. A browser often emits neither
 -- `Seeked` nor `PropertiesChanged`, so the target stands until a fresh reading replaces it.
@@ -50,10 +50,10 @@ local seek_base = state("media_seek_base", -1)
 
 mantle.mpris:on_change(function()
     local player = selected:get()
-    -- `-1` is "this player has never answered `Position`", not a reading, so it must not become an
+    -- `nil` is "this player has never answered `Position`", not a reading, so it must not become an
     -- anchor to count from.
-    local position = (player and player.position) or -1
-    if position == anchored_position or position < 0 then
+    local position = player and player.position
+    if position == nil or position == anchored_position then
         return
     end
     anchored_position = position
@@ -67,10 +67,10 @@ local position_us = computed({ selected, mantle.system, anchor, seek_base }, fun
     if not player then
         return -1
     end
-    -- `-1` is "never answered". Passing it through lets `clock` draw `--:--` instead of a confident
+    -- `nil` is "never answered". Returning `-1` lets `clock` draw `--:--` instead of a confident
     -- `0:00` that a retained anchor would then count upward from.
-    local reported = player.position or -1
-    if base < 0 and reported < 0 then
+    local reported = player.position
+    if base < 0 and reported == nil then
         return -1
     end
     local position = base >= 0 and base or reported
@@ -78,13 +78,13 @@ local position_us = computed({ selected, mantle.system, anchor, seek_base }, fun
     if player.play_state == "Playing" and anchored > 0 and now > anchored then
         position = position + (now - anchored) * 1000 * 1000
     end
-    -- A `-1` length is a stream, which has no end to clamp to.
-    local length = player.length or -1
-    return length > 0 and math.min(position, length) or position
+    -- A `nil` length is a stream, which has no end to clamp to.
+    local length = player.length
+    return length and length > 0 and math.min(position, length) or position
 end)
 
--- Minutes and zero-padded seconds, and never a negative or a fabricated zero for the `-1` a
--- stream reports.
+-- Minutes and zero-padded seconds, and never a negative or a fabricated zero for the `nil` a
+-- stream reports or the `-1` of `position_us`.
 local function clock(microseconds)
     if microseconds == nil or microseconds < 0 then
         return "--:--"
@@ -124,9 +124,9 @@ end
 local function transport(slot, icon, command, offset, size, disabled)
     return panel_action_icon(icon, with_player(function(player)
         if offset then
-            local length = player.length or -1
+            local length = player.length
             local estimate = position_us:get() + offset
-            estimate = math.max(0, length > 0 and math.min(estimate, length) or estimate)
+            estimate = math.max(0, length and length > 0 and math.min(estimate, length) or estimate)
             seek_base:set(math.floor(estimate))
             anchor_now()
             mantle.mpris:seek_relative(player.id, offset)
@@ -257,7 +257,7 @@ local body = {
                             end), {
                                 slot = "media-loop",
                                 active = selected:map(function(player)
-                                    return player ~= false and player.loop_status ~= "None"
+                                    return player ~= false and LOOP_ICONS[player.loop_status] ~= nil
                                 end),
                             }),
                         },
@@ -267,8 +267,8 @@ local body = {
                         signal = position_us,
                         read = function(microseconds)
                             local player = selected:get()
-                            local length = player and player.length or -1
-                            if not (player and player.can_seek) or length <= 0 or microseconds < 0 then
+                            local length = player and player.length
+                            if not (player and player.can_seek) or not length or length <= 0 or microseconds < 0 then
                                 return nil
                             end
                             return microseconds / length
@@ -278,8 +278,8 @@ local body = {
                             if not player or not player.can_seek then
                                 return
                             end
-                            local length = player.length or -1
-                            if length <= 0 then
+                            local length = player.length
+                            if not length or length <= 0 then
                                 return
                             end
                             -- Clamps as `clamp_seek_target` does, so the Supervisor never moves a target the
@@ -296,9 +296,9 @@ local body = {
                         steps = 0,
                         height = theme.spacing.md,
                         background = theme.GLASS_CONTROL,
-                        -- A stream reports a `-1` length, so it has no fraction to drag to.
+                        -- A stream reports a `nil` length, so it has no fraction to drag to.
                         fill_visible = selected:map(function(player)
-                            return player ~= false and player.can_seek and (player.length or -1) > 0
+                            return player ~= false and player.can_seek and (player.length or 0) > 0
                         end),
                     },
                     row {
@@ -306,7 +306,7 @@ local body = {
                         children = {
                             cell(position_us:map(clock), theme.DIM, theme.font.xs, { width = "Fill" }),
                             cell(selected:map(function(player)
-                                return clock(player and player.length or -1)
+                                return clock(player and player.length or nil)
                             end), theme.DIM, theme.font.xs),
                         },
                     },
