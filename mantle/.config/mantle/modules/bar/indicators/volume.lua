@@ -97,17 +97,15 @@ return {
                 ui_state.toggle_panel("audio", rect)
             end
         end,
-        -- Eases with the control, so the copies inside the bars stay on the one under them.
         label = function(under)
             ---@cast under Signal<Color>
             local ink = under:map(theme.text_contrast)
             return row {
-                width = width,
+                width = "fill",
                 height = "fill",
                 align_h = "center",
                 align_v = "center",
                 spacing = theme.spacing.xs,
-                animate = { width = theme.animation_ms },
                 children = {
                     glyph(volume_glyph, ink, theme.icon.lg, { align_v = "center" }),
                     -- A hidden percentage costs no width or spacing gap.

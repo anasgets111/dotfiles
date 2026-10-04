@@ -34,7 +34,7 @@ local theme = require("config.theme")
 ---@field dragging? StateSignal<boolean> True while a drag is held. Default `state(name .. "_dragging")`.
 ---@field visible? boolean|Bound
 ---@field on_click? fun(rect: Rect, button: "left"|"right"|"middle") The left click still lands after the drag ends.
----@field label? fun(ground: Color|Bound): Node Built on the track and again inside each bar, which clips its copy, so ink contrasts with the ground under each pixel. Give it the control's width so the copies line up.
+---@field label? fun(ground: Color|Bound): Node Built on the track and again inside each bar, which clips its copy, so ink contrasts with the ground under each pixel. Give it `width = "fill"`; each copy fills a control-wide box.
 
 local function clamp(value, max)
     return math.max(0, math.min(max, value))
@@ -133,7 +133,16 @@ return function(opts)
             animate = fill_animate,
             -- ponytail: the bar's square box clips its copy, so ink overhangs a pill's rounded end
             -- by ~1.5px; `clip = "rounded"` is exact for an offscreen target per bar.
-            children = { opts.label and opts.label(color) or nil },
+            -- A control-wide box placed from the left, so the copy lines up with the track's; the
+            -- label alone would centre on the bar, since its `align_h` also places it.
+            children = {
+                opts.label and rect {
+                    width = opts.width or "fill",
+                    height = "fill",
+                    animate = opts.animate and { width = opts.animate.width },
+                    children = { opts.label(color) },
+                } or nil,
+            },
         }
     end
     local split = opts.split_at or max
