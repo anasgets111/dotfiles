@@ -64,10 +64,9 @@ local PERCENT = util.bold(util.label(mantle.battery, function(battery)
     return string.format("%d%%", battery.percent)
 end))
 
--- `width` is the pill's, so the copy inside the fill lines up with the one under it.
-local function readout(color, width)
+local function readout(color)
     return row {
-        width = width,
+        width = "fill",
         height = "fill",
         align_h = "center",
         align_v = "center",
@@ -98,7 +97,9 @@ local fill = rect {
             } or nil,
         }
     end),
-    children = { readout(ON_FILL, theme.battery_pill_width) },
+    -- A pill-wide box, so the copy inside the fill lines up with the one under it; the row alone
+    -- would centre on the fill, since its `align_h` also places it.
+    children = { rect { width = theme.battery_pill_width, height = "fill", children = { readout(ON_FILL) } } },
 }
 
 local battery_module = rect {
@@ -117,7 +118,7 @@ local battery_module = rect {
         return battery.present
     end),
     -- Pill copy first: the fill paints over it, and shows it again while the plug flash fades.
-    children = { readout(ON_PILL, "fill"), fill },
+    children = { readout(ON_PILL), fill },
 }
 
 local battery_tooltip = tooltip({
