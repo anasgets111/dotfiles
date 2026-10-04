@@ -251,6 +251,8 @@ theme.selected_scale           = 1.1
 -- falls behind, and a spring carries its velocity across. 400/42 is critically
 -- damped, and a single press still lands in about a tenth of a second.
 theme.spring_tracking          = { spring = { stiffness = 400, damping = 42 } }
+-- A wheel notch glides to its stop; touchpads still move the offset at once.
+theme.scroll_ease              = { duration = theme.animation_fast_ms, easing = "out_cubic" }
 -- Bar panels share one card in `modules/shell/panel_host.lua`. A list scrolls past `panel_list_height`,
 -- cut between rows by `util.fit_height`, so it needs each row's height: headers take a fixed one.
 theme.panel_width              = s(340, 280)

@@ -462,6 +462,7 @@ local body = {
                 width = "fill",
                 height = package_height,
                 scroll = scroll("update_packages"),
+                animate = { scroll = theme.scroll_ease },
                 spacing = theme.spacing.xs,
                 source = sorted_packages,
                 itemfn = function(package)

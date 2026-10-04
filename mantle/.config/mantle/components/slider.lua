@@ -131,8 +131,10 @@ return function(opts)
             background = color,
             opacity = fill_opacity,
             animate = fill_animate,
-            -- ponytail: the bar's square box clips its copy, so ink overhangs a pill's rounded end
-            -- by ~1.5px; `clip = "rounded"` is exact for an offscreen target per bar.
+            -- The bar cuts its label copy at its edge, so the ink colour flips there.
+            -- ponytail: a square box clip, so ink overhangs a pill's rounded end by ~1.5px;
+            -- `clip = "rounded"` is exact for an offscreen target per bar.
+            clip = "box",
             -- A control-wide box placed from the left, so the copy lines up with the track's; the
             -- label alone would centre on the bar, since its `align_h` also places it.
             children = {

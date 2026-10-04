@@ -12,6 +12,7 @@ return function(source, name, itemfn, visible)
         width = "fill",
         spacing = theme.spacing.xs,
         scroll = scroll(name),
+        animate = { scroll = theme.scroll_ease },
         visible = visible,
         max_height = source:map(function(items)
             return util.fit_height(items, theme.panel_list_height, theme.spacing.xs, function(item)

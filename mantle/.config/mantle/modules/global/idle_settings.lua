@@ -281,6 +281,7 @@ local body = panel_card(util.concat({
 })
 body.max_height = theme.idle_body_height
 body.scroll = body_scroll
+body.animate = { scroll = theme.scroll_ease }
 
 return modal({
     kind = "idle_settings",

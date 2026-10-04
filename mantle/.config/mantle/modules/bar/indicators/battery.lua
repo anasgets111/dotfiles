@@ -79,6 +79,8 @@ local function readout(color)
 end
 
 local fill = rect {
+    -- Cuts its readout copy at the fill's edge, so the contrast colour flips there.
+    clip = "box",
     width = mantle.battery:map(function(battery)
         return string.format("%d%%", math.floor(math.max(0, math.min(100, (battery and battery.percent) or 0)) + 0.5))
     end),

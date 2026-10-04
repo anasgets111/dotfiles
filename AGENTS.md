@@ -106,11 +106,13 @@ The default terminal resolves through `xdg-terminal-exec`.
 | --- | --- |
 | The VM has no `io`, `debug` or FFI; `os` has only `time`, `date`, `clock`, `getenv` | Shell out with `process.run` |
 | `require` returns a second value, the path, so as the last item of a table constructor it adds a string entry | Bind modules to locals first, or wrap the call: `(require(...))` |
-| `:map`, `computed`, `on_change`, `action` and `timer` bodies have a 5 ms CPU budget (`exceeded the 5ms CPU budget`) | Keep them cheap |
+| `:map`, `computed`, `on_change`, `action` and `timer` bodies have a 2.5 ms CPU budget (`exceeded the 2.5ms CPU budget`) | Keep them cheap; build nodes once and let a map only pick between them |
 | A node keeps its properties until a signal it read is written. `os.time()`, `os.date()` with no time, or a local read in a map stays at its last answer | Derive time from `mantle.system`; keep changing values in a `state` |
-| Signals nested in a property table do not resolve | Derive the whole table |
+| A signal nested in `children`, a `list`'s `source`, a structural field (a panel's `anchor`) or a table a signal returns does not resolve; elsewhere in a property table it does | Derive the whole value there |
 | A node rejects unknown fields (`node.expanded = x`) only when its subtree resolves, so `mantle check` misses ones under a closed panel | Export signals from a `lib/` module, never on a node; check `mantle log` after opening the panel |
 | `visible = false` keeps a frozen subtree | Switch views through `children` |
+| `clip` defaults to `"none"`: children, shadows and transforms paint past a box | Set `clip = "box"` where a box must cut: a fill hiding its label copy, a slide-in, an animated width |
+| A `row`'s `align_h` packs its children and also places the row in a stacking parent, so a fixed-width row centres itself | Wrap it in a `rect` (or `width = "fill"`) to centre only the children |
 | Named state resets when its scalar seed changes | Keep the seed stable |
 | `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |
 | `fonts` is read once at startup | Restart the shell after editing it |

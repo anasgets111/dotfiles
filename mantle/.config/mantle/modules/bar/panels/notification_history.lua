@@ -141,6 +141,7 @@ local body = {
         width = "fill",
         max_height = theme.notification_list_height,
         scroll = scroll("notification_feed"),
+        animate = { scroll = theme.scroll_ease },
         spacing = theme.spacing.sm,
         -- Same hold as the popup: expiry must not reorder the list under a pointer. The regions are
         -- separate because the two surfaces never overlap.

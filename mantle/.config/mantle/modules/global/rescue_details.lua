@@ -42,6 +42,7 @@ local log = list {
     width = "fill",
     max_height = theme.rescue_log_height,
     scroll = log_scroll,
+    animate = { scroll = theme.scroll_ease },
     source = error_log:map(function(text)
         local lines = {}
         for line in text:gmatch("[^\n]+") do

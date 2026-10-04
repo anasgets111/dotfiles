@@ -49,6 +49,7 @@ return rect {
     height = theme.item_height,
     align_h = "center",
     align_v = "center",
+    clip = "box",
     animate = { width = theme.spring_tracking },
     children = app_id:map(function(key)
         return { row {

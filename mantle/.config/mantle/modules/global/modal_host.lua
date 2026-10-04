@@ -34,15 +34,6 @@ local function close()
     ui_state.close_modal(ui_state.active_modal:get())
 end
 
-local escape_sink = textfield {
-    id = "escape_sink",
-    width = 0,
-    height = 0,
-    autofocus = true,
-    on_change = function() end,
-    on_cancel = close,
-}
-
 local cards = computed(lingering, function(...)
     local open = {}
     for index, modal in ipairs(modals) do
@@ -50,12 +41,13 @@ local cards = computed(lingering, function(...)
             table.insert(open, modal.node)
         end
     end
-    table.insert(open, escape_sink)
     return open
 end)
 
 return panel {
     id = "modal_host",
+    -- Escape closes the top modal when no field takes it; a field with text clears first.
+    on_escape = close,
     -- One instance, on the output the compositor picks at each show.
     output = "active",
     namespace = "mantle-modal-host",

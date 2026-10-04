@@ -7,7 +7,6 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
-local notification_state = require("lib.notification_state")
 local network_join = require("lib.network_join")
 local bar_mod = require("modules.bar")
 local bar = bar_mod.indicator
@@ -81,7 +80,7 @@ end)
 -- The card drops from behind the bar and retracts the same way, `linger` keeping it for the exit.
 -- Travel is the shown section's measured height plus chrome, so a switch while closed retracts to
 -- the *next* card's height; an unmeasured section falls back to the slide distance and snaps once.
--- Switching while open morphs in place; animated disclosures temporarily follow content height.
+-- The card is content-sized, so `animate.height` eases every switch and disclosure in place.
 local CARD_PADDING = theme.spacing.md
 -- The card starts `radius.md` above the bar's bottom edge, which cuts its top corners square.
 local CARD_CHROME = CARD_PADDING * 2 + theme.radius.md
@@ -93,15 +92,6 @@ local card_height = computed({ ui_state.panel_kind, table.unpack(section_rects) 
         end
     end
 end)
--- Keep content sizing for two frames after collapse, until geometry reports the settled height.
-local notification_expanded = computed({
-    state("sysinfo_expanded_notifications", false), state("weather_expanded_notifications", false),
-}, function(system, weather)
-    return system or weather
-end)
-local notification_content_height = computed(
-    { notification_expanded, pulse(notification_expanded, theme.animation_ms + 32), notification_state.groups_animating },
-    function(open, changing, groups_changing) return open or changing or groups_changing end)
 local hidden_top = card_height:map(function(height)
     return height and -(height + theme.spacing.xs) or -theme.panel_slide
 end)
@@ -129,6 +119,7 @@ local function inverted_corner(corner, glass_on_right, margin)
         width = corner,
         height = corner,
         margin = margin,
+        clip = "box",
         children = { scoop(corner, true), scoop(corner + 2, false) },
     }
 end
@@ -183,6 +174,7 @@ return panel {
                 width = "fill",
                 height = "fill",
                 margin = { top = theme.bar_height },
+                clip = "box",
                 children = ui_state.panel_instance:map(function(instance)
                     return {
                         -- `close_panel`, not a local handler: an outside click and a second
@@ -215,15 +207,8 @@ return panel {
                                                 inverted_corner(CORNER, true, { top = theme.radius.md }),
                                                 panel_card(shown_section, {
                                                     width = card_width,
-                                                    -- Geometry publishes after the disclosure tween settles, so
-                                                    -- content sizing carries the card while disclosures open or close.
-                                                    height = computed({ ui_state.panel_kind, card_height, notification_content_height }, function(
-                                                        kind, height, content_height)
-                                                        if kind == notification_history.kind and content_height then
-                                                            return nil
-                                                        end
-                                                        return height
-                                                    end),
+                                                    -- Content-sized, never `card_height`: a set height squeezes the
+                                                    -- scrolling feed, whose geometry then feeds back the cut height.
                                                     animate = {
                                                         width = { duration = theme.animation_ms, easing = "out_cubic" },
                                                         height = { duration = theme.animation_ms, easing = "out_cubic" },

@@ -147,6 +147,7 @@ local body = item_id:map(function(id)
             end)
         end),
         scroll = scroll("tray_menu"),
+        animate = { scroll = theme.scroll_ease },
         source = rows,
         itemfn = row_for,
         -- Depth is part of the key: the same entry drawn at two levels is two rows, and reconciling

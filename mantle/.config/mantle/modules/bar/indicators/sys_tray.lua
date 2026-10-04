@@ -68,6 +68,7 @@ local items = list {
     spacing = 0,
     align_v = "center",
     scroll = scroll("sys_tray"),
+    animate = { scroll = theme.scroll_ease },
     visible = has_items,
     source = visible_items,
     itemfn = function(item)

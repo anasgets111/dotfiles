@@ -49,6 +49,7 @@ local function audio_control(opts)
             end)
         end),
         scroll = scroll("audio_devices_" .. opts.name),
+        animate = { scroll = theme.scroll_ease },
         source = devices,
         itemfn = function(device)
             return panel_row {
@@ -327,6 +328,7 @@ local body = {
                 end)
             end),
             scroll = scroll("audio_mixer"),
+            animate = { scroll = theme.scroll_ease },
             spacing = theme.spacing.sm,
             source = streams,
             itemfn = stream_row,
