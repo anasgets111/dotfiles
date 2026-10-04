@@ -154,9 +154,7 @@ local function pill(title, props)
         background = TINT,
         border_width = 1,
         border_color = "#ffffff55",
-        shadow_color = "#00000099",
-        shadow_blur = 18,
-        shadow_offset = { x = 0, y = 8 },
+        shadows = { { color = "#00000099", blur = 18, offset = { x = 0, y = 8 } } },
         children = { centred(label("Mantle", INK, theme.font.md)) },
     }
     for key, value in pairs(props) do
@@ -207,12 +205,14 @@ local shadow_island = island("Shadow", SIDE_W, {
         height = shape:map(function(s) return s == "Pill" and 56 or 96 end),
         radius = shape:map(function(s) return s == "Pill" and 999 or theme.radius.lg end),
         background = shape:map(function(s) return s == "Glass" and theme.with_opacity(theme.ACCENT, 0.4) or theme.ACCENT end),
-        shadow_color = "#00000099",
-        shadow_blur = lifted:map(function(on) return on and 36 or 12 end),
-        shadow_offset = lifted:map(function(on) return { x = 0, y = on and 20 or 6 } end),
+        shadows = { {
+            color = "#00000099",
+            blur = lifted:map(function(on) return on and 36 or 12 end),
+            offset = lifted:map(function(on) return { x = 0, y = on and 20 or 6 } end),
+        } },
         translate = lifted:map(function(on) return { x = 0, y = on and -8 or 0 } end),
         shadow_mode = shadow_mode:map(string.lower),
-        animate = { shadow_blur = theme.animation_slow_ms, shadow_offset = theme.animation_slow_ms, translate = theme.animation_slow_ms },
+        animate = { shadows = theme.animation_slow_ms, translate = theme.animation_slow_ms },
         children = { centred(label("hover me", theme.CRUST, theme.font.md)) },
     }),
 }, { shape_node, shadow_mode_node }, theme.GLASS)
@@ -393,9 +393,7 @@ local pane = rect {
     backdrop_blur = sigma,
     border_width = 1,
     border_color = "#ffffff66",
-    shadow_color = "#000000aa",
-    shadow_blur = 18,
-    shadow_offset = { x = 0, y = 8 },
+    shadows = { { color = "#000000aa", blur = 18, offset = { x = 0, y = 8 } } },
     cursor = "grab",
     on_drag = function(rect, pointer, phase)
         local x, y = rect.x + pointer.x, rect.y + pointer.y

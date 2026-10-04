@@ -87,14 +87,16 @@ local function press(rest, pressed, entering)
         },
     }
 end
+local function shadows(blur, y)
+    return { { color = theme.LAUNCHER_SHADOW, blur = blur, offset = { x = 0, y = y } } }
+end
+local SHADOWS = shadows(theme.launcher_shadow_blur, theme.launcher_shadow_y)
 local press_runs = {}
 for _, entering in ipairs({ true, false }) do
     local lift = theme.launcher_shadow_y * 0.43
     press_runs[entering] = {
         scale = press({ x = 1, y = 1 }, { x = 0.985, y = 0.945 }, entering),
-        shadow_blur = press(theme.launcher_shadow_blur, theme.launcher_shadow_blur * 0.72, entering),
-        shadow_offset = press({ x = 0, y = theme.launcher_shadow_y }, { x = 0, y = theme.launcher_shadow_y - lift },
-            entering),
+        shadows = press(SHADOWS, shadows(theme.launcher_shadow_blur * 0.72, theme.launcher_shadow_y - lift), entering),
     }
 end
 
@@ -494,13 +496,11 @@ local search_layers = {
             layout_width = theme.launcher_width,
         },
         progress = util.choose(rail, 1, 0),
-        shadow_color = theme.LAUNCHER_SHADOW,
-        shadow_blur = theme.launcher_shadow_blur,
-        shadow_offset = { x = 0, y = theme.launcher_shadow_y },
+        shadows = SHADOWS,
         animate = computed({ web_moving, web }, function(moving, on)
             local run = { progress = { duration = mode_rail.MS, easing = "linear" } }
             if moving then
-                run.shadow_blur, run.shadow_offset = press_runs[on].shadow_blur, press_runs[on].shadow_offset
+                run.shadows = press_runs[on].shadows
             end
             return run
         end),
@@ -563,9 +563,7 @@ return modal({
                 clip = "rounded",
                 border_width = theme.border_width,
                 border_color = theme.GLASS_BORDER,
-                shadow_color = theme.LAUNCHER_SHADOW,
-                shadow_blur = theme.launcher_shadow_blur,
-                shadow_offset = { x = 0, y = theme.launcher_shadow_y },
+                shadows = SHADOWS,
                 children = {
                     column {
                         width = "fill",

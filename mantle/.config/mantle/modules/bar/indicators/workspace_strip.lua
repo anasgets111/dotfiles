@@ -224,18 +224,14 @@ local drag_ghost = rect {
             size = theme.icon.lg,
             align_h = "center",
             align_v = "center",
-            shadow_color = theme.workspace_drag_shadow,
-            shadow_blur = theme.workspace_drag_icon_blur,
-            shadow_offset = { x = 0, y = theme.workspace_drag_shadow_y },
+            shadows = { { color = theme.workspace_drag_shadow, blur = theme.workspace_drag_icon_blur, offset = { x = 0, y = theme.workspace_drag_shadow_y } } },
         } or text {
             content = glyph or "",
             font_size = theme.font.md,
             foreground = theme.FG,
             align_h = "center",
             align_v = "center",
-            shadow_color = theme.workspace_drag_shadow,
-            shadow_blur = theme.workspace_drag_text_blur,
-            shadow_offset = { x = 0, y = theme.workspace_drag_shadow_y },
+            shadows = { { color = theme.workspace_drag_shadow, blur = theme.workspace_drag_text_blur, offset = { x = 0, y = theme.workspace_drag_shadow_y } } },
         }
         return { child }
     end),
