@@ -33,7 +33,7 @@ local icon_name = computed({ mantle.applications, mantle.workspaces }, function(
     return (entry and entry.icon) or "applications-system"
 end)
 local title = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
-    return util.truncate(label(applications, workspaces), theme.title_limit)
+    return label(applications, workspaces)
 end)
 local app_id = mantle.workspaces:map(function(workspaces)
     local client = workspaces and workspaces.active_client
@@ -67,7 +67,7 @@ return rect {
             children = {
                 -- The centre caption is the bar's one piece of prose, so its icon reads as an app.
                 icon { name = icon_name, size = theme.control.sm, align_v = "center" },
-                cell(util.bold(title), theme.FG, theme.font.sm, { align_v = "center" }),
+                cell(util.bold(title), theme.FG, theme.font.sm, { align_v = "center", max_width = theme.title_width }),
             },
         } }
     end),

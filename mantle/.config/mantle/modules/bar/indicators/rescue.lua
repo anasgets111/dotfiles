@@ -6,7 +6,6 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
-local util = require("lib.util")
 local ui_state = require("lib.ui_state")
 local error_log = require("lib.rescue")
 
@@ -26,8 +25,9 @@ end, {
 local rescue_tooltip = tooltip({
     slot = SLOT,
     text = error_log:map(function(text)
-        return util.truncate(text:match("^[^\n]*"), 90)
+        return text:match("^[^\n]*")
     end),
+    max_width = theme.title_width,
     detail = "Click for the full error",
 })
 

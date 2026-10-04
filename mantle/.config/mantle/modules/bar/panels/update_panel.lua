@@ -24,16 +24,6 @@ local log_open = service.log_open
 local settings_expanded = disclosure.state("updates_settings_expanded", false)
 local phase = service.phase
 
--- KiB, MiB, GiB use 1024, matching pacman's package sizes.
-local BYTE_UNITS = { "B", "KiB", "MiB", "GiB" }
-local function human_bytes(bytes)
-    local size, unit = bytes, 1
-    while size >= 1024 and unit < #BYTE_UNITS do
-        size, unit = size / 1024, unit + 1
-    end
-    return string.format(unit == 1 and "%d %s" or "%.1f %s", size, BYTE_UNITS[unit])
-end
-
 local function download_total(updates)
     local total = 0
     for _, package in ipairs(service.packages(updates)) do
@@ -97,7 +87,7 @@ local function detail_line(updates, current, tool, dev)
         end
         -- No step line yet. Without a tty pacman downloads silently, so show what `alpm` sized.
         return string.format("Downloading %s · %s", service.plural(#updates.packages, "package"),
-            human_bytes(download_total(updates)))
+            util.bytes(download_total(updates)))
     end
     if current == "done" or current == "failed" then
         -- The reason heads the log, beside the output it came from.
@@ -128,7 +118,7 @@ local function detail_line(updates, current, tool, dev)
         return "AUR not checked · " .. updates.aur_error:match("[^\n]*")
     end
     if #updates.packages > 0 then
-        return string.format("%s to download", human_bytes(download_total(updates)))
+        return string.format("%s to download", util.bytes(download_total(updates)))
     end
     return "Nothing pending"
 end
@@ -140,9 +130,7 @@ local function last_check_line(updates, now)
         return "Never checked"
     end
     local at = updates.last_successful_check
-    local when = os.date("%Y-%m-%d", at) == os.date("%Y-%m-%d", now) and os.date("%I:%M %p", at)
-        or os.date("%b %d, %I:%M %p", at)
-    return "Checked " .. when .. (now - at > service.CHECK_INTERVAL * 2 and " · stale" or "")
+    return "Checked " .. util.stamp(at, now) .. (now - at > service.CHECK_INTERVAL * 2 and " · stale" or "")
 end
 
 -- Packages whose new version only runs after a reboot; tinted in the list.

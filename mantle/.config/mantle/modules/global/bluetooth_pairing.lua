@@ -61,6 +61,10 @@ local asks = when(function(asked)
     return asked.kind ~= "display" and not is_entry(asked)
 end)
 
+local not_display = when(function(asked)
+    return asked.kind ~= "display"
+end)
+
 local showing = when(function()
     return true
 end)
@@ -122,7 +126,7 @@ return panel {
                 children = {
                     action_button("Cancel", answer(false), "bluetooth-pairing-reject", {
                         tone = "quiet",
-                        visible = asks,
+                        visible = not_display,
                     }),
                     action_button(
                         text(function(asked)
@@ -132,10 +136,6 @@ return panel {
                         "bluetooth-pairing-accept",
                         { tone = "solid", visible = asks }
                     ),
-                    action_button("Cancel", answer(false), "bluetooth-pairing-decline", {
-                        tone = "quiet",
-                        visible = entry,
-                    }),
                     action_button("Pair", nil, "bluetooth-pairing-submit", {
                         tone = "solid",
                         submit = true,

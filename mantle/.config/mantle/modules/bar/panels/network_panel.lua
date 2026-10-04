@@ -276,20 +276,24 @@ local function submit_hidden_name()
 end
 
 -- Called by the indicator on every toggle: an open scans now and every 10 s after, a close cancels
--- the chain. Cancelling first keeps a quick close and reopen from running two.
+-- the interval. Cancelling first keeps a quick close and reopen from running two.
+---@type TimerHandle?
 local rescan = nil
+
+local function tick()
+    if not ui.panel_is(KIND) then
+        if rescan ~= nil then rescan:cancel() end
+    elseif radio_on(mantle.network:get()) then
+        scan()
+    end
+end
 
 local function scan_while_open()
     if rescan ~= nil then
         rescan:cancel()
     end
-    if not ui.panel_is(KIND) then
-        return
-    end
-    if radio_on(mantle.network:get()) then
-        scan()
-    end
-    rescan = timer(10000, scan_while_open)
+    rescan = interval(10000, tick)
+    tick()
 end
 
 local body = {

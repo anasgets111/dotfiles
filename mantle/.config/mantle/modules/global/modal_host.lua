@@ -30,15 +30,17 @@ end
 -- on a still-mapped host makes Hyprland refocus the last window, onto its workspace.
 local shown = util.linger(any_modal, theme.animation_ms)
 
+local function close()
+    ui_state.close_modal(ui_state.active_modal:get())
+end
+
 local escape_sink = textfield {
     id = "escape_sink",
     width = 0,
     height = 0,
     autofocus = true,
     on_change = function() end,
-    on_cancel = function()
-        ui_state.close_modal(ui_state.active_modal:get())
-    end,
+    on_cancel = close,
 }
 
 local cards = computed(lingering, function(...)
@@ -86,9 +88,7 @@ return panel {
                 width = "fill",
                 height = "fill",
                 cursor = "default",
-                on_click = function()
-                    ui_state.close_modal(ui_state.active_modal:get())
-                end,
+                on_click = close,
                 children = cards,
             },
         },

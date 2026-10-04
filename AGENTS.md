@@ -109,6 +109,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | `:map`, `computed`, `on_change`, `action` and `timer` bodies have a 5 ms CPU budget (`exceeded the 5ms CPU budget`) | Keep them cheap |
 | A node keeps its properties until a signal it read is written. `os.time()`, `os.date()` with no time, or a local read in a map stays at its last answer | Derive time from `mantle.system`; keep changing values in a `state` |
 | Signals nested in a property table do not resolve | Derive the whole table |
+| A node rejects unknown fields (`node.expanded = x`) only when its subtree resolves, so `mantle check` misses ones under a closed panel | Export signals from a `lib/` module, never on a node; check `mantle log` after opening the panel |
 | `visible = false` keeps a frozen subtree | Switch views through `children` |
 | Named state resets when its scalar seed changes | Keep the seed stable |
 | `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |

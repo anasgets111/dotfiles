@@ -17,8 +17,12 @@ local function sync_polling()
     local on = ui_state.panel_is("notifications")
     local function every(seconds) return on and seconds or 0 end
     mantle.sysinfo:configure({
-        cpu_interval = every(2), ram_interval = every(5), temp_interval = every(5),
-        gpu_interval = every(2), disk_interval = every(30), net_interval = every(1),
+        cpu_interval = every(2),
+        ram_interval = every(5),
+        temp_interval = every(5),
+        gpu_interval = every(2),
+        disk_interval = every(30),
+        net_interval = every(1),
     })
 end
 ui_state.panel_open:on_change(sync_polling)
@@ -31,42 +35,39 @@ end)
 
 local boot = state("sysinfo_boot", { started = 0, duration = "" })
 if boot:get().started == 0 then
-    process.run("cat", { "/proc/uptime" }, function(line, stream)
-        local seconds = stream == "stdout" and tonumber(line:match("^([%d.]+)"))
+    util.capture("cat", { "/proc/uptime" }, function(text)
+        local seconds = tonumber(text:match("^([%d.]+)"))
         if seconds then boot:set(util.with(boot:get(), "started", os.time() - math.floor(seconds))) end
-    end, function() end)
+    end)
 end
 if boot:get().duration == "" then
-    process.run("systemd-analyze", { "time" }, function(line, stream)
-        local duration = stream == "stdout" and line:match("=%s*([^%s]+)")
+    util.capture("systemd-analyze", { "time" }, function(text)
+        local duration = text:match("=%s*([^%s]+)")
         if duration then boot:set(util.with(boot:get(), "duration", duration)) end
-    end, function() end)
+    end)
 end
 
 local function percent_of(sysinfo, field)
     return (sysinfo and sysinfo[field]) or 0
 end
 
+local function gpu_of(sysinfo, field)
+    local gpu = sysinfo and sysinfo.gpu
+    return gpu and gpu[field]
+end
+
 local function gpu_usage(sysinfo)
-    return (sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent) or 0
+    return gpu_of(sysinfo, "util_percent") or 0
 end
 
 local has_gpu = util.shown_when(mantle.sysinfo, function(sysinfo)
     return sysinfo.gpu ~= nil
 end)
 
-local function size(bytes)
-    if bytes < 1024 ^ 3 then
-        return string.format("%.0f MiB", bytes / 1024 ^ 2)
-    end
-    return string.format("%.1f GiB", bytes / 1024 ^ 3)
-end
+local size = util.bytes
 
 local function rate(bytes)
-    if bytes >= 1024 ^ 2 then
-        return string.format("%.1f MiB/s", bytes / 1024 ^ 2)
-    end
-    return string.format("%.0f KiB/s", bytes / 1024)
+    return util.bytes(bytes) .. "/s"
 end
 
 local function uptime(seconds)
@@ -82,7 +83,7 @@ local function tint_of(percent)
 end
 
 local gpu_color = mantle.sysinfo:map(function(sysinfo)
-    local usage = sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent
+    local usage = gpu_of(sysinfo, "util_percent")
     return usage and tint_of(usage) or theme.DIM
 end)
 
@@ -154,7 +155,7 @@ local summary = mantle.sysinfo:map(function(sysinfo)
         runs[#runs + 1] = { text = string.format("%s %d%%", label, percent), color = tint_of(percent) }
     end
     if sysinfo and sysinfo.gpu then
-        local usage = sysinfo.gpu.util_percent
+        local usage = gpu_of(sysinfo, "util_percent")
         runs[#runs + 1] = { text = " · " }
         runs[#runs + 1] = {
             text = usage and string.format("GPU %d%%", usage) or "GPU --",
@@ -223,27 +224,26 @@ local details = panel_card({
     group({
         tile_header(icons.gpu, gpu_color, "GPU", "", gpu_color),
         cell(util.label(mantle.sysinfo, function(sysinfo)
-            return sysinfo and sysinfo.gpu and sysinfo.gpu.name or ""
+            return gpu_of(sysinfo, "name") or ""
         end), theme.DIM, theme.font.xs, { width = "fill" }),
         labeled_meter("Usage", gpu_usage, gpu_color, readout(function(sysinfo)
-            local usage = sysinfo and sysinfo.gpu and sysinfo.gpu.util_percent
+            local usage = gpu_of(sysinfo, "util_percent")
             return usage and string.format("%d%%", usage) or "--"
         end)),
         labeled_meter("VRAM", function(sysinfo)
-            local gpu = sysinfo and sysinfo.gpu
-            return gpu and gpu.mem_used and gpu.mem_total and gpu.mem_total > 0 and
-                gpu.mem_used * 100 / gpu.mem_total or 0
+            local used, total = gpu_of(sysinfo, "mem_used"), gpu_of(sysinfo, "mem_total")
+            return used and total and total > 0 and used * 100 / total or 0
         end, theme.DIM, readout(function(sysinfo)
-            local gpu = sysinfo and sysinfo.gpu
-            return gpu and gpu.mem_used and gpu.mem_total and
-                string.format("%s / %s", size(gpu.mem_used), size(gpu.mem_total)) or ""
+            local used, total = gpu_of(sysinfo, "mem_used"), gpu_of(sysinfo, "mem_total")
+            return used and total and string.format("%s / %s", size(used), size(total)) or ""
         end), util.shown_when(mantle.sysinfo, function(sysinfo)
-            return sysinfo.gpu and sysinfo.gpu.mem_used and sysinfo.gpu.mem_total and sysinfo.gpu.mem_total > 0
+            local total = gpu_of(sysinfo, "mem_total")
+            return gpu_of(sysinfo, "mem_used") and total and total > 0
         end)),
         cell(util.label(mantle.sysinfo, function(sysinfo)
-            local gpu = sysinfo and sysinfo.gpu
-            if not gpu then return "" end
-            return gpu.temp and string.format("%d°C", gpu.temp) or "No temperature sensor"
+            if not sysinfo.gpu then return "" end
+            local temp = gpu_of(sysinfo, "temp")
+            return temp and string.format("%d°C", temp) or "No temperature sensor"
         end), theme.DIM, theme.font.xs, { width = "fill" }),
     }, has_gpu),
     group({

@@ -13,7 +13,7 @@ local function children_for(opts)
     end
     local align = (opts.detail ~= nil or opts.secondary ~= nil) and "start" or "center"
     local function text_line(content, color, font, visible)
-        return cell(content, color, font, { align = align, visible = visible })
+        return cell(content, color, font, { align = align, visible = visible, max_width = opts.max_width })
     end
     local children = { text_line(opts.text, theme.TOOLTIP_FG, theme.font.sm) }
     -- An empty `detail` or `secondary` hides rather than leaving a blank row.

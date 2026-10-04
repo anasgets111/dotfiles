@@ -256,18 +256,6 @@ function util.active_access_point(network)
     return util.active_device(network and network.available_networks)
 end
 
--- Centre-zone labels need content-sized nodes to stay centred between Fill sides.
--- ponytail: codepoints approximate width; replace when the engine can elide at a max width
--- while reporting a short string's own width.
-function util.truncate(value, limit)
-    local text = tostring(value or "")
-    local count = utf8.len(text)
-    if count == nil or count <= limit then
-        return text
-    end
-    return text:sub(1, utf8.offset(text, limit + 1) - 1) .. "…"
-end
-
 -- Shared tooltip ownership: leaving one button must not clear another button's hover.
 function util.track_hover(key, name)
     return function(is_hovered)
@@ -346,6 +334,22 @@ function util.thousands(formatted)
     end
     local grouped = digits:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
     return sign .. grouped .. rest
+end
+
+-- 1024-based units, matching pacman's package sizes.
+local BYTE_UNITS = { "B", "KiB", "MiB", "GiB" }
+function util.bytes(count)
+    local size, unit = count, 1
+    while size >= 1024 and unit < #BYTE_UNITS do
+        size, unit = size / 1024, unit + 1
+    end
+    return string.format(unit == 1 and "%d %s" or "%.1f %s", size, BYTE_UNITS[unit])
+end
+
+-- The time when `at` is on `now`'s day, otherwise the date and time. Fixed twelve-hour clock.
+function util.stamp(at, now)
+    local same_day = os.date("%Y%j", at) == os.date("%Y%j", now)
+    return os.date(same_day and "%I:%M %p" or "%b %d, %I:%M %p", at)
 end
 
 function util.capture(command, args, done)

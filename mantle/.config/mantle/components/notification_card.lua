@@ -2,9 +2,6 @@
 -- `opts.scope` carries their different ground, edge, timestamp and motion.
 --
 -- Structural state reads rebuild list items; bound properties update in place.
---
--- ponytail: the cards below a dismissed one still close its gap on one frame; the engine has no move
--- transition (`docs/roadmap.md`).
 local theme = require("config.theme")
 local icons = require("config.icons")
 local notifications = require("lib.notifications")
@@ -26,6 +23,8 @@ local SLIDE_EXIT = {
     translate = { x = theme.notification_width },
     opacity = 0,
 }
+-- Spans the exit, so the card below rises as the leaving one clears instead of landing under it.
+local MOVE = { duration = theme.notification_slide_ms, easing = "in_out_cubic" }
 local FADE_EXIT = { duration = theme.animation_ms, opacity = 0 }
 
 -- How long a card waits behind the one above it, so four arriving at once do not read as one block.
@@ -48,6 +47,7 @@ local function slide_in(delay)
         -- travel: the card is solid for the settle, not translucent while it is mostly in view.
         opacity = { duration = theme.animation_ms, easing = "out_quad", delay = delay, from = 0 },
         exit = SLIDE_EXIT,
+        move = MOVE,
     }
 end
 
@@ -349,7 +349,7 @@ return function(group, ui, opts)
         translate = { x = 0 },
         opacity = 1,
         -- Popup cards slide in by rank; history cards fade.
-        animate = in_history and { opacity = { duration = theme.animation_ms, from = 0 }, exit = FADE_EXIT }
+        animate = in_history and { opacity = { duration = theme.animation_ms, from = 0 }, exit = FADE_EXIT, move = MOVE }
             or slide_in((group.rank - 1) * STAGGER_MS),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
         behind_blur = not in_history,

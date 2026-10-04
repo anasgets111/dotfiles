@@ -96,13 +96,11 @@ local function flag(code)
     return utf8.char(0x1F1E6 + first - 65, 0x1F1E6 + second - 65)
 end
 
--- Matches `date_time.lua`'s fixed twelve-hour clock.
 local function updated_text(at, now)
     if not at or at == 0 then
         return ""
     end
-    local same_day = os.date("%Y%j", at) == os.date("%Y%j", now)
-    return "Updated " .. os.date(same_day and "%I:%M %p" or "%b %d, %I:%M %p", at)
+    return "Updated " .. util.stamp(at, now)
 end
 
 -- One request in flight. A reload kills a live one, and its `exit_cb(nil)` clears this guard.

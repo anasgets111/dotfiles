@@ -12,7 +12,7 @@ local util = require("lib.util")
 ---@param content string|TextRun[]|Bound
 ---@param color? Color|Bound
 ---@param size? integer
----@param opts? { bold?: boolean|Bound, width?: integer|"fill", align?: "start"|"center"|"end", align_v?: "start"|"center"|"end", visible?: boolean|Bound, wrap?: "none"|"word"|Bound, max_lines?: integer|Bound, elided?: Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
+---@param opts? { bold?: boolean|Bound, width?: integer|"fill", max_width?: integer, align?: "start"|"center"|"end", align_v?: "start"|"center"|"end", visible?: boolean|Bound, wrap?: "none"|"word"|Bound, max_lines?: integer|Bound, elided?: Bound, on_link?: fun(href: string), font?: string|Bound, letter_spacing?: number|Bound, animate?: TextAnimations|Bound }
 return function(content, color, size, opts)
     opts = opts or {}
     return text {
@@ -23,6 +23,7 @@ return function(content, color, size, opts)
         font_weight = opts.bold ~= nil and util.choose(opts.bold, 700, 400) or nil,
         letter_spacing = opts.letter_spacing,
         width = opts.width,
+        max_width = opts.max_width,
         align_v = opts.align_v,
         align_h = opts.align,
         visible = opts.visible,

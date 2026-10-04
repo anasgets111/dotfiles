@@ -24,60 +24,45 @@ local GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search?count=5&na
 
 -- WMO codes are sparse, so a lookup, and an unlisted one is "Unknown" rather than a `nil` to test.
 local CODES = {
-    [0] = { icon = "☀️", desc = "Clear sky" },
-    [1] = { icon = "🌤️", desc = "Mainly clear" },
-    [2] = { icon = "⛅", desc = "Partly cloudy" },
-    [3] = { icon = "☁️", desc = "Overcast" },
-    [45] = { icon = "🌫️", desc = "Fog" },
-    [48] = { icon = "🌫️", desc = "Depositing rime fog" },
-    [51] = { icon = "🌦️", desc = "Drizzle: Light" },
-    [53] = { icon = "🌦️", desc = "Drizzle: Moderate" },
-    [55] = { icon = "🌧️", desc = "Drizzle: Dense" },
-    [56] = { icon = "🌧️❄️", desc = "Freezing Drizzle: Light" },
-    [57] = { icon = "🌧️❄️", desc = "Freezing Drizzle: Dense" },
-    [61] = { icon = "🌦️", desc = "Rain: Slight" },
-    [63] = { icon = "🌧️", desc = "Rain: Moderate" },
-    [65] = { icon = "🌧️", desc = "Rain: Heavy" },
-    [66] = { icon = "🌧️❄️", desc = "Freezing Rain: Light" },
-    [67] = { icon = "🌧️❄️", desc = "Freezing Rain: Heavy" },
-    [71] = { icon = "🌨️", desc = "Snow fall: Slight" },
-    [73] = { icon = "🌨️", desc = "Snow fall: Moderate" },
-    [75] = { icon = "❄️", desc = "Snow fall: Heavy" },
-    [77] = { icon = "❄️", desc = "Snow grains" },
-    [80] = { icon = "🌦️", desc = "Rain showers: Slight" },
-    [81] = { icon = "🌧️", desc = "Rain showers: Moderate" },
-    [82] = { icon = "⛈️", desc = "Rain showers: Violent" },
-    [85] = { icon = "🌨️", desc = "Snow showers: Slight" },
-    [86] = { icon = "❄️", desc = "Snow showers: Heavy" },
-    [95] = { icon = "⛈️", desc = "Thunderstorm: Slight or moderate" },
-    [96] = { icon = "⛈️🧊", desc = "Thunderstorm with slight hail" },
-    [99] = { icon = "⛈️🧊", desc = "Thunderstorm with heavy hail" },
+    [0] = { icon = "☀️", glyph = icons.weather_sunny, desc = "Clear sky" },
+    [1] = { icon = "🌤️", glyph = icons.weather_sunny, desc = "Mainly clear" },
+    [2] = { icon = "⛅", glyph = icons.weather_cloud, desc = "Partly cloudy" },
+    [3] = { icon = "☁️", glyph = icons.weather_cloud, desc = "Overcast" },
+    [45] = { icon = "🌫️", glyph = icons.weather_fog, desc = "Fog" },
+    [48] = { icon = "🌫️", glyph = icons.weather_fog, desc = "Depositing rime fog" },
+    [51] = { icon = "🌦️", glyph = icons.weather_rain, desc = "Drizzle: Light" },
+    [53] = { icon = "🌦️", glyph = icons.weather_rain, desc = "Drizzle: Moderate" },
+    [55] = { icon = "🌧️", glyph = icons.weather_rain, desc = "Drizzle: Dense" },
+    [56] = { icon = "🌧️❄️", glyph = icons.weather_snow, desc = "Freezing Drizzle: Light" },
+    [57] = { icon = "🌧️❄️", glyph = icons.weather_snow, desc = "Freezing Drizzle: Dense" },
+    [61] = { icon = "🌦️", glyph = icons.weather_rain, desc = "Rain: Slight" },
+    [63] = { icon = "🌧️", glyph = icons.weather_rain, desc = "Rain: Moderate" },
+    [65] = { icon = "🌧️", glyph = icons.weather_rain, desc = "Rain: Heavy" },
+    [66] = { icon = "🌧️❄️", glyph = icons.weather_snow, desc = "Freezing Rain: Light" },
+    [67] = { icon = "🌧️❄️", glyph = icons.weather_snow, desc = "Freezing Rain: Heavy" },
+    [71] = { icon = "🌨️", glyph = icons.weather_snow, desc = "Snow fall: Slight" },
+    [73] = { icon = "🌨️", glyph = icons.weather_snow, desc = "Snow fall: Moderate" },
+    [75] = { icon = "❄️", glyph = icons.weather_snow, desc = "Snow fall: Heavy" },
+    [77] = { icon = "❄️", glyph = icons.weather_snow, desc = "Snow grains" },
+    [80] = { icon = "🌦️", glyph = icons.weather_rain, desc = "Rain showers: Slight" },
+    [81] = { icon = "🌧️", glyph = icons.weather_rain, desc = "Rain showers: Moderate" },
+    [82] = { icon = "⛈️", glyph = icons.weather_rain, desc = "Rain showers: Violent" },
+    [85] = { icon = "🌨️", glyph = icons.weather_snow, desc = "Snow showers: Slight" },
+    [86] = { icon = "❄️", glyph = icons.weather_snow, desc = "Snow showers: Heavy" },
+    [95] = { icon = "⛈️", glyph = icons.weather_storm, desc = "Thunderstorm: Slight or moderate" },
+    [96] = { icon = "⛈️🧊", glyph = icons.weather_storm, desc = "Thunderstorm with slight hail" },
+    [99] = { icon = "⛈️🧊", glyph = icons.weather_storm, desc = "Thunderstorm with heavy hail" },
 }
 
 ---@param code integer|nil
----@return { icon: string, desc: string }
+---@return { icon: string, glyph: string, desc: string }
 function weather.info(code)
-    return CODES[code or -1] or { icon = "❓", desc = "Unknown" }
+    return CODES[code or -1] or { icon = "❓", glyph = icons.weather_cloud, desc = "Unknown" }
 end
 
--- The lock screen has one line, so the same codes collapse into six glyphs.
-local GLYPH_BUCKETS = {
-    [icons.weather_sunny] = { 0, 1 },
-    [icons.weather_fog] = { 45, 48 },
-    [icons.weather_rain] = { 51, 53, 55, 61, 63, 65, 80, 81, 82 },
-    [icons.weather_snow] = { 56, 57, 66, 67, 71, 73, 75, 77, 85, 86 },
-    [icons.weather_storm] = { 95, 96, 99 },
-}
-
-local GLYPHS = {}
-for glyph, codes in pairs(GLYPH_BUCKETS) do
-    for _, code in ipairs(codes) do
-        GLYPHS[code] = glyph
-    end
-end
-
+-- The lock screen has one line, so it draws the glyph.
 function weather.glyph(code)
-    return GLYPHS[code or -1] or icons.weather_cloud
+    return weather.info(code).glyph
 end
 
 -- Off `lib/store.lua`, so a restart inside the hour draws before any request. Store keys read `nil`

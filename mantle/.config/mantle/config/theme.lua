@@ -214,9 +214,9 @@ theme.border_width_medium      = 2
 theme.bar_height               = s(42, 28)
 
 -- `control` sizes panel contents; `item` sizes bar controls.
--- `title_limit` is a character budget, not a box, so the centre zone stays content-sized and its
--- midpoint is the bar's.
-theme.title_limit              = (MAIN_WIDTH / math.max(1, MAIN_HEIGHT)) > 2.1 and 74 or 47
+-- `title_width` caps a content-sized caption (about 47 or 74 characters), so the centre zone stays
+-- content-sized and its midpoint is the bar's.
+theme.title_width              = theme.font.sm * ((MAIN_WIDTH / math.max(1, MAIN_HEIGHT)) > 2.1 and 41 or 26)
 
 -- The wave visualizer's colours, left to right.
 theme.SPECTRUM                 = { theme.BLUE, theme.TEAL, theme.GREEN, theme.YELLOW, theme.PEACH }
