@@ -28,25 +28,47 @@ local function label(applications, workspaces)
     return (entry and entry.name) or client.app_id or EMPTY_LABEL
 end
 
-local focused_icon = icon {
-    name = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
-        local _, entry = focused(applications, workspaces)
-        return (entry and entry.icon) or "applications-system"
-    end),
-    -- The centre caption is the bar's one piece of prose, so its icon reads as an app.
-    size = theme.control.sm,
-    align_v = "center",
-}
+local icon_name = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
+    local _, entry = focused(applications, workspaces)
+    return (entry and entry.icon) or "applications-system"
+end)
+local title = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
+    return util.truncate(label(applications, workspaces), theme.title_limit)
+end)
+local app_id = mantle.workspaces:map(function(workspaces)
+    local client = workspaces and workspaces.active_client
+    return client and client.app_id or ""
+end)
 
-return row {
+local content = geometry("active_window")
+local function swap(from) return { duration = theme.animation_fast_ms, easing = "out_cubic", from = from } end
+
+-- Keyed by app: a focus change swaps captions; a title change only resizes the box, which clips both.
+return rect {
+    width = content:map(function(rect) return rect.width end),
     height = theme.item_height,
     align_h = "center",
     align_v = "center",
-    spacing = theme.spacing.xs,
-    children = {
-        focused_icon,
-        cell(util.bold(computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
-            return util.truncate(label(applications, workspaces), theme.title_limit)
-        end)), theme.FG, theme.font.sm, { align_v = "center" }),
-    },
+    animate = { width = theme.spring_tracking },
+    children = app_id:map(function(key)
+        return { row {
+            id = key,
+            geometry = content,
+            height = "fill",
+            align_v = "center",
+            spacing = theme.spacing.xs,
+            opacity = 1,
+            translate = { y = 0 },
+            animate = {
+                opacity = swap(0),
+                translate = swap({ y = theme.spacing.sm }),
+                exit = { duration = theme.animation_fast_ms, easing = "in_quad", opacity = 0, translate = { y = -theme.spacing.sm } },
+            },
+            children = {
+                -- The centre caption is the bar's one piece of prose, so its icon reads as an app.
+                icon { name = icon_name, size = theme.control.sm, align_v = "center" },
+                cell(util.bold(title), theme.FG, theme.font.sm, { align_v = "center" }),
+            },
+        } }
+    end),
 }
