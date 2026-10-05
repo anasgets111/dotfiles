@@ -1,14 +1,14 @@
 -- One circle per workspace, collapsing to the active one and re-narrowing `theme.animation_ms + 200`
 -- after the pointer leaves (`components/expanding_pill.lua`). Ground: accent when active, glass when
 -- populated, an empty ring when empty. A circle draws the standing window's icon when
--- `applications` knows its `app_id`, else `idx`. Never `name`, which elides to three dots, while the
--- number is the keybind's target.
+-- `applications` knows its `app_id`, else its `number`, the keybind's target. A named workspace has
+-- none, so it shows its name's first two letters; a whole name elides to three dots.
 --
 -- It collapses to the first output's `active_workspace`, not the focused one: every output has an
 -- active workspace but only one has focus, so another monitor would collapse to nothing.
 --
 -- Hyprland lists no empty workspaces and creates a numbered one on focus, so this pads to ten dimmed
--- slots; Niri keeps a trailing empty workspace and needs none.
+-- slots, then lists named workspaces after them; Niri keeps a trailing empty workspace and needs none.
 local theme = require("config.theme")
 local util = require("lib.util")
 local icon_button = require("components.icon_button")
@@ -20,24 +20,37 @@ local function output_of(workspaces)
     return workspaces and (workspaces.outputs or {})[1]
 end
 
--- Pad up to `PADDED_SLOTS` or the highest number in use. On a compositor where `id` is the number,
--- focusing a missing one creates it, so a padded entry carries the same `id` a real one would.
+-- Pad up to `PADDED_SLOTS` or the highest number in use. On Hyprland a numbered workspace's `id` is
+-- its number as a string, and focusing a missing one creates it, so a padded entry carries the `id` a
+-- real one would. Named workspaces have no number and follow the padded range.
 local function workspaces_of(workspaces)
     local out = output_of(workspaces)
     local listed = out and (out.workspaces or {}) or {}
     if not (workspaces and workspaces.compositor == "hyprland") then
         return listed
     end
-    local by_idx, highest = {}, PADDED_SLOTS
+    local by_number, named, highest = {}, {}, PADDED_SLOTS
     for _, workspace in ipairs(listed) do
-        by_idx[workspace.idx] = workspace
-        highest = math.max(highest, workspace.idx)
+        if workspace.number then
+            by_number[workspace.number] = workspace
+            highest = math.max(highest, workspace.number)
+        else
+            named[#named + 1] = workspace
+        end
     end
     local padded = {}
     for number = 1, highest do
-        padded[number] = by_idx[number] or { id = number, idx = number, populated = false }
+        padded[number] = by_number[number] or { id = tostring(number), number = number, populated = false }
+    end
+    for _, workspace in ipairs(named) do
+        padded[#padded + 1] = workspace
     end
     return padded
+end
+
+-- The glyph a circle without an app icon shows.
+local function glyph_of(workspace)
+    return workspace.number and tostring(workspace.number) or (workspace.name or ""):sub(1, 2)
 end
 
 local dragging_from = state("workspace_drag_from", nil)
@@ -69,7 +82,7 @@ local function arm_drag(ws, cx, cy)
     drag_pos:set({ x = cx - theme.item_width / 2, y = cy - theme.item_height / 2 })
     local app = util.app_entry(mantle.applications:get(), ws.app_id)
     drag_icon:set((app and app.icon) or "")
-    drag_glyph:set(tostring(ws.idx))
+    drag_glyph:set(glyph_of(ws))
 end
 
 local function reset_drag()
@@ -182,7 +195,7 @@ local function workspace_button(workspace)
     -- Populated cells focus on drag end; adding on_click would send the same focus twice.
     local on_activate
     if not on_drag then on_activate = focus_workspace end
-    return pill.cell(icon_button(tostring(workspace.idx), on_activate, {
+    return pill.cell(icon_button(glyph_of(workspace), on_activate, {
         geometry = geometry("workspace-btn-" .. tostring(id)),
         cursor = cursor,
         on_drag = on_drag,
