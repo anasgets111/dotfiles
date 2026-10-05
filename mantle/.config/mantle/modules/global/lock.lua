@@ -253,7 +253,7 @@ local function content(output)
         background = theme.with_opacity(theme.ELEVATED, 0.3),
         glass = true,
         radius = theme.radius.xl,
-        backdrop_blur = CARD_BLUR,
+        effect = { backdrop = { blur = CARD_BLUR } },
     })
 
     -- Context, not a control, so it sits on the wallpaper at the bottom edge.
@@ -308,13 +308,13 @@ local function content(output)
             },
             -- Thaw halfway on exit to avoid a sharp flash under the fading card.
             scrim(nil, {
-                backdrop_blur = util.lift(mantle.lock, function(lock)
+                effect = util.lift(mantle.lock, function(lock)
                     if lock == nil or not lock.active then
-                        return 0
+                        return { backdrop = { blur = 0 } }
                     end
-                    return lock.unlocking and WALLPAPER_BLUR / 2 or WALLPAPER_BLUR
+                    return { backdrop = { blur = lock.unlocking and WALLPAPER_BLUR / 2 or WALLPAPER_BLUR } }
                 end),
-                animate = { backdrop_blur = { duration = theme.animation_slow_ms, easing = "out_cubic", from = 0 } },
+                animate = { effect = { duration = theme.animation_slow_ms, easing = "out_cubic", from = {} } },
             }),
             column {
                 align_h = "center",

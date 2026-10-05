@@ -53,7 +53,7 @@ local SEARCH_PADDING = theme.spacing.xl
 local RESULTS_PADDING = theme.spacing.sm
 local COLUMNS = math.floor((theme.launcher_width - 2 * RESULTS_PADDING) / theme.launcher_tile_width)
 local VISIBLE_ROWS = 4
-local STEPS = { left = -1, right = 1, up = -COLUMNS, down = COLUMNS }
+local STEPS = { Left = -1, Right = 1, Up = -COLUMNS, Down = COLUMNS }
 local SCROLL = scroll("launcher_grid")
 
 local query = state("launcher_query", "")
@@ -171,10 +171,10 @@ local function move(key)
     end
     local target = current + STEPS[key]
     if id == SPECIAL then
-        target = key == "up" and #apps - (#apps - 1) % COLUMNS or 0
-    elseif (key == "left" or key == "right") and math.ceil(target / COLUMNS) ~= math.ceil(current / COLUMNS) then
+        target = key == "Up" and #apps - (#apps - 1) % COLUMNS or 0
+    elseif (key == "Left" or key == "Right") and math.ceil(target / COLUMNS) ~= math.ceil(current / COLUMNS) then
         return
-    elseif key == "down" and target > #apps then
+    elseif key == "Down" and target > #apps then
         if special_shown:get() then
             return selected_id:set(SPECIAL)
         end
@@ -460,11 +460,12 @@ local search = on_rail(row {
                 end
                 search_focus:request()
             end,
-            on_navigate = function(key)
-                local step = (key == "backtab" or key == "left") and -1 or 1
-                if rail:get() and (key == "left" or key == "right" or key == "tab" or key == "backtab") then
+            on_key = function(press)
+                local key = press.name
+                local step = (key == "ISO_Left_Tab" or key == "Left") and -1 or 1
+                if rail:get() and (key == "Left" or key == "Right" or key == "Tab" or key == "ISO_Left_Tab") then
                     rail_focus:set((rail_focus:get() - 1 + step) % #MODES + 1)
-                elseif key == "tab" or key == "backtab" then
+                elseif key == "Tab" or key == "ISO_Left_Tab" then
                     rail_focus:set(1)
                     for index, entry in ipairs(MODES) do
                         if entry.id == mode:get() then
@@ -474,7 +475,10 @@ local search = on_rail(row {
                     rail:set(true)
                 elseif STEPS[key] then
                     move(key)
+                else
+                    return false
                 end
+                return true
             end,
         },
     },

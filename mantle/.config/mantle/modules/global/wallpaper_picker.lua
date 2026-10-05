@@ -25,14 +25,14 @@ local COLUMNS = theme.wallpaper_columns
 -- `"all"` is the "All displays" option; no connector has that name.
 local ALL = "all"
 local STEPS = {
-    backtab = -1,
-    tab = 1,
-    left = -1,
-    right = 1,
-    up = -COLUMNS,
-    down = COLUMNS,
-    page_up = -COLUMNS * 3,
-    page_down = COLUMNS * 3,
+    ISO_Left_Tab = -1,
+    Tab = 1,
+    Left = -1,
+    Right = 1,
+    Up = -COLUMNS,
+    Down = COLUMNS,
+    Page_Up = -COLUMNS * 3,
+    Page_Down = COLUMNS * 3,
 }
 
 local query = state("wallpaper_query", "")
@@ -310,9 +310,10 @@ local search = search_bar(textfield {
             close()
         end
     end,
-    on_navigate = function(key)
-        if STEPS[key] then
-            move(STEPS[key])
+    on_key = function(key)
+        if STEPS[key.name] then
+            move(STEPS[key.name])
+            return true
         end
     end,
 })

@@ -102,7 +102,7 @@ end
 local function glass(props)
     props.radius = props.radius or theme.radius.md
     props.background = theme.with_opacity(theme.CRUST, 0.6)
-    props.backdrop_blur = 8
+    props.effect = { backdrop = { blur = 8 } }
     props.border_width = 1
     props.border_color = theme.GLASS_BORDER
     return rect(props)
@@ -139,7 +139,7 @@ end
 
 ---------------------------------------------------------------------------------------------------
 -- Shader and blur: the goo shader's `progress` rides `animate`, and three pills over it show no
--- blur, content_blur (the pill itself blurs) and backdrop_blur (what is under it blurs). Each
+-- blur, effect.blur (the pill itself blurs) and effect.backdrop (what is under it blurs). Each
 -- caption sits under its pill, so a blurred pill still says what it is.
 
 local shader_mode_node, shader_mode = choice("shader_mode", { "Loop", "Open", "Closed" }, "Loop")
@@ -185,8 +185,8 @@ local shader_island = island("Shader & blur", WIDE_W, {
             pill("no blur", {}),
             -- The whole pill blurs, text included, since a flat fill blurs into itself and looks
             -- unchanged. The rounded clip keeps the 3-sigma spread inside the pill.
-            pill("content_blur", { clip = "rounded", content_blur = sigma }),
-            pill("backdrop_blur", { backdrop_blur = sigma }),
+            pill("blur", { clip = "rounded", effect = sigma:map(function(s) return { blur = s } end) }),
+            pill("backdrop", { effect = sigma:map(function(s) return { backdrop = { blur = s } } end) }),
         },
     }),
 }, { shader_mode_node, softness_node, sigma_node })
@@ -377,7 +377,7 @@ local windows_island = island("Windows", SIDE_W, {
 }, { label(screen_line, INK_DIM, theme.font.xs) }, theme.GLASS)
 
 ---------------------------------------------------------------------------------------------------
--- The frosted pane drags over every island, so backdrop_blur is tried against each of them.
+-- The frosted pane drags over every island, so the backdrop blur is tried against each of them.
 
 local PANE_W, PANE_H = 240, 120
 local pane_x = state("fx_lab_x", 170)
@@ -390,7 +390,7 @@ local pane = rect {
     margin = computed({ pane_x, pane_y }, function(x, y) return { left = x, top = y } end),
     radius = theme.radius.lg,
     background = TINT,
-    backdrop_blur = sigma,
+    effect = sigma:map(function(s) return { backdrop = { blur = s } } end),
     border_width = 1,
     border_color = "#ffffff66",
     shadows = { { color = "#000000aa", blur = 18, offset = { x = 0, y = 8 } } },
