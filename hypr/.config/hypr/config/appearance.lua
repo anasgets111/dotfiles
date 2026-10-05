@@ -86,13 +86,12 @@ for _, anim in ipairs(animations) do
 end
 
 -- 4. Layer rules
--- Blur mantle surfaces + their popups (blur_popups; Hyprland needs it, niri
--- doesn't). ignore_alpha skips transparent corners, keeps the glass body.
-for _, namespace in ipairs({ "^mantle-.*", "^polkit-dialog$" }) do
-    hl.layer_rule({
-        match        = { namespace = namespace },
-        blur         = true,
-        blur_popups  = true,
-        ignore_alpha = 0.1,
-    })
-end
+-- Mantle asks for blur per box (behind_blur, ext-background-effect-v1), so it
+-- gets no rule: one would also frost its shadows. ignore_alpha skips
+-- transparent corners, keeps the glass body.
+hl.layer_rule({
+    match        = { namespace = "^polkit-dialog$" },
+    blur         = true,
+    blur_popups  = true,
+    ignore_alpha = 0.1,
+})
