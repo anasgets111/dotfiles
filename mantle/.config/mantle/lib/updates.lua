@@ -307,7 +307,7 @@ local function announce_check(updates, previous)
         store:set("updates_notified", "")
         return
     end
-    local announced = store.updates_notified:get()
+    local announced = store.updates_notified:get() or ""
     local names = {}
     for _, package in ipairs(updates.packages) do
         names[#names + 1] = package.name
