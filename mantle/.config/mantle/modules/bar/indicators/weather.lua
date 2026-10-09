@@ -50,11 +50,12 @@ end
 local id = "notifications"
 local expanded = disclosure.state("weather_expanded_" .. id, false)
 
-local body = weather.daily:map(function(daily)
+-- Two getters, not one: building all eleven cards in one evaluation brushed the 2.5ms CPU budget.
+local preview = weather.daily:map(function(daily)
     if not has_data(daily) then
         return {}
     end
-    local preview = row {
+    return { row {
         width = "fill",
         spacing = theme.spacing.sm,
         children = {
@@ -62,8 +63,14 @@ local body = weather.daily:map(function(daily)
             day_card(daily, TODAY, { label = "Today", expanded = expanded, today = true }),
             day_card(daily, TOMORROW, { label = "Tomorrow", expanded = expanded }),
         },
-    }
-    -- Keep the three-day preview in place; the remaining eight days form two rows.
+    } }
+end)
+
+-- The remaining eight days form two rows below the preview.
+local extended = weather.daily:map(function(daily)
+    if not has_data(daily) then
+        return {}
+    end
     local rows = {}
     local days = #daily.time
     for first = TOMORROW + 1, days, COLUMNS do
@@ -78,10 +85,10 @@ local body = weather.daily:map(function(daily)
         rows[#rows + 1] = row { width = "fill", spacing = theme.spacing.sm, children = children }
     end
     if #rows == 0 then
-        return { preview }
+        return {}
     end
     -- Keep the rows mounted while the clipped height shrinks, including a quick reversal.
-    return { preview, rect {
+    return { rect {
         width = "fill",
         height = util.choose(expanded, #rows * (theme.item_height * 3 + theme.spacing.sm), 0),
         clip = "box",
@@ -121,6 +128,9 @@ return column {
                 spinning = weather.fetching,
             }),
         },
-        column { width = "fill", children = body },
+        column {
+            width = "fill",
+            children = { column { width = "fill", children = preview }, column { width = "fill", children = extended } },
+        },
     },
 }
