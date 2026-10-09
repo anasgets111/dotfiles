@@ -69,11 +69,11 @@ return function(glyph, on_activate, opts)
     end
 
     local badge_node = opts.badge and text {
-        content = util.bold(opts.badge),
+        content = opts.badge,
+        font_weight = theme.band_font_weight,
         foreground = foreground,
-        font = opts.badge_font,
-        font_size = theme.font.xs,
-        letter_spacing = opts.badge_letter_spacing,
+        font = theme.condensed_font,
+        font_size = theme.band_font_size,
         align_h = "end",
         align_v = "end",
         translate = opts.badge_translate or { x = -theme.spacing.xs, y = -theme.spacing.xs },

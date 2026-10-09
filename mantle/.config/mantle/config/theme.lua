@@ -172,6 +172,8 @@ theme.icon_font                = "JetBrainsMono Nerd Font Mono"
 theme.mono_font                = theme.icon_font
 -- Band badges ("2.4", "5G") sit beside a glyph, so they take a condensed face.
 theme.condensed_font           = "Roboto Condensed"
+-- Roboto Condensed ships no Bold face here; Medium is the heaviest real one.
+theme.band_font_weight         = 500
 
 theme.font                     = {
     xs  = s(10, 8),
@@ -181,6 +183,7 @@ theme.font                     = {
     xl  = s(20, 16),
     xxl = s(28, 20),
 }
+theme.band_font_size           = s(9, 7)
 
 theme.radius                   = {
     sm = s(6, 4),
@@ -195,6 +198,7 @@ theme.icon                     = {
     lg = s(24, 18),
     xl = s(32, 24),
 }
+theme.wifi_fan_size            = s(22, 18)
 
 -- Keeps adjacent toggles and buttons aligned without pixel literals.
 theme.control                  = {
@@ -351,10 +355,5 @@ theme.wallpaper_picker_width   = s(1180, 900)
 theme.wallpaper_picker_height  = s(880, 660)
 theme.wallpaper_sidebar_width  = s(250, 200)
 theme.wallpaper_columns        = 4
-
--- "2.4" is wider than "5G" and "6G" in the condensed face, so it tracks tighter.
-function theme.band_tracking(label)
-    return label == "2.4" and -1.5 or -1
-end
 
 return theme

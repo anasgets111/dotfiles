@@ -176,7 +176,7 @@ local rows = computed({ mantle.network, device }, function(network, target)
     return out
 end)
 
--- Fixed, so titles line up whether a row's badge reads "2.4", "5G" or nothing.
+-- Fixed, so scanned titles line up with the hidden-network row's.
 local LEADING_WIDTH = theme.control.md
 
 local function access_point_row(entry)
@@ -184,22 +184,27 @@ local function access_point_row(entry)
         return section_header(entry.label)
     end
     local ap = entry.ap
-    local band, color = util.band_of(ap)
 
-    local leading = {
-        glyph(icons.wifi[util.signal_tier(ap.strength)], ap.active and theme.ACCENT or theme.FG,
-            theme.icon.md, { align_v = "center" }),
-        band and cell(util.bold(band), color, theme.font.xs, {
-            align_v = "end",
-            font = theme.condensed_font,
-            letter_spacing = theme.band_tracking(band),
-        }) or nil,
+    -- The full fan as a track, since the tier glyphs' hairline outline vanishes at this size.
+    local leading = rect {
+        width = LEADING_WIDTH,
+        align_v = "center",
+        children = {
+            glyph(icons.wifi[#icons.wifi], theme.TEXT_OFF, theme.wifi_fan_size),
+            glyph(icons.wifi[util.signal_tier(ap.strength)], ap.active and theme.ACCENT or theme.FG, theme.wifi_fan_size),
+        },
     }
-    local trailing = {
-        ap.active and panel_action_icon(icons.disconnect, function()
+    local trailing = {}
+    -- Only the faster bands are news; 2.4 GHz is the baseline every router has.
+    local band = util.band_of(ap)
+    if band and band ~= "2.4" then
+        trailing[1] = cell(ap.band, theme.DIM, theme.font.sm, { align_v = "center" })
+    end
+    if ap.active then
+        trailing[#trailing + 1] = panel_action_icon(icons.disconnect, function()
             mantle.network:disconnect_wifi_device(device:get().id)
-        end, { slot = "network-disconnect-" .. tostring(ap.ssid), tint = theme.RED }) or nil,
-    }
+        end, { slot = "network-disconnect-" .. tostring(ap.ssid), tint = theme.RED })
+    end
     if ap.saved or ap.active then
         trailing[#trailing + 1] = panel_action_icon(icons.trash, function()
             mantle.network:forget(ap.ssid)
@@ -215,17 +220,12 @@ local function access_point_row(entry)
     }
     return panel_row {
         slot = "network-ap-" .. tostring(ap.ssid),
-        leading = row {
-            width = LEADING_WIDTH,
-            spacing = band == "2.4" and -theme.spacing.xs or -theme.spacing.xs / 2,
-            align_v = "center",
-            children = leading,
-        },
+        leading = leading,
         title = ap.ssid or "?",
         subtitle = entry.connecting and "Connecting…" or nil,
         selected = ap.active,
         opacity = entry.blocked and theme.opacity.disabled or nil,
-        trailing = row { spacing = theme.spacing.xs, align_v = "center", children = trailing },
+        trailing = row { spacing = theme.spacing.sm, align_v = "center", children = trailing },
         on_activate = not ap.active and not entry.blocked and function()
             -- `hidden` is required; scanned `available_networks` entries are not hidden.
             mantle.network:connect_device(ap.ssid, false, device:get().id)
