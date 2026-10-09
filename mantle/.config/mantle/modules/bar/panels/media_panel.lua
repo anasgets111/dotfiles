@@ -48,6 +48,49 @@ local anchored_position
 -- `Seeked` nor `PropertiesChanged`, so the target stands until a fresh reading replaces it.
 local seek_base = state("media_seek_base", -1)
 
+-- `album_art_path` is local covers only; a remote one (Spotify's) arrives as `art_url`. Each player's
+-- latest is downloaded into one file named for it and moved into place whole, so the image never
+-- reads half a cover. A newer cover kills the download it replaces.
+local ART_DIR = (os.getenv("XDG_CACHE_HOME") or ((os.getenv("HOME") or "") .. "/.cache")) .. "/mantle/art"
+local FETCH = 'curl -fsSL --max-time 10 --create-dirs -o "$1.part" "$2" && mv "$1.part" "$1"'
+local held = state("media_remote_art", {}) -- player id -> the `art_url` its file holds
+local downloads = {} -- player id -> { url, handle } of its latest download
+
+mantle.mpris:on_change(function(mpris)
+    for _, player in ipairs((mpris and mpris.players) or {}) do
+        local id, url = player.id, player.art_url or ""
+        local current = downloads[id]
+        if url:match("^https?://") and not (current and current.url == url) then
+            if current then
+                current.handle:kill()
+            end
+            local path = ART_DIR .. "/" .. id
+            downloads[id] = { url = url, handle = process.run("sh", { "-c", FETCH, "sh", path, url }, function() end,
+                function(code)
+                    if code == 0 then
+                        local next_held = {}
+                        for other, fetched in pairs(held:get()) do
+                            next_held[other] = fetched
+                        end
+                        next_held[id] = url
+                        held:set(next_held)
+                    end
+                end) }
+        end
+    end
+end)
+
+local artwork = computed({ selected, held }, function(player, fetched)
+    if not player then
+        return ""
+    end
+    if player.album_art_path ~= "" then
+        return player.album_art_path
+    end
+    -- Only this track's cover, never the last one while the new one downloads.
+    return player.art_url and fetched[player.id] == player.art_url and ART_DIR .. "/" .. player.id or ""
+end)
+
 mantle.mpris:on_change(function()
     local player = selected:get()
     -- `nil` is "this player has never answered `Position`", not a reading, so it must not become an
@@ -187,9 +230,7 @@ local body = {
                     -- An empty `image.source` draws nothing, so the note shows until a cover lands.
                     glyph(icons.media, theme.DIM, theme.icon.xl, { align = "center", align_v = "center" }),
                     image {
-                        source = selected:map(function(player)
-                            return (player and player.album_art_path) or ""
-                        end),
+                        source = artwork,
                         fit = "cover",
                         -- An inline decode would stall the frame that opens the card.
                         async = true,

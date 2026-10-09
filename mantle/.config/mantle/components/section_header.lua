@@ -12,6 +12,6 @@ return function(content)
         foreground = theme.TEXT_MUTED,
         font_size = theme.font.xs,
         height = theme.section_header_height,
-        padding = { top = theme.spacing.xs, left = theme.spacing.sm },
+        padding = { top = theme.spacing.xs },
     }
 end
