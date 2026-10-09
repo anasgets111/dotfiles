@@ -87,8 +87,11 @@ end
 
 -- 4. Layer rules
 -- Mantle asks for blur per box (behind_blur, ext-background-effect-v1), so it
--- gets no rule: one would also frost its shadows. ignore_alpha skips
--- transparent corners, keeps the glass body.
+-- gets no `blur` rule: one would also frost its shadows. Hyprland 0.56 blurs a
+-- layer's popups (tooltips) only under `blur_popups`, then clips to that region.
+hl.layer_rule({ match = { namespace = "^mantle-.*" }, blur_popups = true })
+
+-- ignore_alpha skips transparent corners, keeps the glass body.
 hl.layer_rule({
     match        = { namespace = "^polkit-dialog$" },
     blur         = true,
