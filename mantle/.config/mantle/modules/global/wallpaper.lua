@@ -4,8 +4,11 @@
 local wallpaper = require("lib.wallpaper")
 local theme = require("config.theme")
 
+-- Sigma for the overview's backdrop, close to the old Quickshell `MultiEffect` (0.6 of 64, x2).
+local OVERVIEW_BLUR = 32
+
 -- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it.
-local function wallpaper_panel(id, visible)
+local function wallpaper_panel(id, visible, blur)
     -- `"ignore"` (layer-shell `-1`) covers the output; `false` would yield to the bar's reservation.
     return panel {
         id = id,
@@ -29,6 +32,7 @@ local function wallpaper_panel(id, visible)
                 transition = wallpaper.transition(),
                 width = "fill",
                 height = "fill",
+                effect = blur and { blur = blur },
             }
         end,
     }
@@ -43,5 +47,5 @@ end)
 
 return {
     desktop = wallpaper_panel("wallpaper"),
-    overview = wallpaper_panel("overview_wallpaper", in_overview),
+    overview = wallpaper_panel("overview_wallpaper", in_overview, OVERVIEW_BLUR),
 }
