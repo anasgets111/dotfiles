@@ -1,34 +1,21 @@
 -- Clock, identity, secure password field and system status over a frosted wallpaper.
-local theme          = require("config.theme")
-local icons          = require("config.icons")
-local util           = require("lib.util")
-local wallpaper      = require("lib.wallpaper")
-local cell           = require("components.cell")
-local glyph          = require("components.glyph")
-local panel_card     = require("components.panel_card")
-local icon_button    = require("components.icon_button")
-local info_badge     = require("components.info_badge")
-local scrim          = require("components.scrim")
-local identity       = require("lib.identity")
-local weather        = require("lib.weather")
+local theme           = require("config.theme")
+local util            = require("lib.util")
+local wallpaper       = require("lib.wallpaper")
+local cell            = require("components.cell")
+local glyph           = require("components.glyph")
+local panel_card      = require("components.panel_card")
+local password_prompt = require("components.password_prompt")
+local scrim           = require("components.scrim")
+local identity        = require("lib.identity")
+local weather         = require("lib.weather")
 
-local FIELD_HEIGHT   = theme.control.xl
-local FIELD_RADIUS   = FIELD_HEIGHT / 2
--- Centre both controls on the pill's rounded ends.
-local ICON_INSET     = (FIELD_HEIGHT - theme.icon.md) / 2
-local BUTTON_INSET   = (FIELD_HEIGHT - theme.control.lg) / 2
-local WALLPAPER_BLUR = 24
-local CARD_BLUR      = 16
-local STAGGER        = 90
--- A wrong password shakes the pill left and right, damping out.
-local SHAKE          = {
-    duration = 60,
-    easing = "in_out_quad",
-    keyframes = { { x = 0 }, { x = -10 }, { x = 10 }, { x = -6 }, { x = 6 }, { x = -2 }, { x = 0 } },
-}
+local WALLPAPER_BLUR  = 24
+local CARD_BLUR       = 16
+local STAGGER         = 90
 
 -- Keep the lock until the card's exit finishes, plus scheduling slack.
-local LEAVE_SLACK    = 60
+local LEAVE_SLACK     = 60
 mantle.lock:set_unlock_animation(theme.animation_slow_ms + LEAVE_SLACK)
 
 util.auto_english_layout(mantle.lock)
@@ -60,41 +47,13 @@ local function entering(props, order, offset, scale)
     return props
 end
 
-local busy         = util.shown_when(mantle.lock, function(lock)
-    return lock.authenticating or lock.unlocking
-end)
-local ERROR_TEXT   = {
-    ["authentication failed"] = "Incorrect password. Try again.",
-    ["too many attempts"] = "Too many attempts. Try again later.",
-}
-local feedback     = mantle.lock:map(function(lock)
+-- Outranks the prompt's own feedback while the lock is coming up or going away.
+local function lock_status(lock)
     if lock == nil or not lock.active then
         return "Locking…"
     end
-    if lock.unlocking then
-        return "Unlocking…"
-    end
-    if lock.authenticating then
-        return "Checking…"
-    end
-    local error = lock.error or ""
-    return ERROR_TEXT[error] or (error ~= "" and error) or "Press Enter to unlock"
-end)
-
-local failed       = util.shown_when(mantle.lock, function(lock)
-    return lock.active and not lock.authenticating and not lock.unlocking and lock.error ~= nil and lock.error ~= ""
-end)
-
-local field_border = computed({ busy, failed }, function(checking, error_shown)
-    return checking and theme.ACCENT or error_shown and theme.RED or theme.GLASS_BORDER
-end)
-
--- Each new failure replays the shake; `failed` keeps a reset count at lock start from playing it.
-local shaking      = computed({ pulse(mantle.lock:map(function(lock)
-    return lock and lock.attempts or 0
-end), SHAKE.duration * #SHAKE.keyframes), failed }, function(fresh, error_shown)
-    return fresh and error_shown
-end)
+    return lock.unlocking and "Unlocking…" or nil
+end
 
 local function status_item(icon_glyph, label, visible)
     return row {
@@ -119,33 +78,6 @@ end)
 
 -- One secure field per output, armed on compositor focus.
 local function content(output)
-    -- Passwords stay in the native buffer. Never attach `on_change` or `on_submit`.
-    local password_field = textfield {
-        width = "fill",
-        height = FIELD_HEIGHT,
-        placeholder = "Password",
-        mask_character = "•",
-        secure_submit = { capability = "lock", action = "authenticate" },
-        font_size = theme.font.lg,
-        foreground = theme.FG,
-        align_v = "center",
-    }
-
-    local unlock = icon_button(icons.chevron_right, nil, {
-        slot = "lock-unlock-" .. output,
-        size = theme.control.lg,
-        icon_size = theme.icon.md,
-        border = false,
-        background = theme.GLASS_CONTROL,
-        background_hover = theme.ACCENT_LIGHT,
-        foreground = theme.FG,
-        spinning = busy,
-        cursor = util.choose(busy, "default", "pointer"),
-    })
-    unlock.submit = busy:map(function(checking)
-        return not checking
-    end)
-
     -- Lua rejects `%-d`; read the unpadded day from the date table.
     local time = column(entering({
         align_h = "center",
@@ -159,97 +91,22 @@ local function content(output)
     }, 0, -theme.spacing.md))
 
     local card = panel_card({
-        row {
-            width = "fill",
-            spacing = theme.spacing.md,
-            children = {
-                rect {
-                    width = FIELD_HEIGHT,
-                    height = FIELD_HEIGHT,
-                    radius = FIELD_RADIUS,
-                    background = theme.GLASS_CONTROL,
-                    children = {
-                        cell(util.bold(identity.initials), theme.FG, theme.font.lg, {
-                            width = "fill",
-                            align = "center",
-                            align_v = "center",
-                        }),
-                    },
-                },
-                column {
-                    width = "fill",
-                    align_v = "center",
-                    spacing = theme.spacing.xs,
-                    children = {
-                        cell(util.bold(identity.full_name), theme.FG, theme.font.xl, { width = "fill" }),
-                        cell(identity.account, theme.DIM, theme.font.sm, { width = "fill" }),
-                    },
-                },
-            },
-        },
-        row {
-            width = "fill",
-            height = FIELD_HEIGHT,
-            padding = { right = BUTTON_INSET, left = ICON_INSET },
-            spacing = theme.spacing.sm,
-            background = theme.GLASS_INPUT,
-            radius = FIELD_RADIUS,
-            border_width = theme.border_width_medium,
-            border_color = field_border,
-            translate = { x = 0, y = 0 },
-            animate = shaking:map(function(on)
-                return { border_color = theme.animation_ms, translate = on and SHAKE or nil }
-            end),
-            children = {
-                glyph(icons.lock, theme.DIM, theme.icon.md, {
-                    width = theme.icon.md,
-                    align = "center",
-                    align_v = "center",
-                }),
-                password_field,
-                unlock,
-            },
-        },
-        column {
-            width = "fill",
-            padding = { left = ICON_INSET, right = BUTTON_INSET },
-            spacing = theme.spacing.sm,
-            children = {
-                row {
-                    width = "fill",
-                    height = theme.control.xs,
-                    align_v = "center",
-                    spacing = theme.spacing.sm,
-                    children = {
-                        glyph(icons.keyboard, theme.DIM, theme.icon.sm, {
-                            width = theme.icon.md, align = "center", align_v = "center",
-                        }),
-                        cell(util.label(mantle.keyboard, function(keyboard)
-                            return keyboard.active_layout
-                        end), theme.DIM, theme.font.md, { width = "fill", align_v = "center" }),
-                        info_badge("Caps lock", theme.YELLOW, {
-                            visible = util.shown_when(mantle.keyboard, function(keyboard)
-                                return keyboard.caps_lock == true
-                            end),
-                        }),
-                    },
-                },
-                -- Both lines stay reserved, so an error or Caps Lock never moves the input.
-                rect {
-                    width = "fill",
-                    height = theme.control.lg,
-                    padding = { left = theme.icon.md + theme.spacing.sm },
-                    children = { cell(feedback, util.choose(failed, theme.RED, theme.DIM), theme.font.lg, {
-                        width = "fill", align = "start", align_v = "start", wrap = "word", max_lines = 2,
-                    }) },
-                },
-            },
-        },
+        password_prompt({
+            capability = "lock",
+            slot = "lock-unlock-" .. output,
+            idle = "Press Enter to unlock",
+            status = lock_status,
+            badge = cell(util.bold(identity.initials), theme.FG, theme.font.lg, {
+                width = "fill", align = "center", align_v = "center",
+            }),
+            title = identity.full_name,
+            title_size = theme.font.xl,
+            subtitle = identity.account,
+        }),
     }, {
         width = theme.dialog_width,
         align_h = "center",
         padding = theme.spacing.xl,
-        spacing = theme.spacing.lg,
         background = theme.with_opacity(theme.ELEVATED, 0.3),
         glass = true,
         radius = theme.radius.xl,

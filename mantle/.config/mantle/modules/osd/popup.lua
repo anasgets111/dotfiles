@@ -97,17 +97,21 @@ return panel {
     -- One instance, on the output the compositor picks at each show.
     output = "active",
     layer = "overlay",
-    -- No `left`/`right`: the protocol centres an axis with neither edge anchored and leaves its
-    -- width measurable, where two anchored edges would span the output.
-    anchor = { bottom = true },
+    -- Spans the output, so a new entry's width never resizes the surface: Hyprland draws one frame
+    -- of a shrunk content-sized layer at its old centre, leaving a sliver past the card's edge. The
+    -- empty sides claim no input.
+    anchor = { bottom = true, left = true, right = true },
     -- `SLIDE` taller and that much lower, so the rise stays inside the surface that clips it.
     margin = { bottom = theme.osd_bottom_margin - SLIDE },
-    -- No `width`: the surface is the card, and the card is its content.
     height = theme.osd_height + SLIDE,
     -- Map until exit completes at `FALL_MS`; holding it for the entry's beat left an idle overlay.
     visible = util.linger(osd.visible, FALL_MS),
     child = column {
+        -- No `width`: the card is its content.
         height = theme.osd_height,
+        align_h = "center",
+        -- Cuts the outgoing layout to the easing edge.
+        clip = "rounded",
         -- `translate` is paint-only, so the card is solved once; easing `margin` re-ran the solver.
         translate = osd.visible:map(function(shown)
             return { y = shown and 0 or SLIDE }
@@ -123,6 +127,8 @@ return panel {
                     easing = shown and "out_cubic" or "in_quad",
                     from = { y = SLIDE },
                 },
+                -- A new entry eases the card to its new content width.
+                width = { duration = theme.animation_ms, easing = "out_cubic" },
             }
         end),
         -- The same sheet and edge as a notification card: both float over wallpaper.

@@ -1,13 +1,12 @@
 -- Polkitd's authorization prompt; reading `mantle.polkit` registers this shell as the session
 -- agent. `secure_submit` keeps the password in a native buffer no callback can read, and
--- `submit = true` makes Authenticate equal Enter. Its own Overlay surface, since it must take the
+-- the pill's chevron submits like Enter. Its own Overlay surface, since it must take the
 -- keyboard over anything, with `modal.lua`'s motion so it opens like every other dialog.
 local theme = require("config.theme")
 local util = require("lib.util")
-local cell = require("components.cell")
 local panel_card = require("components.panel_card")
 local action_button = require("components.action_button")
-local input = require("components.input")
+local password_prompt = require("components.password_prompt")
 local modal = require("components.modal")
 local scrim = require("components.scrim")
 
@@ -44,51 +43,34 @@ return panel {
         children = {
             scrim(active),
             modal({ kind = "polkit", showing = active, card = panel_card({
-                row {
-                    width = "fill",
-                    spacing = theme.spacing.lg,
-                    children = {
-                        icon {
-                            name = util.label(mantle.polkit, function(polkit)
-                                return polkit.icon_name ~= "" and polkit.icon_name or "dialog-password"
-                            end),
-                            size = theme.icon.xl,
-                            align_v = "center",
-                        },
-                        cell(util.bold(util.label(mantle.polkit, function(polkit)
-                            return polkit.message
-                        end)), theme.FG, theme.font.md, { width = "fill", wrap = "word", align_v = "center" }),
+                password_prompt({
+                    capability = "polkit",
+                    slot = "polkit-authenticate",
+                    font_size = theme.font.md,
+                    on_cancel = cancel,
+                    badge = icon {
+                        name = util.label(mantle.polkit, function(polkit)
+                            return polkit.icon_name ~= "" and polkit.icon_name or "dialog-password"
+                        end),
+                        size = theme.icon.lg,
+                        align_h = "center",
+                        align_v = "center",
                     },
-                },
-                input {
-                    field = textfield {
-                        placeholder = "Password",
-                        mask_character = "•",
-                        secure_submit = { capability = "polkit", action = "authenticate" },
-                        on_cancel = cancel,
-                    },
-                    error = mantle.polkit:map(function(polkit)
-                        return polkit and polkit.error or ""
+                    title = util.label(mantle.polkit, function(polkit)
+                        return polkit.message
                     end),
-                },
-                cell("Checking…", theme.DIM, theme.font.sm, {
-                    width = "fill",
-                    visible = util.shown_when(mantle.polkit, function(polkit)
-                        return polkit.authenticating
+                    title_size = theme.font.md,
+                    -- What is being granted, so a vague message can still be judged.
+                    subtitle = util.label(mantle.polkit, function(polkit)
+                        return polkit.action_id
                     end),
+                    footer = action_button("Cancel", cancel, "polkit-cancel", { tone = "quiet" }),
                 }),
-                row {
-                    width = "fill",
-                    align_h = "end",
-                    spacing = theme.spacing.sm,
-                    children = {
-                        action_button("Cancel", cancel, "polkit-cancel", { tone = "quiet" }),
-                        action_button("Authenticate", nil, "polkit-authenticate", { tone = "solid", submit = true }),
-                    },
-                },
             }, {
                 width = theme.dialog_width,
                 tone = "dialog",
+                padding = theme.spacing.xl,
+                radius = theme.radius.xl,
             }) }).node,
         },
     },
