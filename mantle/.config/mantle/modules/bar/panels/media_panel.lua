@@ -54,7 +54,7 @@ local seek_base = state("media_seek_base", -1)
 local ART_DIR = (os.getenv("XDG_CACHE_HOME") or ((os.getenv("HOME") or "") .. "/.cache")) .. "/mantle/art"
 local FETCH = 'curl -fsSL --max-time 10 --create-dirs -o "$1.part" "$2" && mv "$1.part" "$1"'
 local held = state("media_remote_art", {}) -- player id -> the `art_url` its file holds
-local downloads = {} -- player id -> { url, handle } of its latest download
+local downloads = {}                       -- player id -> { url, handle } of its latest download
 
 mantle.mpris:on_change(function(mpris)
     for _, player in ipairs((mpris and mpris.players) or {}) do
@@ -65,17 +65,20 @@ mantle.mpris:on_change(function(mpris)
                 current.handle:kill()
             end
             local path = ART_DIR .. "/" .. id
-            downloads[id] = { url = url, handle = process.run("sh", { "-c", FETCH, "sh", path, url }, function() end,
-                function(code)
-                    if code == 0 then
-                        local next_held = {}
-                        for other, fetched in pairs(held:get()) do
-                            next_held[other] = fetched
+            downloads[id] = {
+                url = url,
+                handle = process.run("sh", { "-c", FETCH, "sh", path, url }, function() end,
+                    function(code)
+                        if code == 0 then
+                            local next_held = {}
+                            for other, fetched in pairs(held:get()) do
+                                next_held[other] = fetched
+                            end
+                            next_held[id] = url
+                            held:set(next_held)
                         end
-                        next_held[id] = url
-                        held:set(next_held)
-                    end
-                end) }
+                    end)
+            }
         end
     end
 end)
