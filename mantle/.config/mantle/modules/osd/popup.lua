@@ -6,6 +6,7 @@ local util = require("lib.util")
 local glyph = require("components.glyph")
 local cell = require("components.cell")
 local meter = require("components.meter")
+local osd_tile = require("components.osd_tile")
 local osd = require("modules.osd.service")
 
 local SLIDE = theme.osd_slide
@@ -27,23 +28,9 @@ local level_color = osd.entry:map(function(entry)
     return entry.color or theme.ACCENT
 end)
 
--- The glyph on a tinted tile, leading both layouts, so the card is one shape whose trailing half
--- changes. The glyph centres directly inside the tile.
+-- The glyph on a tinted tile leads both layouts, so the card is one shape whose trailing half changes.
 local function tile()
-    return rect {
-        width = theme.osd_tile,
-        height = theme.osd_tile,
-        align_v = "center",
-        background = level_color:map(function(color)
-            return theme.with_opacity(color, theme.opacity.light)
-        end),
-        border_width = theme.border_width,
-        border_color = level_color:map(function(color)
-            return theme.with_opacity(color, theme.opacity.medium)
-        end),
-        radius = theme.radius.md,
-        children = { glyph(entry_glyph, level_color, theme.font.xl, { align = "center", align_v = "center" }) },
-    }
+    return osd_tile(level_color, glyph(entry_glyph, level_color, theme.font.xl, { align = "center", align_v = "center" }))
 end
 
 -- Slider layout: tile, filling track, bold readout.

@@ -19,6 +19,7 @@ fonts {
 local wallpaper = require("modules.global.wallpaper")
 local notifications = require("modules.notification.popup")
 local osd = require("modules.osd.popup")
+local dictation = require("modules.osd.dictation")
 local bar = require("modules.bar")
 local panel_host = require("modules.shell.panel_host")
 local modal_host = require("modules.global.modal_host")
@@ -34,6 +35,7 @@ local surfaces = {
     wallpaper.overview,
     notifications,
     osd,
+    dictation,
     panel_host,
 }
 table.move(bar.tooltips, 1, #bar.tooltips, #surfaces + 1, surfaces)
