@@ -10,7 +10,7 @@ M.hidden_ssid = state("network_hidden_ssid", "")
 -- another join may have left an error behind.
 -- Completion is read, not latched: reaching the submitted SSID ends the sheet without a write.
 M.credential_step = computed({ hidden_prompt, M.hidden_ssid, mantle.network }, function(active, name, network)
-    if network and network.password_ssid ~= nil then
+    if network.password_ssid ~= nil then
         return "password"
     end
     if not active then
@@ -19,14 +19,14 @@ M.credential_step = computed({ hidden_prompt, M.hidden_ssid, mantle.network }, f
     if name == "" then
         return "name"
     end
-    if network and network.ssid == name then
+    if network.ssid == name then
         return ""
     end
-    if network and network.connect_error ~= nil and network.connect_error.ssid == name then
+    if network.connect_error ~= nil and network.connect_error.ssid == name then
         return "failed"
     end
     return "waiting"
-end)
+end, "")
 
 -- A hidden join's sheet replaces the access point list; a password for a listed row leaves it up.
 M.hidden_join = computed({ hidden_prompt, M.credential_step }, function(active, step)

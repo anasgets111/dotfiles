@@ -18,7 +18,7 @@ local item_id = state("tray_menu_item", "")
 local expanded = state("tray_menu_expanded", {})
 
 local function menu_of(tray, id)
-    local item = util.find(tray and tray.items, function(item) return item.id == id end)
+    local item = util.find(tray.items, function(item) return item.id == id end)
     return item and item.menu
 end
 
@@ -40,7 +40,7 @@ local rows = computed({ mantle.tray, item_id, expanded }, function(tray, id, ope
     local out = {}
     flatten(menu_of(tray, id), 0, open, out)
     return out
-end)
+end, {})
 
 -- Plain characters, not `config/icons.lua` glyphs, draw what the application's toolkit would. A
 -- submenu marker outranks a check mark; off and indeterminate toggles draw nothing.

@@ -42,7 +42,7 @@ local selecting = nil
 local cancelled = state("recorder_cancelled", false)
 
 -- Pause arithmetic, which no process reports: `paused_total` banks finished pauses and `paused_at`
--- stamps an open one, elapsed being the difference. Every stamp is `mantle.clock:monotonic()`,
+-- stamps an open one, elapsed being the difference. Every stamp is `mantle.clock:now()`,
 -- including the start, since durations only compare within one origin. `state`, so they survive a
 -- reload; a replaced Renderer resets them and its paused seconds count as recorded.
 local paused_total = state("recorder_paused_total", 0)
@@ -131,8 +131,9 @@ end
 local elapsed_text = computed(
     { mantle.clock, began_at, paused_total, paused_at, recording },
     function(system, began, banked, open_since, up)
-        return up and format_elapsed(elapsed_of((system and system.monotonic) or 0, began, banked, open_since)) or ""
-    end
+        return up and format_elapsed(elapsed_of(system.monotonic, began, banked, open_since)) or ""
+    end,
+    ""
 )
 
 -- Name the file after the capture's output, with the extension of the container the panel chose.
@@ -159,7 +160,7 @@ local function launch(target, output, label)
     output_path:set(path)
     paused_total:set(0)
     paused_at:set(0)
-    began_at:set(mantle.clock:monotonic())
+    began_at:set(mantle.clock:now())
     starting:set(true)
     recorder:start("gpu-screen-recorder", args)
 end
@@ -244,10 +245,10 @@ local function toggle_pause()
     recorder:signal("USR2")
     local open_since = paused_at:get()
     if open_since > 0 then
-        paused_total:set(paused_total:get() + (mantle.clock:monotonic() - open_since))
+        paused_total:set(paused_total:get() + (mantle.clock:now() - open_since))
         paused_at:set(0)
     else
-        paused_at:set(mantle.clock:monotonic())
+        paused_at:set(mantle.clock:now())
     end
 end
 
@@ -273,7 +274,7 @@ local function announce_saved(exit_code)
         return
     end
 
-    local duration = format_elapsed(elapsed_of(mantle.clock:monotonic(), began_at:get(), paused_total:get(), paused_at:get()))
+    local duration = format_elapsed(elapsed_of(mantle.clock:now(), began_at:get(), paused_total:get(), paused_at:get()))
     process.capture("notify-send", {
         "-a", "Screen Recorder",
         "-i", "media-record",

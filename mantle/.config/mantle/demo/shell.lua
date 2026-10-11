@@ -31,9 +31,9 @@ local first_output = mantle.screens:map(function(screens)
     return screens and screens[1] and screens[1].name or ""
 end)
 local picture = computed({ store.wallpapers, mantle.folders, mantle.screens }, function(wallpapers, files, screens)
-    local first = screens and screens[1]
+    local first = screens[1]
     return first and wallpaper.path_in(wallpapers, first.name, files) or ""
-end)
+end, "")
 
 ---------------------------------------------------------------------------------------------------
 -- Building blocks

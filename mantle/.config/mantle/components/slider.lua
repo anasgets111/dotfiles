@@ -113,7 +113,7 @@ return function(opts)
             return held
         end
         return value_of(opts.read, payload, max) or 0
-    end)
+    end, 0)
 
     local fill_opacity = opts.fill_visible and util.choose(opts.fill_visible, 1, 0)
     local fill_animate = fill_opacity and { opacity = { duration = theme.animation_ms, easing = "out_cubic" } }

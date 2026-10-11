@@ -27,7 +27,7 @@ local function display_name(device)
 end
 
 local function enabled(bluetooth)
-    return bluetooth ~= nil and bluetooth.enabled
+    return bluetooth.enabled
 end
 
 local function state_line(bluetooth)
@@ -62,7 +62,7 @@ end
 
 -- The `mantle.audio` entry for `mac`, or `nil` when PipeWire has no codec to offer for it.
 local function codec_card(audio, mac)
-    return util.find((audio and audio.bluetooth), function(card) return card.mac == mac and #card.codecs > 0 end)
+    return util.find(audio.bluetooth, function(card) return card.mac == mac and #card.codecs > 0 end)
 end
 
 local function active_codec(card)
@@ -113,7 +113,7 @@ local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bl
     add(util.sorted_devices(bluetooth.paired_devices), "paired")
     add(util.sorted_devices(bluetooth.discovered_devices), "available")
     return out
-end)
+end, {})
 
 -- One always-on signal for every busy spinner; one minted per row in `each` would leak.
 local SPINNING = mantle.bluetooth:map(function()
@@ -280,8 +280,8 @@ local body = {
         end),
         -- `rows` is empty exactly when the radio is off or every device list is.
         computed({ mantle.bluetooth, rows }, function(bluetooth, out)
-            return bluetooth ~= nil and #out == 0
-        end)
+            return #out == 0
+        end, false)
     ),
 }
 

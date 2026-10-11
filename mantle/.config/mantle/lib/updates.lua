@@ -43,9 +43,9 @@ end
 -- A finished run's result is on screen. Tools after an install are part of its run.
 local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
     function(updates, is_dismissed, tool, dev)
-        return not is_dismissed and tool == "" and updates ~= nil and not updates.installing and
+        return not is_dismissed and tool == "" and not updates.installing and
             (install_ended(updates) or dev.finished_at ~= nil)
-    end)
+    end, false)
 
 -- Whether this run included packages. A tools-only run leaves the last install's count and log.
 local function ran_packages(updates)
@@ -66,9 +66,7 @@ end
 -- after an install are `running` too, since the manager has exited but the run has not. A failed
 -- check with a stale list is `pending`: the list still shows.
 local phase = computed({ mantle.updates, result_showing, dev_running }, function(updates, showing, tool)
-    if updates == nil then
-        return "loading"
-    elseif updates.installing or tool ~= "" then
+    if updates.installing or tool ~= "" then
         return "running"
     elseif showing then
         return install_failed(updates) and "failed" or "done"
@@ -78,7 +76,7 @@ local phase = computed({ mantle.updates, result_showing, dev_running }, function
         return "pending"
     end
     return updates.check_error ~= nil and "check_failed" or "empty"
-end)
+end, "loading")
 
 -- Absent means on, so a tool added to `config/dev_tools.lua` runs without a `state.json` edit.
 local function tool_enabled(name, flags)

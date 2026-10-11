@@ -7,11 +7,11 @@ local cell = require("components.cell")
 -- This node is anchored unconditionally; hiding it moves the midpoint when the last window closed.
 local EMPTY_LABEL = "Desktop"
 
--- The client is `nil` before the first snapshot and whenever nothing holds focus; the supervisor
--- omits the key rather than sending null (`workspaces/controller.rs`). `util.app_entry` maps
--- `active_client.app_id` to a `.desktop` entry.
+-- The client is `nil` whenever nothing holds focus; the supervisor omits the key rather than
+-- sending null (`workspaces/controller.rs`). `util.app_entry` maps `active_client.app_id` to a
+-- `.desktop` entry.
 local function focused(applications, workspaces)
-    local client = workspaces and workspaces.active_client
+    local client = workspaces.active_client
     return client, client and util.app_entry(applications, client.app_id)
 end
 
@@ -31,10 +31,10 @@ end
 local icon_name = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
     local _, entry = focused(applications, workspaces)
     return (entry and entry.icon) or "applications-system"
-end)
+end, "applications-system")
 local title = computed({ mantle.applications, mantle.workspaces }, function(applications, workspaces)
     return label(applications, workspaces)
-end)
+end, EMPTY_LABEL)
 local app_id = mantle.workspaces:map(function(workspaces)
     local client = workspaces.active_client
     return client and client.app_id or ""

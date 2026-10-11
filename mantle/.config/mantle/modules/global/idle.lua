@@ -41,7 +41,7 @@ local ACTIONS = {
 -- Register once at top level. A registration inside a repeated callback duplicates it permanently.
 mantle.idle:register_threshold(idle.TICK, function()
     -- Back-date by the threshold so "idle 0:42" means since the last keystroke, not the push.
-    idle.since:set(mantle.clock:monotonic() - idle.TICK)
+    idle.since:set(mantle.clock:now() - idle.TICK)
 end, function(cause)
     -- Input wakes displays. Other resumes stop the countdown without powering on.
     if cause == "input" then

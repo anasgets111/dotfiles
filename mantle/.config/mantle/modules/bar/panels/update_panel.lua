@@ -35,12 +35,12 @@ end
 local status_color = computed({ phase, mantle.updates, service.dev_result }, function(current, updates, dev)
     if current == "failed" or current == "check_failed" then
         return theme.RED
-    elseif (updates ~= nil and (updates.check_error ~= nil or updates.aur_error ~= nil)) or
+    elseif updates.check_error ~= nil or updates.aur_error ~= nil or
         (current == "done" and #(dev.failures or {}) > 0) then
         return theme.PEACH
     end
     return current == "done" and theme.GREEN or theme.DIM
-end)
+end, theme.DIM)
 
 -- ponytail: `install_log` is a 200-line tail, so long runs undercount. Exact needs a Supervisor counter.
 local function warning_count(updates)
@@ -126,7 +126,7 @@ end
 -- Dated unless today, and marked stale past two intervals (a suspended laptop). `detail_line` covers
 -- errors.
 local function last_check_line(updates, now)
-    if updates == nil or updates.last_successful_check == nil then
+    if updates.last_successful_check == nil then
         return "Never checked"
     end
     local at = updates.last_successful_check
@@ -180,8 +180,8 @@ local package_height = sorted_packages:map(function(packages)
 end)
 
 local log_lines = computed({ mantle.updates, service.dev_log }, function(updates, lines)
-    return util.concat(updates and updates.install_log, lines)
-end)
+    return util.concat(updates.install_log, lines)
+end, {})
 
 -- Strongest first, so red failures are findable in two hundred lines of pacman output.
 local LOG_COLOURS = {
@@ -275,8 +275,8 @@ local settings_summary = computed({ store.updates_aur, store.updates_dev_tools, 
     end)
 
 local busy = computed({ mantle.updates, service.dev_running }, function(updates, tool)
-    return updates == nil or updates.checking or updates.installing or tool ~= ""
-end)
+    return updates.checking or updates.installing or tool ~= ""
+end, true)
 
 -- Percent through this run's packages, then its tools; `false` while there is no count to show.
 local progress = computed({ mantle.updates, service.dev_running }, function(updates, tool)
@@ -284,9 +284,9 @@ local progress = computed({ mantle.updates, service.dev_running }, function(upda
         local step, total = service.tool_step(tool)
         return total > 0 and 100 * step / total or false
     end
-    local total = (updates and updates.installing and updates.install_total_steps) or 0
+    local total = (updates.installing and updates.install_total_steps) or 0
     return total > 0 and 100 * (updates.install_current_step or 0) / total or false
-end)
+end, false)
 
 -- `.pacnew` and `.pacsave` files from this run, each wanting a manual merge.
 local pacnew = computed({ mantle.updates, service.result_showing }, function(updates, showing)
@@ -301,7 +301,7 @@ local pacnew = computed({ mantle.updates, service.result_showing }, function(upd
         end
     end
     return files
-end)
+end, {})
 
 -- Installing before pacman has counted the packages.
 local working = mantle.updates:map(function(updates)
@@ -332,7 +332,7 @@ local body = {
         accent = computed({ phase, status_color }, function(current, color)
             return (current == "pending" or current == "running" or current == "checking") and theme.ACCENT or color
         end),
-        subtitle = computed({ mantle.updates, phase, service.dev_running, service.dev_result }, status_line),
+        subtitle = computed({ mantle.updates, phase, service.dev_running, service.dev_result }, status_line, "Waiting for the updater"),
         trailing = {
             info_badge("Reboot required", theme.PEACH, {
                 visible = mantle.updates:map(function(updates)
@@ -351,11 +351,11 @@ local body = {
                         return "Updating…"
                     elseif current == "failed" then
                         return "Retry update"
-                    elseif (updates and #updates.packages or 0) == 0 then
+                    elseif #updates.packages == 0 then
                         return "Update developer tools"
                     end
                     return "Update all"
-                end),
+                end, "Update developer tools"),
                 service.install,
                 "updates-install",
                 {
@@ -371,7 +371,7 @@ local body = {
                                 return false
                             end
                             return #updates.packages > 0 or service.any_tool_runnable()
-                        end),
+                        end, false),
                 }
             ),
             action_button(util.choose(checking, "Checking…", "Check"), function()
@@ -394,11 +394,11 @@ local body = {
                 spacing = theme.spacing.sm,
                 align_v = "center",
                 children = {
-                    cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line),
+                    cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line, ""),
                         status_color, theme.font.xs, { width = "fill", wrap = "word" }),
                     cell(computed({ mantle.updates, mantle.clock }, function(updates, clock)
-                        return last_check_line(updates, (clock and clock.time) or os.time())
-                    end), theme.TEXT_MUTED, theme.font.xs, {
+                        return last_check_line(updates, clock.time)
+                    end, "Never checked"), theme.TEXT_MUTED, theme.font.xs, {
                         align = "end",
                         visible = phase:map(function(current)
                             return current ~= "running" and current ~= "done" and current ~= "failed"

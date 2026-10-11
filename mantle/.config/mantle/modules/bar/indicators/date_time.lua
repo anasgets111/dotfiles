@@ -20,12 +20,12 @@ local SLOT = "clock"
 -- weather reading leads once there is one; `weather.code` holds `-1` until then.
 local clock = cell(util.bold(computed({ mantle.clock, weather.code, weather.temperature },
     function(system, code, celsius)
-        local shown = os.date("%a %d %b  %I:%M %p", system and system.time)
+        local shown = os.date("%a %d %b  %I:%M %p", system.time)
         if code >= 0 then
             shown = string.format("%d°C %s %s", celsius, weather.info(code).icon, shown)
         end
         return shown
-    end)), theme.text_contrast(theme.GLASS_CONTROL), theme.font.sm, { align_v = "center" })
+    end, "")), theme.text_contrast(theme.GLASS_CONTROL), theme.font.sm, { align_v = "center" })
 
 -- The only tooltip with an explicit `width`/`height`: its `width = "fill"` rows and fixed-cell grid
 -- leave `components/tooltip.lua` no content-sized extent to measure, and a month is four to six
@@ -56,9 +56,9 @@ local clock_tooltip = tooltip({
             }
         end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),
         cell(computed({ weather.updated_at, mantle.clock }, function(at, system)
-            local ago = weather.time_ago(at, system and system.time)
+            local ago = weather.time_ago(at, system.time)
             return ago ~= "" and ("Last updated " .. ago) or ""
-        end), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
+        end, ""), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
         cell(util.label(mantle.clock, function(system)
             return os.date("%A %d %B %Y", system.time)
         end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),

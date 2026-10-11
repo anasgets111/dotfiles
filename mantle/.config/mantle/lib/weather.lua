@@ -89,7 +89,7 @@ local next_attempt = state("weather_next_attempt", 0)
 -- Monotonic, not wall: setting the clock must not park the next attempt an hour out. The stored
 -- freshness deadline below is wall, and the two are never compared.
 local function schedule(seconds)
-    next_attempt:set(mantle.clock:monotonic() + seconds)
+    next_attempt:set(mantle.clock:now() + seconds)
 end
 
 local function retry_soon()

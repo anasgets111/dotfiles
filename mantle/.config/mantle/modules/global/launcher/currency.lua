@@ -122,7 +122,7 @@ local function fetch()
         if type(rates) ~= "table" then
             local wait = code and RETRY_SECONDS or KILLED_RETRY_SECONDS
             log.warn(("currency: fetch failed (curl exited %s), retrying in %ds"):format(tostring(code), wait))
-            next_attempt:set(mantle.clock:monotonic() + wait)
+            next_attempt:set(mantle.clock:now() + wait)
             return
         end
         -- `data.usd["usd"] = 1.0`: the base is absent from its own table.

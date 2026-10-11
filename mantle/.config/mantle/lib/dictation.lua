@@ -15,10 +15,10 @@ dictation.active = dictation.phase:map(function(phase)
 end)
 
 dictation.elapsed_text = computed({ mantle.clock, began_at }, function(system, began)
-    local seconds = math.max(0, ((system and system.monotonic) or 0) - began)
+    local seconds = math.max(0, system.monotonic - began)
     seconds = math.floor(seconds)
     return string.format("%d:%02d", seconds // 60, seconds % 60)
-end)
+end, "0:00")
 
 -- `audio.sock` streams 16-byte native frames `{ u32 seq, f32 min, f32 max, f32 peak_dbfs }` at
 -- 100 Hz. The loudest peak of every three, -30..-6 dBFS as 0..100, joins a rolling window per line.
@@ -64,7 +64,7 @@ dictation.phase:on_change(function(phase, previous)
         return
     end
     if phase == "recording" then
-        began_at:set(mantle.clock:monotonic())
+        began_at:set(mantle.clock:now())
     end
     sync_meter(phase == "recording")
 end)

@@ -25,7 +25,7 @@ local function screencast(privacy, wanted)
     return wanted ~= false and privacy ~= nil and #privacy.screencast_users > 0
 end
 
-M.sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, screencast)
+M.sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, screencast, false)
 
 local function notification_quiet(is_sharing)
     local lock = mantle.lock:get()
@@ -122,8 +122,8 @@ end
 
 -- Keep keyboard focus while a live notification has a draft, even after the pointer leaves.
 M.reply_pending = computed({ M.reply_active_id, mantle.notifications }, function(id, inbox)
-    return id ~= 0 and util.find(inbox and inbox.feed, function(notification) return notification.id == id end) ~= nil
-end)
+    return id ~= 0 and util.find(inbox.feed, function(notification) return notification.id == id end) ~= nil
+end, false)
 
 -- Blank is a no-op: `reply` removes the notification either way.
 function M.send_reply(id)

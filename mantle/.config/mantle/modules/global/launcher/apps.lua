@@ -47,7 +47,7 @@ function M.rank(applications, text, usage)
     local now = os.time()
     local scored = {}
     local best = 0
-    for _, app in ipairs(applications and applications.entries or {}) do
+    for _, app in ipairs(applications.entries) do
         local value = needle == "" and 0 or math.max(
             field_score(app.name, needle, 80),
             field_score(app.generic_name, needle, 60),

@@ -80,10 +80,11 @@ local function audio_control(opts)
     local mute_glyph = util.choose(is_muted, opts.is_input and icons.mic_off or icons.vol_muted,
         opts.is_input and icons.mic_on or icons.vol_high)
     local tint = util.choose(is_muted, theme.DIM, theme.FG)
+    -- `before` is what `fallback` reads while unmuted, the state before the first push.
     local leading_glyph = computed({ mantle.audio, mute_glyph }, function(audio, fallback)
-        return audio and not audio[opts.muted]
+        return not audio[opts.muted]
             and util.audio_device_glyph(util.active_device(audio[opts.devices]), opts.is_input) or fallback
-    end)
+    end, opts.is_input and icons.mic_on or icons.vol_high)
     local held = state("audio_pending_" .. opts.name, -1)
     local max = opts.headroom and util.MAX_VOLUME or 100
     tooltips[opts.name] = tooltip({
@@ -109,8 +110,8 @@ local function audio_control(opts)
             align_v = "center",
             children = {
                 cell(util.bold(computed({ mantle.audio, held }, function(audio, held_value)
-                    return percent(held_value >= 0 and held_value or audio and audio[opts.volume])
-                end)), tint, theme.font.sm, { width = theme.control.lg, align = "end", align_v = "center" }),
+                    return percent(held_value >= 0 and held_value or audio[opts.volume])
+                end, "--")), tint, theme.font.sm, { width = theme.control.lg, align = "end", align_v = "center" }),
                 panel_action_icon(mute_glyph, function()
                     mantle.audio[opts.toggle_mute](mantle.audio)
                 end, {

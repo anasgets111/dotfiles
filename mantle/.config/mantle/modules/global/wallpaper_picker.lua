@@ -75,7 +75,7 @@ local filtered = computed({ mantle.folders, trimmed }, function(files, needle)
         end
     end
     return found
-end)
+end, {})
 
 local rows = filtered:map(function(entries)
     return util.chunk(entries, COLUMNS)
@@ -84,7 +84,7 @@ end)
 -- An unplugged selection reads as "all" but is kept, so a replugged screen gets it back.
 local effective_monitor = computed({ monitor, mantle.screens }, function(chosen, screens)
     return util.find(screens, function(screen) return screen.name == chosen end) and chosen or ALL
-end)
+end, ALL)
 
 local function targets_now()
     local chosen = effective_monitor:get()
@@ -97,7 +97,7 @@ local function targeted(read)
     return computed({ store.wallpapers, mantle.screens, effective_monitor },
         function(wallpapers, screens, chosen)
             local first
-            for _, screen in ipairs(screens or {}) do
+            for _, screen in ipairs(screens) do
                 if chosen == ALL or chosen == screen.name then
                     local value = read(wallpapers, screen.name)
                     if first ~= nil and value ~= first then
@@ -107,7 +107,7 @@ local function targeted(read)
                 end
             end
             return first or ""
-        end)
+        end, "")
 end
 
 local current_path = targeted(wallpaper.path_in)
@@ -269,7 +269,7 @@ local folder_state = computed({ mantle.folders, filtered }, function(files, show
         return "no_match"
     end
     return "ok"
-end)
+end, "loading")
 
 local function state_is(name)
     return folder_state:map(function(current)

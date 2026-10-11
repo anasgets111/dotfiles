@@ -17,10 +17,6 @@ local expanded = computed({ hovered, dragging }, function(is_hovered, is_draggin
     return is_hovered or is_dragging
 end)
 
-local function muted(audio)
-    return audio ~= nil and audio.muted
-end
-
 local function volume(audio)
     return audio and audio.volume
 end
@@ -30,8 +26,8 @@ local ground = computed({ mantle.audio, hovered }, function(audio, is_hovered)
     if is_hovered then
         return theme.GLASS_CONTROL_HOVER
     end
-    return muted(audio) and theme.GLASS_CONTENT or theme.GLASS_CONTROL
-end)
+    return audio.muted and theme.GLASS_CONTENT or theme.GLASS_CONTROL
+end, theme.GLASS_CONTROL)
 
 -- Muted makes the fill inactive, so 60% reads as a grey bar, not purple "loud".
 local fill = mantle.audio:map(function(audio)
@@ -44,13 +40,13 @@ end, theme.RED)
 local width = util.choose(expanded, theme.volume_expanded_width, theme.item_width)
 local volume_glyph = mantle.audio:map(util.volume_glyph, util.volume_glyph())
 local readout = computed({ mantle.audio, held }, function(audio, pending)
-    if volume(audio) == nil then
+    if audio.volume == nil then
         return "--"
     elseif audio.muted then
         return "Muted"
     end
     return string.format("%d%%", math.floor((pending >= 0 and pending or audio.volume) + 0.5))
-end)
+end, "--")
 
 local track = geometry("bar-volume")
 

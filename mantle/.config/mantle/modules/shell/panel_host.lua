@@ -69,13 +69,13 @@ local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 -- the signal so a resolution change moves the clamp; an empty list clamps only at zero.
 local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, function(anchor, screens, width)
     local x = ((anchor and anchor.x) or 0) + ((anchor and anchor.width) or 0) / 2 - width / 2
-    local screen = screens and screens[1]
+    local screen = screens[1]
     if screen and screen.width then
         x = math.min(x, screen.width - width - theme.spacing.sm - CORNER)
         x = math.max(x, theme.spacing.sm + CORNER)
     end
     return math.floor(math.max(0, x))
-end)
+end, 0)
 
 -- The card drops from behind the bar and retracts the same way, `linger` keeping it for the exit.
 -- Travel is the shown section's measured height plus chrome, so a switch while closed retracts to

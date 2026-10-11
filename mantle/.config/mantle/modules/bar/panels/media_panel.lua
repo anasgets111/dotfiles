@@ -1,5 +1,5 @@
 -- `position` is valid only at `position_updated_at` and nothing polls it, so the bar would sit still
--- between pushes. Its stamp and `mantle.clock:monotonic()` share `CLOCK_MONOTONIC`. `on_change`
+-- between pushes. Its stamp and `mantle.clock:now()` share `CLOCK_MONOTONIC`. `on_change`
 -- is the one place a clock reading and a payload are simultaneous, so it anchors each push and `system`
 -- ticks the elapsed term once a second. A `:map` may not `:set`, so it cannot record the anchor.
 --
@@ -25,19 +25,19 @@ local LOOP_ICONS = { track = icons.repeat_one, playlist = icons.repeat_all }
 local chosen = state("media_player", 1)
 
 local selected = computed({ mantle.mpris, chosen }, function(mpris, index)
-    local players = (mpris and mpris.players) or {}
+    local players = mpris.players
     if #players == 0 then
         return false
     end
     return players[(index - 1) % #players + 1]
-end)
+end, false)
 
 local anchor = state("media_anchor", 0)
 
 --- Stamps the anchor from the same clock `position_us` adds elapsed time against. Every writer goes
 --- through this: a seek that stamped a different clock would jump the position by the two epochs.
 local function anchor_now()
-    anchor:set(mantle.clock:monotonic())
+    anchor:set(mantle.clock:now())
 end
 
 -- Keyed on the `position` value, not the push. A browser answers `Position` with the same number all
@@ -108,7 +108,7 @@ mantle.mpris:on_change(function()
 end)
 
 -- No clock read of its own: a `computed` must answer the same for the same inputs. Before
--- `mantle.clock`'s first tick there is no "now", so the elapsed term is zero.
+-- `mantle.clock`'s first tick there is no "now", so the position holds `-1`.
 local position_us = computed({ selected, mantle.clock, anchor, seek_base }, function(player, system, anchored, base)
     if not player then
         return -1
@@ -120,14 +120,14 @@ local position_us = computed({ selected, mantle.clock, anchor, seek_base }, func
         return -1
     end
     local position = base >= 0 and base or reported
-    local now = (system and system.monotonic) or 0
+    local now = system.monotonic
     if player.play_state == "playing" and anchored > 0 and now > anchored then
         position = position + (now - anchored) * 1000 * 1000
     end
     -- A `nil` length is a stream, which has no end to clamp to.
     local length = player.length
     return length and length > 0 and math.min(position, length) or position
-end)
+end, -1)
 
 -- Minutes and zero-padded seconds, and never a negative or a fabricated zero for the `nil` a
 -- stream reports or the `-1` of `position_us`.

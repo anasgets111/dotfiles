@@ -213,9 +213,9 @@ local details = panel_card({
             group({
                 cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "fill" }),
                 cell(computed({ mantle.clock, boot }, function(system, info)
-                    return system and info and info.started > 0 and
+                    return info and info.started > 0 and
                         uptime(system.time - info.started) or "--"
-                end), theme.DIM, theme.font.sm, { width = "fill" }),
+                end, "--"), theme.DIM, theme.font.sm, { width = "fill" }),
                 cell(boot:map(function(info)
                     return info.duration ~= "" and "Boot " .. info.duration or "Boot --"
                 end), theme.DIM, theme.font.xs, { width = "fill" }),

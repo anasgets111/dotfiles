@@ -28,7 +28,7 @@ local KIND = "network"
 -- `nil` without Wi-Fi hardware, where the flat actions report it.
 local picked = state("network_device", "")
 local device = computed({ mantle.network, picked }, function(network, id)
-    local devices = network and network.wifi_devices or {}
+    local devices = network.wifi_devices
     return util.find(devices, function(candidate)
         return candidate.id == id
     end) or devices[1]
@@ -36,7 +36,7 @@ end)
 
 -- Payload order is connected, saved, then descending raw signal. The list re-sorts by tier.
 local function access_points(network, target)
-    return (target and target.available_networks) or (network and network.available_networks) or {}
+    return (target and target.available_networks) or network.available_networks
 end
 
 local function scan()
@@ -120,7 +120,7 @@ end
 -- The scanned list and the hidden-network row share one condition.
 local radio_up_and_idle = computed({ mantle.network, join.hidden_join }, function(network, joining)
     return radio_on(network) and not joining
-end)
+end, false)
 
 -- `connect_error` stays until the next attempt, so the dismissal is view state.
 local error_dismissed = disclosure.state("network_error_dismissed", false)
@@ -152,7 +152,7 @@ local function before(left, right)
 end
 
 local rows = computed({ mantle.network, device }, function(network, target)
-    local connecting = network and network.connecting_ssid
+    local connecting = network.connecting_ssid
     local sections = { connected = {}, saved = {}, available = {} }
     for _, ap in ipairs(access_points(network, target)) do
         local group = ap.active and sections.connected or ap.saved and sections.saved or sections.available
@@ -174,7 +174,7 @@ local rows = computed({ mantle.network, device }, function(network, target)
         end
     end
     return out
-end)
+end, {})
 
 -- Fixed, so scanned titles line up with the hidden-network row's.
 local LEADING_WIDTH = theme.control.md
@@ -247,7 +247,7 @@ end
 
 -- A failure keeps the sheet up here, rather than returning the error to the row it came from.
 local sheet_title = util.bold(computed({ step, join.hidden_ssid, mantle.network }, function(current, name, network)
-    local target = (network and network.password_ssid) or name
+    local target = network.password_ssid or name
     if current == "name" then
         return "Hidden network"
     elseif current == "waiting" then
@@ -256,7 +256,7 @@ local sheet_title = util.bold(computed({ step, join.hidden_ssid, mantle.network 
         return string.format("Could not join “%s”", target)
     end
     return string.format("Connect to “%s”", target)
-end))
+end, "Connect to “”"))
 
 local error_message = util.label(mantle.network, function(network)
     return network.connect_error and network.connect_error.message or ""
@@ -368,8 +368,8 @@ local body = {
     callout(icons.warning, error_message, {
         visible = computed({ mantle.network, step, error_dismissed }, function(network, current, dismissed)
             return current == "" and not dismissed
-                and network ~= nil and network.connect_error ~= nil and network.connecting_ssid == nil
-        end),
+                and network.connect_error ~= nil and network.connecting_ssid == nil
+        end, false),
         trailing = panel_action_icon(icons.close, function()
             error_dismissed:set(true)
         end, { slot = "network-error-dismiss", tint = theme.RED }),
@@ -422,8 +422,8 @@ local body = {
             callout(icons.warning, error_message, {
                 visible = computed({ step, mantle.network }, function(current, network)
                     return current == "failed"
-                        or (current == "password" and network ~= nil and network.connect_error ~= nil)
-                end),
+                        or (current == "password" and network.connect_error ~= nil)
+                end, false),
             }),
             row {
                 width = "fill",
@@ -483,7 +483,7 @@ local body = {
         end, "NetworkManager is not responding"),
         computed({ mantle.network, device, join.hidden_join }, function(network, target, joining)
             return not radio_on(network) or (not joining and #access_points(network, target) == 0)
-        end)
+        end, true)
     ),
 }
 

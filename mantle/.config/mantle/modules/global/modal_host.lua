@@ -66,8 +66,8 @@ return panel {
         if not open then
             return "none"
         end
-        return workspaces and workspaces.compositor == "niri" and "exclusive" or "on_demand"
-    end),
+        return workspaces.compositor == "niri" and "exclusive" or "on_demand"
+    end, "none"),
     child = rect {
         width = "fill",
         height = "fill",

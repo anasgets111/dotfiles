@@ -19,13 +19,13 @@ end
 -- The hovered item's two lines. `said` is the sender's own `ToolTip`, kept only when it adds to the
 -- label. Some repeat the name ("Vesktop"), others carry live state ("DL speed: 0 B/s").
 local hovered = computed({ util.hold(hovered_id), mantle.tray, mantle.applications }, function(id, tray, applications)
-    local found = util.find((tray and tray.items) or {}, function(item)
+    local found = util.find(tray.items, function(item)
         return item.id == id
     end)
     local label = found and item_label(found, applications) or (id ~= "" and id or "Tray item")
     local said = (found and found.tooltip) or ""
     return { label = label, said = not said:lower():find(label:lower(), 1, true) and said or "" }
-end)
+end, { label = "Tray item", said = "" })
 
 -- Hide `passive`: the spec treats it as no presentation, so disabling an application's tray icon
 -- removes it.

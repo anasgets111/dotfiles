@@ -54,14 +54,12 @@ end), nil, {
 local update_tooltip = tooltip({
     slot = SLOT,
     text = computed({ mantle.updates, status }, function(updates, current)
-        if updates == nil then
-            return "--"
-        elseif current == "pending" then
+        if current == "pending" then
             return #updates.packages == 1 and "One package can be upgraded"
                 or string.format("%d packages can be upgraded", #updates.packages)
         end
         return LOOKS[current][3]
-    end),
+    end, "--"),
 })
 
 return { indicator = indicator, tooltips = { update_tooltip } }

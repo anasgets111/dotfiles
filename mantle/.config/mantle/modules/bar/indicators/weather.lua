@@ -120,8 +120,8 @@ return column {
                         return bad and "Weather unavailable" or "Loading forecast…"
                     end
                     return string.format("%s · Updated %s", degrees(now),
-                        weather.time_ago(at, system and system.time))
-                end),
+                        weather.time_ago(at, system.time))
+                end, "Loading forecast…"),
             expanded = expanded,
             trailing = panel_action_icon(icons.refresh, weather.refresh, {
                 slot = "weather-refresh-" .. id,

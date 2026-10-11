@@ -6,7 +6,7 @@ local tooltip = require("components.tooltip")
 
 local function users_of(field)
     return function(privacy)
-        return #((privacy or {})[field] or {}) > 0
+        return #privacy[field] > 0
     end
 end
 
@@ -25,7 +25,7 @@ local mic_muted = mantle.audio:map(function(audio)
 end, false)
 local mic_shown = computed({ mantle.privacy, mic_muted }, function(privacy, muted)
     return users_of("microphone_users")(privacy) or muted
-end)
+end, false)
 
 local mic_tooltip = tooltip({
     slot = "privacy_microphone",
@@ -49,7 +49,7 @@ local indicator = row {
     -- hides itself. Keyed on `mic_shown`: a muted microphone appears without a user.
     visible = computed({ mantle.privacy, mic_shown }, function(privacy, mic)
         return mic or users_of("camera_users")(privacy) or users_of("screencast_users")(privacy)
-    end),
+    end, false),
     children = {
         alert(icons.camera, "camera_users", "privacy_camera"),
         icon_button(util.choose(mic_muted, icons.mic_off, icons.mic_on), function()

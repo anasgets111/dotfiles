@@ -113,7 +113,7 @@ end
 function wallpaper.path_of(output)
     return computed({ store.wallpapers, mantle.folders }, function(wallpapers, files)
         return wallpaper.path_in(wallpapers, output, files)
-    end)
+    end, "")
 end
 
 function wallpaper.fit_of(output)

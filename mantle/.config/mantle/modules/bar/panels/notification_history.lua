@@ -30,13 +30,10 @@ local sections = computed({ mantle.notifications, mantle.applications, util.toda
     function(payload, applications, today)
         local groups = notifications.group_notifications(feed(payload), applications, { history = true })
         return notifications.notification_sections(groups, today)
-    end)
+    end, {})
 
 -- One feed scan for the masthead's counts, summary, empty state and clear action.
 local history_counts = mantle.notifications:map(function(payload)
-    if payload == nil then
-        return nil
-    end
     local count, urgent, apps, seen = 0, 0, 0, {}
     for _, notification in ipairs(feed(payload)) do
         if notifications.kept_in_history(notification) then

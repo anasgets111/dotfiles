@@ -33,14 +33,14 @@ local visible_groups = computed(
     function(service, seen, panel_open, lock, applications, is_sharing)
         -- A panel shares this corner, and a popup over the lock screen is readable without a
         -- password. Neither marks the card seen, so it returns unless its countdown expires first.
-        if panel_open or (lock and lock.active) then
+        if panel_open or lock.active then
             return {}
         end
         -- Expiry, history's seen set and DND each drop a card; only expiry leaves it in history.
         -- A screen capture is DND for its length.
-        local dnd = (service and service.dnd) or is_sharing
+        local dnd = service.dnd or is_sharing
         local unseen = {}
-        for _, notification in ipairs((service and service.feed) or {}) do
+        for _, notification in ipairs(service.feed) do
             local quiet = dnd and notification.urgency ~= "critical"
             if not notification.expired and not quiet
                 and not seen[notifications.notification_key(notification)] then
@@ -53,7 +53,8 @@ local visible_groups = computed(
             all[index].rank = index
         end
         return all
-    end
+    end,
+    {}
 )
 
 -- Once a second. A hovered stack is being read, so it waits like the expiry hold does.

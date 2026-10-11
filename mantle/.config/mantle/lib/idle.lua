@@ -1,7 +1,7 @@
 -- Idle settings, stages and inhibitor state. Loading this module fires no idle actions;
 -- `modules/global/idle.lua` runs the clock, stamps each arming and fires the stages.
 --
--- One one-second threshold counted on `mantle.clock.monotonic`, not one per stage: the panel's
+-- One one-second threshold counted on `mantle.clock`'s `monotonic`, not one per stage: the panel's
 -- "idle 0:42" readout needs the tick anyway, and a stage arms when its predecessor reports `done`
 -- rather than at a fixed second. If those pushes stop, stages stop too.
 --
@@ -158,11 +158,11 @@ end
 -- Named `state()` throughout: registry entries survive a reload, so an edit cannot forget a manual
 -- hold or leak its inhibitor.
 
---- The `mantle.clock.monotonic` reading when the seat went idle, or `0` while awake. It and the
+--- The `mantle.clock:now()` reading when the seat went idle, or `0` while awake. It and the
 --- clock's epoch survive a reload together, and a Supervisor restart rebuilds both.
 idle.since = state("idle_since", 0)
 
---- Arming time in `mantle.clock.monotonic`, keyed by `stage.key`. Missing means not armed; the
+--- Arming time in `mantle.clock:now()`, keyed by `stage.key`. Missing means not armed; the
 --- stamp makes delay relative, and clearing it makes unlock undo the sequence.
 idle.armed_at = state("idle_armed_at", {})
 
@@ -233,14 +233,14 @@ end, false)
 idle.reasons = computed({ mantle.privacy, idle.settings, idle.manual, mantle.idle },
     function(privacy, settings, manual, foreign)
         local reasons = idle.own_reasons(privacy, settings, manual)
-        for _, inhibitor in ipairs((foreign or {}).inhibitors or {}) do
+        for _, inhibitor in ipairs(foreign.inhibitors or {}) do
             -- `who` is empty through xdg-desktop-portal, so `why` ("Playing video") is the only label.
             reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
                 or inhibitor.why ~= "" and inhibitor.why
                 or "another application"
         end
         return reasons
-    end)
+    end, {})
 
 --- Only the compositor's old answer remains; no current holder is named.
 idle.unconfirmed = computed({ idle.stale, idle.reasons }, function(stale, reasons)
@@ -267,8 +267,8 @@ end
 --- Anything holding the session awake, unnamed holders included: `inhibited` is the authoritative
 --- `BlockInhibited` gate, so an unreadable `who` still stops the countdown.
 idle.inhibited = computed({ idle.reasons, mantle.idle }, function(reasons, foreign)
-    return #reasons > 0 or (foreign ~= nil and foreign.inhibited == true)
-end)
+    return #reasons > 0 or foreign.inhibited == true
+end, false)
 
 --- Make the logind hold match the reasons. One writer, called by everything that can change the
 --- answer; three callers counting take/drop themselves would disagree.
@@ -357,17 +357,17 @@ idle.schedule = computed({ idle.settings, idle.active_profile }, idle.plan)
 --- `{ key = "", elapsed = 0 }`.
 idle.arming = computed({ mantle.clock, idle.armed_at }, function(system, stamps)
     for key, at in pairs(stamps or {}) do
-        return { key = key, elapsed = math.max(0, ((system and system.monotonic) or 0) - at) }
+        return { key = key, elapsed = math.max(0, system.monotonic - at) }
     end
     return { key = "", elapsed = 0 }
-end)
+end, { key = "", elapsed = 0 })
 
 --- Seat idle duration in seconds, or `0` while awake.
 idle.elapsed = computed({ mantle.clock, idle.since }, function(system, since)
     if since == 0 then
         return 0
     end
-    return math.max(0, ((system and system.monotonic) or 0) - since)
-end)
+    return math.max(0, system.monotonic - since)
+end, 0)
 
 return idle
