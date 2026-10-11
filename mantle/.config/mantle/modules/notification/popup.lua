@@ -26,14 +26,19 @@ local CRITICAL_POPUP_SECONDS = 60
 
 local HOVER = hover("notification_stack_region")
 
+-- The lock capability may never push before a first lock; `computed` would hold every card back.
+local lock_active = mantle.lock:map(function(lock)
+    return lock.active
+end, false)
+
 -- The newest unseen cards. One signal, so `visible` and the list cannot disagree.
 local visible_groups = computed(
-    { mantle.notifications, notification_state.popup_seen, navigation.panel_open, mantle.lock, mantle.applications,
+    { mantle.notifications, notification_state.popup_seen, navigation.panel_open, lock_active, mantle.applications,
         notification_state.sharing },
-    function(service, seen, panel_open, lock, applications, is_sharing)
+    function(service, seen, panel_open, locked, applications, is_sharing)
         -- A panel shares this corner, and a popup over the lock screen is readable without a
         -- password. Neither marks the card seen, so it returns unless its countdown expires first.
-        if panel_open or lock.active then
+        if panel_open or locked then
             return {}
         end
         -- Expiry, history's seen set and DND each drop a card; only expiry leaves it in history.
