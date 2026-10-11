@@ -2,4 +2,4 @@
 -- the flag with its own reason and deserves the same circle.
 return mantle.rescue:map(function(rescue)
     return rescue.error_log
-end, "")
+end)

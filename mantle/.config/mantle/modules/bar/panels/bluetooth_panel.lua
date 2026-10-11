@@ -279,7 +279,7 @@ local body = {
             return bluetooth.discovering and "Looking for devices…" or "No devices found"
         end),
         -- `rows` is empty exactly when the radio is off or every device list is.
-        computed({ mantle.bluetooth, rows }, function(bluetooth, out)
+        computed({ mantle.bluetooth, rows }, function(_, out)
             return #out == 0
         end, false)
     ),

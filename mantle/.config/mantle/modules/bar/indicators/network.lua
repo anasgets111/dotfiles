@@ -34,7 +34,7 @@ local network_module = icon_button(mantle.network:map(util.network_glyph, util.n
     badge_translate = band:map(function(label)
         return { x = label == "2.4" and -2 * theme.spacing.xs or -theme.spacing.xs, y = -theme.spacing.xs }
     end),
-    visible = mantle.network:map(function(network)
+    visible = mantle.network:map(function()
         return true
     end, false),
 })
