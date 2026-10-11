@@ -30,6 +30,7 @@ icons.battery_levels  = { "\u{F244}", "\u{F243}", "\u{F242}", "\u{F241}", "\u{F2
 
 icons.brightness      = "\u{F00DE}"
 icons.keyboard        = "\u{F030C}"
+icons.enter           = "\u{F0311}"
 icons.caps_lock       = "\u{F0A9B}"
 icons.num_lock        = "\u{F03A0}"
 icons.lan             = "\u{F0317}"

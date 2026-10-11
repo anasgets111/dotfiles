@@ -43,10 +43,10 @@ function M.claims(input)
         or string.format("%.12g", value)
     return {
         kind = "calc",
-        hint = "Enter to copy",
+        hint = "Copy",
         icon = icons.calc,
-        title = input .. " = " .. result,
-        subtitle = "Calculator",
+        title = result,
+        subtitle = input,
         payload = result,
     }
 end

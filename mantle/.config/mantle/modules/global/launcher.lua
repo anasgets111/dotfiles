@@ -12,7 +12,6 @@ local theme = require("config.theme")
 local icons = require("config.icons")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
-local section_header = require("components.section_header")
 local util = require("lib.util")
 local store = require("lib.store")
 local ui_state = require("lib.ui_state")
@@ -27,10 +26,10 @@ local web_provider = require("modules.global.launcher.web")
 ---table carries these fields because a `computed` can hold it.
 ---@class LauncherRow
 ---@field kind "currency"|"calc"|"web" What `activate` does with `payload`: copy it, or open it.
----@field hint string
+---@field hint string The verb beside the Enter keycap: what Enter does to this row.
 ---@field icon string
 ---@field icon_is_text? boolean The glyph needs the body family, not the Nerd Font one.
----@field title string
+---@field title string The answer itself, or the query a web row searches.
 ---@field subtitle string
 ---@field payload string
 
@@ -51,6 +50,8 @@ local PANEL_MS = 210
 local SIZE = theme.launcher_search_height
 local SEARCH_PADDING = theme.spacing.xl
 local RESULTS_PADDING = theme.spacing.sm
+-- Selections nest in the results card's corners.
+local SELECTION_RADIUS = theme.launcher_radius - RESULTS_PADDING
 local COLUMNS = math.floor((theme.launcher_width - 2 * RESULTS_PADDING) / theme.launcher_tile_width)
 local VISIBLE_ROWS = 4
 local STEPS = { Left = -1, Right = 1, Up = -COLUMNS, Down = COLUMNS }
@@ -261,10 +262,10 @@ local function app_tile(app)
         hover = hover("launcher-app-" .. app.id),
         width = theme.launcher_tile_width,
         height = theme.launcher_tile_height,
-        radius = theme.radius.md,
-        align_v = "center",
+        radius = SELECTION_RADIUS,
+        -- Top-aligned, so icons line up across one- and two-line names.
         spacing = theme.spacing.xs,
-        padding = theme.spacing.xs,
+        padding = { top = theme.spacing.md, left = theme.spacing.xs, right = theme.spacing.xs },
         children = {
             icon {
                 name = app.icon or "application-x-executable",
@@ -275,15 +276,21 @@ local function app_tile(app)
                 end),
                 animate = { scale = { duration = theme.animation_fast_ms, easing = "out_cubic" } },
             },
-            cell(app.name, theme.FG, theme.font.md, { width = "fill", align = "center" }),
+            -- Two lines, so "LibreOffice Calc" and "LibreOffice Writer" stay apart.
+            cell(app.name, theme.FG, theme.font.sm, { width = "fill", align = "center", wrap = "word", max_lines = 2 }),
         },
     }))
 end
 
+local grid_height = rows:map(function(chunks)
+    return math.min(#chunks, VISIBLE_ROWS) * theme.launcher_tile_height
+end)
+
 local grid = list {
     width = "fill",
-    height = rows:map(function(chunks)
-        return math.min(#chunks, VISIBLE_ROWS) * theme.launcher_tile_height
+    height = grid_height,
+    visible = grid_height:map(function(height)
+        return height > 0
     end),
     scroll = SCROLL,
     source = rows,
@@ -309,12 +316,12 @@ local function special_field(key)
     end)
 end
 
--- Leading glyph, title over subtitle, then the action hint.
+-- Leading glyph, the answer over its source, then what Enter does, shown only while it would.
 local special_row = row(selectable(SPECIAL, {
     hover = hover("launcher-special"),
     width = "fill",
     height = theme.control.xl,
-    radius = theme.radius.md,
+    radius = SELECTION_RADIUS,
     visible = special_shown,
     spacing = theme.spacing.sm,
     padding = { left = theme.spacing.sm, right = theme.spacing.sm },
@@ -331,17 +338,38 @@ local special_row = row(selectable(SPECIAL, {
             width = "fill",
             align_v = "center",
             children = {
-                cell(special_field("title"), theme.FG, theme.font.lg, { width = "fill" }),
+                -- An answer is the news; a web query is only echoed.
+                cell(special_field("title"), theme.FG, theme.font.xl, {
+                    width = "fill",
+                    bold = special:map(function(row)
+                        return row ~= nil and row.kind ~= "web"
+                    end),
+                }),
                 cell(special_field("subtitle"), theme.DIM, theme.font.sm, { width = "fill" }),
             },
         },
-        cell(special_field("hint"), theme.DIM, theme.font.sm, { align_v = "center" }),
+        row {
+            align_v = "center",
+            spacing = theme.spacing.sm,
+            visible = effective_selected:map(function(id)
+                return id == SPECIAL
+            end),
+            children = {
+                cell(special_field("hint"), theme.DIM, theme.font.sm, { align_v = "center" }),
+                rect {
+                    width = theme.control.xs,
+                    height = theme.control.xs,
+                    radius = theme.radius.sm,
+                    border_width = theme.border_width,
+                    border_color = theme.GLASS_BORDER_HOVER,
+                    children = { glyph(icons.enter, theme.FG, theme.icon.sm, { align = "center", align_v = "center" }) },
+                },
+            },
+        },
     },
 }))
 
-local body_height = computed({ rows, special_shown }, function(chunks, has_row)
-    local height = #chunks > 0 and theme.section_header_height + math.min(#chunks, VISIBLE_ROWS) *
-        theme.launcher_tile_height or 0
+local body_height = computed({ grid_height, special_shown }, function(height, has_row)
     if has_row then
         height = height + (height > 0 and theme.spacing.xs or 0) + theme.control.xl
     end
@@ -568,16 +596,7 @@ return modal({
                 border_width = theme.border_width,
                 border_color = theme.GLASS_BORDER,
                 shadows = SHADOWS,
-                children = {
-                    column {
-                        width = "fill",
-                        visible = rows:map(function(chunks)
-                            return #chunks > 0
-                        end),
-                        children = { section_header("Apps"), grid },
-                    },
-                    special_row,
-                },
+                children = { grid, special_row },
             },
         },
     },

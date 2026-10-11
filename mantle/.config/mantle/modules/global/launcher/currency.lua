@@ -100,7 +100,7 @@ local function updated_text(at, now)
     if not at or at == 0 then
         return ""
     end
-    return "Updated " .. util.stamp(at, now)
+    return ", updated " .. util.stamp(at, now)
 end
 
 -- One request in flight. A reload kills a live one, and its `exit_cb(nil)` clears this guard.
@@ -180,11 +180,11 @@ function M.claims(query, rates, updated_at, allow_bare, today)
     end
     return {
         kind = "currency",
-        hint = "Enter to copy result",
+        hint = "Copy",
         icon = flag(from),
         icon_is_text = true,
-        title = string.format("%s %s → %s %s", string.format("%.14g", amount), from:upper(), result, to:upper()),
-        subtitle = updated_text(updated_at, today),
+        title = result .. " " .. to:upper(),
+        subtitle = string.format("%.14g %s%s", amount, from:upper(), updated_text(updated_at, today)),
         payload = result,
     }
 end

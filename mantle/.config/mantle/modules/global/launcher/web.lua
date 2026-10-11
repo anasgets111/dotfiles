@@ -16,10 +16,10 @@ function M.claims(text)
         end)
     return {
         kind = "web",
-        hint = "Enter to open",
+        hint = is_url and "Open" or "Search",
         icon = icons.web,
-        title = is_url and target or text,
-        subtitle = is_url and "Open link" or "Web search",
+        title = is_url and target:gsub("^https?://", "") or text,
+        subtitle = is_url and "Link" or M.ENGINE,
         payload = target,
     }
 end
