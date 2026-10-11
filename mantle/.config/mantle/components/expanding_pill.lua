@@ -16,7 +16,7 @@ local pill = {}
 
 ---@param opts ExpandingPillOpts
 function pill.new(opts)
-    local hovered = hover(opts.slot)
+    local hovered = state(opts.slot .. "-pointer", false)
     local lingering = util.linger(hovered, opts.collapse_ms or theme.animation_ms)
     local expanded = computed({ lingering, opts.hold_open }, function(open, held)
         return open or held
@@ -65,7 +65,10 @@ function pill.new(opts)
             height = theme.item_height,
             align_v = "center",
             geometry = self.geometry,
-            hover = hovered,
+            hover = hover(opts.slot),
+            on_hover = function(inside)
+                hovered:set(inside)
+            end,
             spacing = spacing,
             animate = self.animate,
             children = children,
