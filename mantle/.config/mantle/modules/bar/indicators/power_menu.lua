@@ -1,6 +1,6 @@
 -- The bar pill runs log out, restart and power off after a ten-second countdown. `process.detach`
 -- shells out, so a Renderer crash mid-flight cannot reap a shutdown. The countdown is a
--- `mantle.system.monotonic` deadline, not a timer, so a clock step cannot fire it early.
+-- `mantle.clock.monotonic` deadline, not a timer, so a clock step cannot fire it early.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local tooltip = require("components.tooltip")
@@ -9,11 +9,11 @@ local compositor = require("lib.compositor")
 
 local COUNTDOWN = 10
 
--- Pending action (`""` for none) and its `mantle.system.monotonic` deadline.
+-- Pending action (`""` for none) and its `mantle.clock.monotonic` deadline.
 local pending = state("power_pending", "")
 local deadline = state("power_deadline", 0)
 
-local seconds_left = computed({ mantle.system, deadline }, function(system, at)
+local seconds_left = computed({ mantle.clock, deadline }, function(system, at)
     return math.max(0, at - ((system and system.monotonic) or 0))
 end)
 
@@ -59,7 +59,7 @@ local function commit_pending()
     end
 end
 
-mantle.system:on_change(function(system)
+mantle.clock:on_change(function(system)
     if pending:get() ~= "" and system.monotonic >= deadline:get() then
         commit_pending()
     end
@@ -170,8 +170,7 @@ local function slot(index)
                 pending:set("")
             elseif mouse_button == "left" then
                 if key == "" then
-                    local system = mantle.system:get()
-                    deadline:set(((system and system.monotonic) or 0) + COUNTDOWN)
+                    deadline:set(mantle.clock:monotonic() + COUNTDOWN)
                     pending:set(action.key)
                 elseif key == action.key then
                     commit_pending()

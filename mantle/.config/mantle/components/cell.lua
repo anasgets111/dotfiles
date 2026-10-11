@@ -6,7 +6,7 @@
 local theme = require("config.theme")
 local util = require("lib.util")
 
--- The last typed hop before `text.content`. A `list` `itemfn` is `fun(item: any)`, so a raw span array
+-- The last typed hop before `text.content`. A `list` `each` is `fun(item: any)`, so a raw span array
 -- could reach `content` and freeze the shell on its last good scene. Image spans are not text, and
 -- `notifications.notification_body` converts them.
 ---@param content string|TextRun[]|Bound

@@ -10,9 +10,9 @@ local password_prompt = require("components.password_prompt")
 local modal = require("components.modal")
 local scrim = require("components.scrim")
 
-local active = util.shown_when(mantle.polkit, function(polkit)
+local active = mantle.polkit:map(function(polkit)
     return polkit.active
-end)
+end, false)
 
 util.auto_english_layout(mantle.polkit)
 

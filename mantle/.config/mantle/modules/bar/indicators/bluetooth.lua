@@ -10,11 +10,11 @@ local SLOT = "bluetooth"
 
 local function by_state(off, connected, on)
     return mantle.bluetooth:map(function(bluetooth)
-        if bluetooth == nil or not bluetooth.enabled then
+        if not bluetooth.enabled then
             return off
         end
         return #(bluetooth.connected_devices or {}) > 0 and connected or on
-    end)
+    end, off)
 end
 
 local function open(rect)
@@ -28,7 +28,7 @@ local bluetooth_module = icon_button(by_state(icons.bt_off, icons.bt_conn, icons
     foreground = by_state(theme.TEXT_OFF, theme.ACCENT, theme.FG),
 })
 
-local bluetooth_text = mantle.bluetooth:map(function(bluetooth)
+local function bluetooth_text_of(bluetooth)
     if bluetooth == nil or not bluetooth.available then
         return { text = "Bluetooth: unavailable", detail = "", secondary = "" }
     end
@@ -59,7 +59,8 @@ local bluetooth_text = mantle.bluetooth:map(function(bluetooth)
         detail = detail,
         secondary = secondary,
     }
-end)
+end
+local bluetooth_text = mantle.bluetooth:map(bluetooth_text_of, bluetooth_text_of())
 
 local bluetooth_tooltip = tooltip({
     slot = SLOT,

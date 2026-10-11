@@ -31,7 +31,7 @@ end
 
 local indicator = row {
     width = "fill", height = theme.bar_height,
-    background = theme.GLASS_SURFACE, behind_blur = true,
+    background = theme.GLASS_SURFACE, compositor_blur = true,
     padding = { left = theme.spacing.md, right = theme.spacing.md },
     children = { side(LEFT, "left", "start"), center, side(RIGHT, "right", "end") },
 }

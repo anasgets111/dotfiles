@@ -7,8 +7,7 @@ end
 
 -- `defaults` fills missing keys and creates the file on first run; existing values are kept.
 return persistent_table {
-    path = state_home .. "/mantle",
-    name = "state.json",
+    path = state_home .. "/mantle/state.json",
     defaults = {
         -- One entry per output, `{ path = ..., fit = ... }`.
         wallpapers = {},

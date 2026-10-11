@@ -42,16 +42,12 @@ local selecting = nil
 local cancelled = state("recorder_cancelled", false)
 
 -- Pause arithmetic, which no process reports: `paused_total` banks finished pauses and `paused_at`
--- stamps an open one, elapsed being the difference. Every stamp is `mantle.system.monotonic`,
+-- stamps an open one, elapsed being the difference. Every stamp is `mantle.clock:monotonic()`,
 -- including the start, since durations only compare within one origin. `state`, so they survive a
 -- reload; a replaced Renderer resets them and its paused seconds count as recorded.
 local paused_total = state("recorder_paused_total", 0)
 local paused_at = state("recorder_paused_at", 0)
 local began_at = state("recorder_began_at", 0)
-
-local function monotonic_now()
-    return (mantle.system:get() or {}).monotonic or 0
-end
 
 local recording = recorder.running:map(function(up)
     return up == true
@@ -62,13 +58,13 @@ end)
 
 -- The default output: only the focused monitor carries `focused_workspace`.
 local monitor = mantle.workspaces:map(function(workspaces)
-    for _, out in ipairs((workspaces and workspaces.outputs) or {}) do
+    for _, out in ipairs(workspaces.outputs) do
         if out.focused_workspace ~= nil then
             return out.name
         end
     end
     return ""
-end)
+end, "")
 
 -- A config has no XDG lookup, so ask the tool, once per session. Watching the folder lets a new
 -- file's number count past the ones already there.
@@ -76,10 +72,10 @@ local directory = state("recorder_directory", "")
 local function use_directory(dir)
     dir = dir:gsub("/$", "")
     directory:set(dir)
-    -- `mantle.files` never watches a folder missing at `watch`, so make it first.
+    -- The recorder does not create its output folder, so make it before the first take.
     process.run("mkdir", { "-p", dir }, function() end, function(code)
         if code ~= nil then
-            mantle.files:watch(dir)
+            mantle.folders:watch(dir)
         end
     end)
 end
@@ -103,7 +99,7 @@ local function file_stem(dir, output)
     local prefix = string.format("%s_%s-", output, os.date("%Y%m%d"))
     local pattern = "^" .. prefix:gsub("%p", "%%%0") .. "(%d+)%."
     local highest = 0
-    local listing = ((mantle.files:get() or {}).folders or {})[dir]
+    local listing = ((mantle.folders:get() or {}).watched or {})[dir]
     for _, entry in ipairs((listing and listing.entries) or {}) do
         highest = math.max(highest, tonumber(entry.name:match(pattern)) or 0)
     end
@@ -133,7 +129,7 @@ local function elapsed_of(now, began, banked, open_since)
 end
 
 local elapsed_text = computed(
-    { mantle.system, began_at, paused_total, paused_at, recording },
+    { mantle.clock, began_at, paused_total, paused_at, recording },
     function(system, began, banked, open_since, up)
         return up and format_elapsed(elapsed_of((system and system.monotonic) or 0, began, banked, open_since)) or ""
     end
@@ -163,7 +159,7 @@ local function launch(target, output, label)
     output_path:set(path)
     paused_total:set(0)
     paused_at:set(0)
-    began_at:set(monotonic_now())
+    began_at:set(mantle.clock:monotonic())
     starting:set(true)
     recorder:start("gpu-screen-recorder", args)
 end
@@ -184,10 +180,10 @@ local function start(mode)
     end
 
     starting:set(true)
-    selecting = util.capture("slurp", { "-o", "-f", "%o %wx%h+%x+%y" }, function(region, code)
+    selecting = process.capture("slurp", { "-o", "-f", "%o %wx%h+%x+%y" }, function(region, code)
         selecting = nil
         starting:set(false)
-        local output, box = util.trim(region):match("^(%S+) (%S+)$")
+        local output, box = util.trim(region or ""):match("^(%S+) (%S+)$")
         -- Before the exit status: a killed `slurp` may still have exited cleanly with a region.
         if cancelled:get() then
             cancelled:set(false)
@@ -248,10 +244,10 @@ local function toggle_pause()
     recorder:signal("USR2")
     local open_since = paused_at:get()
     if open_since > 0 then
-        paused_total:set(paused_total:get() + (monotonic_now() - open_since))
+        paused_total:set(paused_total:get() + (mantle.clock:monotonic() - open_since))
         paused_at:set(0)
     else
-        paused_at:set(monotonic_now())
+        paused_at:set(mantle.clock:monotonic())
     end
 end
 
@@ -277,8 +273,8 @@ local function announce_saved(exit_code)
         return
     end
 
-    local duration = format_elapsed(elapsed_of(monotonic_now(), began_at:get(), paused_total:get(), paused_at:get()))
-    util.capture("notify-send", {
+    local duration = format_elapsed(elapsed_of(mantle.clock:monotonic(), began_at:get(), paused_total:get(), paused_at:get()))
+    process.capture("notify-send", {
         "-a", "Screen Recorder",
         "-i", "media-record",
         "-t", "5000",
@@ -288,7 +284,7 @@ local function announce_saved(exit_code)
         "Recording saved",
         string.format("%s · %s", duration, name),
     }, function(chosen)
-        local key = util.trim(chosen)
+        local key = util.trim(chosen or "")
         if key == "default" or key == "play" then
             process.detach("xdg-open", { path })
         end

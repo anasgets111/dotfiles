@@ -20,8 +20,8 @@ end)
 
 -- Offer the battery profile only when UPower reports a battery.
 local has_battery = mantle.battery:map(function(battery)
-    return battery ~= nil and battery.present
-end)
+    return battery.present
+end, false)
 
 local header = panel_header {
     title = "Idle & power",
@@ -196,7 +196,7 @@ end
 local stage_list = list {
     width = "fill",
     geometry = stage_bounds,
-    source = settings:map(function(resolved)
+    items = settings:map(function(resolved)
         local items = {}
         for index, key in ipairs(resolved.order) do
             -- `idle.read` resolved `order` to known stages only.
@@ -207,7 +207,7 @@ local stage_list = list {
     key = function(item)
         return item.key
     end,
-    itemfn = stage_row,
+    each = stage_row,
 }
 
 -- Non-timeout reasons the session stays up, neither of them per-profile.

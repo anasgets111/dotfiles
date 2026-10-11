@@ -18,7 +18,7 @@ local SLOT = "clock"
 
 -- Bold: the weight separates the bar's one always-on readout from the indicators either side. The
 -- weather reading leads once there is one; `weather.code` holds `-1` until then.
-local clock = cell(util.bold(computed({ mantle.system, weather.code, weather.temperature },
+local clock = cell(util.bold(computed({ mantle.clock, weather.code, weather.temperature },
     function(system, code, celsius)
         local shown = os.date("%a %d %b  %I:%M %p", system and system.time)
         if code >= 0 then
@@ -55,14 +55,14 @@ local clock_tooltip = tooltip({
                 { text = place ~= "" and (" in " .. place) or "", color = theme.DIM },
             }
         end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),
-        cell(computed({ weather.updated_at, mantle.system }, function(at, system)
+        cell(computed({ weather.updated_at, mantle.clock }, function(at, system)
             local ago = weather.time_ago(at, system and system.time)
             return ago ~= "" and ("Last updated " .. ago) or ""
         end), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
-        cell(util.label(mantle.system, function(system)
+        cell(util.label(mantle.clock, function(system)
             return os.date("%A %d %B %Y", system.time)
         end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),
-        cell(util.label(mantle.system, function(system)
+        cell(util.label(mantle.clock, function(system)
             return os.date("%I:%M:%S %p", system.time)
         end), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
         calendar.node,
@@ -87,12 +87,12 @@ local bell = cell(mantle.notifications:map(function(payload)
     end
     local count = waiting(payload)
     return count > 0 and icons.bell_active .. " " .. count or icons.bell
-end), mantle.notifications:map(function(payload)
+end, icons.bell), mantle.notifications:map(function(payload)
     if payload and payload.dnd then
         return theme.DIM
     end
     return waiting(payload) > 0 and theme.ACCENT or theme.text_contrast(theme.GLASS_CONTROL)
-end), theme.font.md, { align_v = "center" })
+end, theme.text_contrast(theme.GLASS_CONTROL)), theme.font.md, { align_v = "center" })
 
 
 local function open(rect)

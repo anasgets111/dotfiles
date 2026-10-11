@@ -14,8 +14,9 @@ dictation.active = dictation.phase:map(function(phase)
     return phase ~= "" and phase ~= "idle"
 end)
 
-dictation.elapsed_text = computed({ mantle.system, began_at }, function(system, began)
+dictation.elapsed_text = computed({ mantle.clock, began_at }, function(system, began)
     local seconds = math.max(0, ((system and system.monotonic) or 0) - began)
+    seconds = math.floor(seconds)
     return string.format("%d:%02d", seconds // 60, seconds % 60)
 end)
 
@@ -63,7 +64,7 @@ dictation.phase:on_change(function(phase, previous)
         return
     end
     if phase == "recording" then
-        began_at:set(((mantle.system:get() or {}).monotonic) or 0)
+        began_at:set(mantle.clock:monotonic())
     end
     sync_meter(phase == "recording")
 end)

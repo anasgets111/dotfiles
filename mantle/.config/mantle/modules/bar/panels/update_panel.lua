@@ -169,7 +169,7 @@ local sorted_packages = mantle.updates:map(function(updates)
         rows[#rows + 1] = package
     end
     return rows
-end)
+end, {})
 
 -- The capability retains packages during a refresh, keeping this height until results arrive.
 local package_height = sorted_packages:map(function(packages)
@@ -193,9 +193,9 @@ local LOG_COLOURS = {
 }
 
 -- A finished run's re-check keeps its result on screen while the Check button is busy.
-local checking = util.shown_when(mantle.updates, function(updates)
+local checking = mantle.updates:map(function(updates)
     return updates.checking
-end)
+end, false)
 
 local log_showing = computed({ phase, log_open }, function(current, open)
     return current == "running" or current == "failed" or (current == "done" and open)
@@ -250,9 +250,8 @@ local aur_row = include_row(store.updates_aur, {
     title = "AUR packages",
     slot = "updates-aur",
     trailing = cell(mantle.updates:map(function(updates)
-        local helper = updates and updates.aur_helper
-        return helper or "No helper found"
-    end), theme.DIM, theme.font.xs),
+        return updates.aur_helper or "No helper found"
+    end, "No helper found"), theme.DIM, theme.font.xs),
     on_activate = function()
         local on = not store.updates_aur:get()
         store:set("updates_aur", on)
@@ -305,9 +304,9 @@ local pacnew = computed({ mantle.updates, service.result_showing }, function(upd
 end)
 
 -- Installing before pacman has counted the packages.
-local working = util.shown_when(mantle.updates, function(updates)
+local working = mantle.updates:map(function(updates)
     return updates.installing and (updates.install_total_steps or 0) == 0
-end)
+end, false)
 
 local function package_columns(name, current, new, name_color, new_color, name_size)
     return {
@@ -336,9 +335,9 @@ local body = {
         subtitle = computed({ mantle.updates, phase, service.dev_running, service.dev_result }, status_line),
         trailing = {
             info_badge("Reboot required", theme.PEACH, {
-                visible = util.shown_when(mantle.updates, function(updates)
+                visible = mantle.updates:map(function(updates)
                     return updates.reboot_required == true
-                end),
+                end, false),
             }),
         },
     },
@@ -397,7 +396,7 @@ local body = {
                 children = {
                     cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line),
                         status_color, theme.font.xs, { width = "fill", wrap = "word" }),
-                    cell(computed({ mantle.updates, mantle.system }, function(updates, clock)
+                    cell(computed({ mantle.updates, mantle.clock }, function(updates, clock)
                         return last_check_line(updates, (clock and clock.time) or os.time())
                     end), theme.TEXT_MUTED, theme.font.xs, {
                         align = "end",
@@ -464,8 +463,8 @@ local body = {
                 scroll = scroll("update_packages"),
                 animate = { scroll = theme.scroll_ease },
                 spacing = theme.spacing.xs,
-                source = sorted_packages,
-                itemfn = function(package)
+                items = sorted_packages,
+                each = function(package)
                     if package.header then
                         local heading = section_header(string.format("%s · %d", package.header, package.count))
                         heading.foreground = theme.with_opacity(REPO_COLORS[package.repository] or theme.DIM,
@@ -502,9 +501,9 @@ local body = {
                 children = {
                     cell(util.bold(mantle.updates:map(function(updates)
                         return service.install_failed(updates) and service.failure_reason(updates) or "Install log"
-                    end)), mantle.updates:map(function(updates)
+                    end, "Install log")), mantle.updates:map(function(updates)
                         return service.install_failed(updates) and theme.RED or theme.DIM
-                    end), theme.font.xs, { width = "fill", wrap = "word" }),
+                    end, theme.DIM), theme.font.xs, { width = "fill", wrap = "word" }),
                     panel_action_icon(icons.copy, function()
                         local lines = log_lines:get() or {}
                         if #lines > 0 then
@@ -517,9 +516,9 @@ local body = {
                 width = "fill",
                 height = theme.update_log_height,
                 scroll = LOG_SCROLL,
-                source = log_lines,
+                items = log_lines,
                 spacing = theme.spacing.xs,
-                itemfn = function(line)
+                each = function(line)
                     return cell(line, service.first_match(line:lower(), LOG_COLOURS) or theme.DIM, theme.font.xs, {
                         width = "fill", wrap = "word", max_lines = 3, font = theme.mono_font,
                     })

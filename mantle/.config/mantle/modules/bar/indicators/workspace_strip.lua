@@ -94,7 +94,7 @@ local function reset_drag()
     drag_armed = false
 end
 
-local listed = mantle.workspaces:map(workspaces_of)
+local listed = mantle.workspaces:map(workspaces_of, {})
 local pill = expanding_pill.new({
     slot = "workspace-pill",
     hold_open = is_dragging,
@@ -109,7 +109,7 @@ local function workspace_button(workspace)
     local is_active = mantle.workspaces:map(function(workspaces)
         local out = output_of(workspaces)
         return out ~= nil and out.active_workspace == id
-    end)
+    end, false)
     local is_drop_target = computed({ dragging_from, drag_target }, function(from, target)
         return target == id and from ~= nil and from ~= id
     end)
@@ -217,8 +217,8 @@ local strip = pill.row({
         align_v = "center",
         spacing = pill.spacing,
         animate = pill.animate,
-        source = listed,
-        itemfn = workspace_button,
+        items = listed,
+        each = workspace_button,
         key = function(workspace)
             return tostring(workspace.id)
         end,

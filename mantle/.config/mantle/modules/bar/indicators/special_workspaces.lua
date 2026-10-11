@@ -42,14 +42,14 @@ local indicator = row {
     hover = hover(SLOT),
     visible = mantle.workspaces:map(function(workspaces)
         return #specials_of(workspaces) > 0
-    end),
+    end, false),
     children = {
         list {
             direction = "horizontal",
             spacing = theme.spacing.sm,
             align_v = "center",
-            source = mantle.workspaces:map(specials_of),
-            itemfn = special_button,
+            items = mantle.workspaces:map(specials_of, {}),
+            each = special_button,
             key = function(special)
                 return special.name
             end,

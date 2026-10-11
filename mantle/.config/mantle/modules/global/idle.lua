@@ -1,4 +1,4 @@
--- Three idle stages driven by one threshold and the `mantle.system` tick. Timeouts are editable
+-- Three idle stages driven by one threshold and the `mantle.clock` tick. Timeouts are editable
 -- numbers in `lib/idle.lua`.
 --
 -- No inhibitor check here: the Supervisor resumes announced idle thresholds when a hold begins
@@ -40,9 +40,8 @@ local ACTIONS = {
 
 -- Register once at top level. A registration inside a repeated callback duplicates it permanently.
 mantle.idle:register_threshold(idle.TICK, function()
-    local system = mantle.system:get()
     -- Back-date by the threshold so "idle 0:42" means since the last keystroke, not the push.
-    idle.since:set(((system and system.monotonic) or 0) - idle.TICK)
+    idle.since:set(mantle.clock:monotonic() - idle.TICK)
 end, function(cause)
     -- Input wakes displays. Other resumes stop the countdown without powering on.
     if cause == "input" then
@@ -56,7 +55,7 @@ end)
 -- Once a second, on the tick the bar clock already uses. Not a scheduler: find the stage armed
 -- *now*, stamp it once, fire after its delay, and clear every other stamp. Recomputing each second
 -- is also what makes unlock re-arm the lock stage with no unlock watcher.
-mantle.system:on_change(function(system)
+mantle.clock:on_change(function(system)
     local since = idle.since:get()
     if since == 0 then
         return

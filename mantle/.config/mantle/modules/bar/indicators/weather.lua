@@ -114,7 +114,7 @@ return column {
             slot = "weather-toggle-" .. id,
             icon = weather.code:map(weather.glyph),
             title = "Weather",
-            subtitle = computed({ ready, weather.failed, weather.temperature, weather.updated_at, mantle.system },
+            subtitle = computed({ ready, weather.failed, weather.temperature, weather.updated_at, mantle.clock },
                 function(has, bad, now, at, system)
                     if not has then
                         return bad and "Weather unavailable" or "Loading forecast…"

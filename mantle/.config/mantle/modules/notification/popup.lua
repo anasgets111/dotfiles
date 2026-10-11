@@ -57,7 +57,7 @@ local visible_groups = computed(
 )
 
 -- Once a second. A hovered stack is being read, so it waits like the expiry hold does.
-mantle.system:on_change(function(system)
+mantle.clock:on_change(function(system)
     if HOVER:get() then
         return
     end
@@ -104,9 +104,9 @@ return panel {
             list {
                 width = "fill",
                 spacing = theme.spacing.sm,
-                source = visible_groups,
+                items = visible_groups,
                 limit = MAX_CARDS,
-                itemfn = function(group)
+                each = function(group)
                     return notification_card(group, notification_state)
                 end,
                 key = function(group)

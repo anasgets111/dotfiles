@@ -30,7 +30,7 @@ local TINT = theme.with_opacity("#ffffff", 0.15)
 local first_output = mantle.screens:map(function(screens)
     return screens and screens[1] and screens[1].name or ""
 end)
-local picture = computed({ store.wallpapers, mantle.files, mantle.screens }, function(wallpapers, files, screens)
+local picture = computed({ store.wallpapers, mantle.folders, mantle.screens }, function(wallpapers, files, screens)
     local first = screens and screens[1]
     return first and wallpaper.path_in(wallpapers, first.name, files) or ""
 end)
@@ -338,8 +338,8 @@ end))
 -- Windows and screens: chips that fade in, follow focus and shrink away when a window closes.
 
 local window_list = mantle.windows:map(function(payload)
-    return payload and payload.windows or {}
-end)
+    return payload.windows
+end, {})
 local screen_line = mantle.screens:map(function(screens)
     local s = screens and screens[1]
     return s and string.format("%s %s  %dx%d @ %.0f Hz  scale %.2f", s.name, s.model or "", s.width, s.height,
@@ -348,13 +348,13 @@ end)
 
 local windows_island = island("Windows", SIDE_W, {
     list {
-        source = window_list,
+        items = window_list,
         width = "fill",
         padding = INSET,
         spacing = theme.spacing.xs,
         limit = 7,
         key = function(w) return w.id end,
-        itemfn = function(w)
+        each = function(w)
             return rect {
                 width = "fill",
                 height = 26,
@@ -455,7 +455,7 @@ return { window {
     id = "fx_demo",
     title = "Mantle effects demo",
     app_id = "mantle-fx-demo",
-    on_close = function() process.detach("mantle", { "stop", "--pid", tostring(mantle.pid) }) end,
+    on_close_request = function() process.detach("mantle", { "stop", "--pid", tostring(mantle.pid) }) end,
     min_size = { width = WIN_W, height = WIN_H },
     background = theme.CRUST,
     child = rect {

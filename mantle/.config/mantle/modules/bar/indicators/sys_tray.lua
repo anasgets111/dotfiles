@@ -52,7 +52,7 @@ end
 -- letters.
 local ITEM_WIDTH = theme.icon.md + theme.spacing.sm
 
-local visible_items = mantle.tray:map(items_of)
+local visible_items = mantle.tray:map(items_of, {})
 local has_items = visible_items:map(function(items)
     return #items > 0
 end)
@@ -70,8 +70,8 @@ local items = list {
     scroll = scroll("sys_tray"),
     animate = { scroll = theme.scroll_ease },
     visible = has_items,
-    source = visible_items,
-    itemfn = function(item)
+    items = visible_items,
+    each = function(item)
         local entry = util.app_entry(mantle.applications:get(), item.name or item.id)
         local art = artwork(item) or (entry and entry.icon)
         local face

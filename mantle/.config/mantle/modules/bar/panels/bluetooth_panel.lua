@@ -115,10 +115,10 @@ local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bl
     return out
 end)
 
--- One always-on signal for every busy spinner; one minted per row in `itemfn` would leak.
+-- One always-on signal for every busy spinner; one minted per row in `each` would leak.
 local SPINNING = mantle.bluetooth:map(function()
     return true
-end)
+end, true)
 
 -- One codec under its device; picking another switches to it and closes the list.
 local function codec_row(item)
@@ -209,16 +209,16 @@ local body = {
         title = "Bluetooth",
         icon = mantle.bluetooth:map(function(bluetooth)
             return enabled(bluetooth) and icons.bt_on or icons.bt_off
-        end),
-        active = mantle.bluetooth:map(enabled),
+        end, icons.bt_off),
+        active = mantle.bluetooth:map(enabled, false),
         subtitle = util.label(mantle.bluetooth, state_line),
         trailing = {
             -- No adapter means no switch to flip. Hidden rather than greyed, because `toggle` has
             -- no disabled look.
             rect {
-                visible = util.shown_when(mantle.bluetooth, function(bluetooth)
+                visible = mantle.bluetooth:map(function(bluetooth)
                     return bluetooth.available
-                end),
+                end, false),
                 children = {
                     toggle(mantle.bluetooth, function(bluetooth)
                         return bluetooth.enabled
@@ -233,7 +233,7 @@ local body = {
     row {
         width = "fill",
         spacing = theme.spacing.xs,
-        visible = util.shown_when(mantle.bluetooth, enabled),
+        visible = mantle.bluetooth:map(enabled, false),
         children = {
             panel_toggle_card {
                 slot = "bluetooth-visible-tile",
@@ -252,8 +252,8 @@ local body = {
                 icon = icons.bt_scan,
                 label = "Scan",
                 spinning = mantle.bluetooth:map(function(bluetooth)
-                    return bluetooth ~= nil and bluetooth.discovering
-                end),
+                    return bluetooth.discovering
+                end, false),
                 signal = mantle.bluetooth,
                 read = function(bluetooth)
                     return bluetooth.discovering

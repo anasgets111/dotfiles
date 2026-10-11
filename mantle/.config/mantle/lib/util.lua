@@ -127,17 +127,18 @@ function util.app_icon(entry)
     return mantle.applications:map(function(applications)
         local app = util.app_entry(applications, entry.app_id)
         return (app and app.icon) or ""
-    end)
+    end, "")
 end
 
 -- The engine's `set_volume` clamp, in percent.
 util.MAX_VOLUME = 150
 
 -- Noon today: it changes once a day, so a reader re-resolves at midnight, not on each clock tick.
-util.today = mantle.system:map(function(system)
-    local now = os.date("*t", system and system.time)
+local function noon(time)
+    local now = os.date("*t", time)
     return os.time({ year = now.year, month = now.month, day = now.day, hour = 12 })
-end)
+end
+util.today = mantle.clock:map(function(system) return noon(system.time) end, noon())
 
 -- Strip redundant ALSA description words.
 function util.device_name(device)
@@ -352,16 +353,9 @@ function util.stamp(at, now)
     return os.date(same_day and "%I:%M %p" or "%b %d, %I:%M %p", at)
 end
 
-function util.capture(command, args, done)
-    local lines = {}
-    return process.run(command, args, function(line, stream)
-        if stream == "stdout" then lines[#lines + 1] = line end
-    end, function(code) done(table.concat(lines), code) end)
-end
-
 -- No log, no retry. Decode the complete body only after a successful exit.
 function util.fetch_json(url, on_done)
-    util.capture("curl", { "-fsS", "--max-time", "5", url }, function(body, code)
+    process.capture("curl", { "-fsS", "--max-time", "5", url }, function(body, code)
         local decoded = code == 0 and json.decode(body) or nil
         on_done(type(decoded) == "table" and decoded or nil, code)
     end)

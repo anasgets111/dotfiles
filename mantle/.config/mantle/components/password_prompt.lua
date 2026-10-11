@@ -42,16 +42,16 @@ local ERROR_TEXT = {
 ---@param opts PasswordPromptOpts
 return function(opts)
     local source = mantle[opts.capability]
-    local busy = util.shown_when(source, function(state)
+    local busy = source:map(function(state)
         return state.authenticating or state.unlocking
-    end)
-    local failed = util.shown_when(source, function(state)
+    end, false)
+    local failed = source:map(function(state)
         return state.active and not state.authenticating and not state.unlocking and (state.error or "") ~= ""
-    end)
+    end, false)
     -- Each failure ends an attempt, so the falling edge of `authenticating` replays the shake.
     local shaking = computed({ pulse(source:map(function(state)
-        return state ~= nil and state.authenticating
-    end), SHAKE.duration * #SHAKE.keyframes), failed }, function(fresh, error_shown)
+        return state.authenticating
+    end, false), SHAKE.duration * #SHAKE.keyframes), failed }, function(fresh, error_shown)
         return fresh and error_shown
     end)
     local feedback = source:map(function(state)
@@ -68,9 +68,9 @@ return function(opts)
     local font_size = opts.font_size or theme.font.lg
 
     local caps = info_badge("Caps lock", theme.YELLOW, {
-        visible = util.shown_when(mantle.keyboard, function(keyboard)
+        visible = mantle.keyboard:map(function(keyboard)
             return keyboard.caps_lock == true
-        end),
+        end, false),
     })
     local message = cell(feedback, util.choose(failed, theme.RED, theme.DIM), font_size, {
         width = "fill", align = "start", align_v = opts.footer and "center" or "start", wrap = "word", max_lines = 2,
@@ -87,7 +87,7 @@ return function(opts)
         spinning = busy,
         cursor = util.choose(busy, "default", "pointer"),
     })
-    unlock.submit = util.choose(busy, false, true)
+    unlock.submits_secure = util.choose(busy, false, true)
 
     return column {
         width = "fill",

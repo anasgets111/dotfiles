@@ -1,5 +1,5 @@
 -- File and fit per output, stored as one `{ path, fit }` table per output under `wallpapers`.
--- Drawing and picking live in `modules/global/wallpaper{,_picker}.lua`. The `mantle.files` watches
+-- Drawing and picking live in `modules/global/wallpaper{,_picker}.lua`. The `mantle.folders` watches
 -- start during evaluation, so the picker and the bar's right-click have their listings before they open.
 local store = require("lib.store")
 local util = require("lib.util")
@@ -39,15 +39,15 @@ local RANDOM_PARAMS = {
 }
 
 -- Built-in transition first, followed by discovered wallpaper shaders.
-wallpaper.effects = mantle.files:map(function(files)
+wallpaper.effects = mantle.folders:map(function(files)
     local names = { wallpaper.NO_SHADER }
     ---@type Folder?
-    local folder = files and files.folders and files.folders[wallpaper.SHADER_FOLDER]
+    local folder = files.watched[wallpaper.SHADER_FOLDER]
     for _, entry in ipairs(folder and folder.entries or {}) do
         names[#names + 1] = entry.name:match("^" .. SHADER_PREFIX .. "(.+)%.frag$")
     end
     return names
-end)
+end, { wallpaper.NO_SHADER })
 
 -- The stored effect if the folder still holds it, else the built-in.
 wallpaper.effect = computed({ store.wallpaper_transition, wallpaper.effects }, function(stored, names)
@@ -91,7 +91,7 @@ end
 ---Path for `output` from one stored `wallpapers` table. Pure for one `computed` over every screen.
 ---@param wallpapers table|nil The `wallpapers` table, or `nil` before the first push.
 ---@param output string
----@param files FilesState|nil
+---@param files FoldersState|nil
 ---@return string
 function wallpaper.path_in(wallpapers, output, files)
     local stored = wallpapers and wallpapers[output] and wallpapers[output].path
@@ -111,7 +111,7 @@ function wallpaper.fit_in(wallpapers, output)
 end
 
 function wallpaper.path_of(output)
-    return computed({ store.wallpapers, mantle.files }, function(wallpapers, files)
+    return computed({ store.wallpapers, mantle.folders }, function(wallpapers, files)
         return wallpaper.path_in(wallpapers, output, files)
     end)
 end
@@ -124,7 +124,7 @@ end
 
 ---Set all outputs in one write: the stored signal updates only on the next push.
 local function write(outputs, key, value, read)
-    local stored = store.wallpapers:get() or {}
+    local stored = store.wallpapers:get()
     local next_value = stored
     for _, output in ipairs(outputs) do
         local selected = type(value) == "function" and value() or value
@@ -138,7 +138,7 @@ local function write(outputs, key, value, read)
 end
 
 function wallpaper.set(outputs, path)
-    if path == "" or missing_in(mantle.files:get(), path) then
+    if path == "" or missing_in(mantle.folders:get(), path) then
         return
     end
     write(outputs, "path", path, wallpaper.path_in)
@@ -151,11 +151,11 @@ function wallpaper.set_fit(outputs, fit)
     write(outputs, "fit", fit, wallpaper.fit_in)
 end
 
----Watched folder from the last `mantle.files` push, or `nil` before the first.
----@param files FilesState|nil
+---Watched folder from the last `mantle.folders` push, or `nil` before the first.
+---@param files FoldersState|nil
 ---@return Folder|nil
 function wallpaper.folder_in(files)
-    return files and files.folders and files.folders[wallpaper.FOLDER] or nil
+    return files and files.watched and files.watched[wallpaper.FOLDER] or nil
 end
 
 ---Connector names of every screen.
@@ -172,7 +172,7 @@ end
 
 ---One folder draw per screen. No-op before the listing lands or when it is empty.
 function wallpaper.randomize_all()
-    local folder = wallpaper.folder_in(mantle.files:get())
+    local folder = wallpaper.folder_in(mantle.folders:get())
     local entries = folder and folder.entries or {}
     if #entries == 0 then
         return
@@ -191,7 +191,7 @@ action("wallpaper.set", function(path)
 end)
 
 -- `gif` animates (ADR-0233); one too long for the engine's frame budget draws as a still.
-mantle.files:watch(wallpaper.FOLDER, { "jpg", "jpeg", "png", "webp", "gif" })
-mantle.files:watch(wallpaper.SHADER_FOLDER, { "frag" })
+mantle.folders:watch(wallpaper.FOLDER, { "jpg", "jpeg", "png", "webp", "gif" })
+mantle.folders:watch(wallpaper.SHADER_FOLDER, { "frag" })
 
 return wallpaper

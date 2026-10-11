@@ -1,7 +1,7 @@
 -- Idle settings, stages and inhibitor state. Loading this module fires no idle actions;
 -- `modules/global/idle.lua` runs the clock, stamps each arming and fires the stages.
 --
--- One one-second threshold counted on `mantle.system.monotonic`, not one per stage: the panel's
+-- One one-second threshold counted on `mantle.clock.monotonic`, not one per stage: the panel's
 -- "idle 0:42" readout needs the tick anyway, and a stage arms when its predecessor reports `done`
 -- rather than at a fixed second. If those pushes stop, stages stop too.
 --
@@ -158,11 +158,11 @@ end
 -- Named `state()` throughout: registry entries survive a reload, so an edit cannot forget a manual
 -- hold or leak its inhibitor.
 
---- The `mantle.system.monotonic` reading when the seat went idle, or `0` while awake. It and the
+--- The `mantle.clock.monotonic` reading when the seat went idle, or `0` while awake. It and the
 --- clock's epoch survive a reload together, and a Supervisor restart rebuilds both.
 idle.since = state("idle_since", 0)
 
---- Arming time in `mantle.system.monotonic`, keyed by `stage.key`. Missing means not armed; the
+--- Arming time in `mantle.clock.monotonic`, keyed by `stage.key`. Missing means not armed; the
 --- stamp makes delay relative, and clearing it makes unlock undo the sequence.
 idle.armed_at = state("idle_armed_at", {})
 
@@ -191,7 +191,7 @@ end
 
 --- Which profile's numbers are in force. No UPower means AC: a machine that cannot say it is on
 --- battery is plugged in.
-idle.active_profile = mantle.power:map(idle.profile_of)
+idle.active_profile = mantle.power:map(idle.profile_of, "ac")
 
 local PRIVACY_REASONS = { { "camera_users", "camera" }, { "microphone_users", "microphone" },
     { "screencast_users", "screen capture" } }
@@ -226,8 +226,8 @@ end
 
 --- The compositor's last hold has not been confirmed since input resumed.
 idle.stale = mantle.idle:map(function(foreign)
-    return foreign ~= nil and foreign.compositor_hold_stale == true
-end)
+    return foreign.compositor_hold_stale == true
+end, false)
 
 --- Everything currently named as holding the session awake, ours and foreign.
 idle.reasons = computed({ mantle.privacy, idle.settings, idle.manual, mantle.idle },
@@ -355,7 +355,7 @@ idle.schedule = computed({ idle.settings, idle.active_profile }, idle.plan)
 
 --- Armed stage and elapsed time from the stamp `modules/global/idle.lua` writes. No stage is
 --- `{ key = "", elapsed = 0 }`.
-idle.arming = computed({ mantle.system, idle.armed_at }, function(system, stamps)
+idle.arming = computed({ mantle.clock, idle.armed_at }, function(system, stamps)
     for key, at in pairs(stamps or {}) do
         return { key = key, elapsed = math.max(0, ((system and system.monotonic) or 0) - at) }
     end
@@ -363,7 +363,7 @@ idle.arming = computed({ mantle.system, idle.armed_at }, function(system, stamps
 end)
 
 --- Seat idle duration in seconds, or `0` while awake.
-idle.elapsed = computed({ mantle.system, idle.since }, function(system, since)
+idle.elapsed = computed({ mantle.clock, idle.since }, function(system, since)
     if since == 0 then
         return 0
     end

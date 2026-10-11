@@ -11,7 +11,7 @@ local action_button = require("components.action_button")
 local card_motion = require("components.card_motion")
 
 local request = mantle.bluetooth:map(function(bluetooth)
-    return bluetooth and bluetooth.pairing_request
+    return bluetooth.pairing_request
 end)
 
 -- A signal of `predicate(request)`, false while nothing is asked.
@@ -138,7 +138,7 @@ return panel {
                     ),
                     action_button("Pair", nil, "bluetooth-pairing-submit", {
                         tone = "solid",
-                        submit = true,
+                        submits_secure = true,
                         visible = entry,
                     }),
                     action_button("Close", answer(false), "bluetooth-pairing-done", {

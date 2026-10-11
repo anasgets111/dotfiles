@@ -229,7 +229,7 @@ local function activate()
         end
     else
         mantle.applications:launch(id)
-        local usage = store.app_usage:get() or {}
+        local usage = store.app_usage:get()
         local count = usage[id] and usage[id].count or 0
         store:set("app_usage", util.with(usage, id, { count = count + 1, last = os.time() }))
     end
@@ -293,8 +293,8 @@ local grid = list {
         return height > 0
     end),
     scroll = SCROLL,
-    source = rows,
-    itemfn = function(apps)
+    items = rows,
+    each = function(apps)
         local tiles = {}
         for i, app in ipairs(apps) do
             tiles[i] = app_tile(app)
@@ -513,7 +513,7 @@ local search = on_rail(row {
 }, { width = mode_rail.width })
 
 local search_layers = {
-    on_rail(rect { height = "fill", radius = SIZE / 2, behind_blur = true }, { width = mode_rail.width }),
+    on_rail(rect { height = "fill", radius = SIZE / 2, compositor_blur = true }, { width = mode_rail.width }),
     shader {
         -- Leave room for the last circle's spring overshoot.
         width = theme.launcher_width + theme.spacing.md,
@@ -590,7 +590,7 @@ return modal({
                 spacing = theme.spacing.xs,
                 padding = RESULTS_PADDING,
                 background = theme.LAUNCHER_RESULTS,
-                behind_blur = expanded,
+                compositor_blur = expanded,
                 radius = theme.launcher_radius,
                 clip = "rounded",
                 border_width = theme.border_width,

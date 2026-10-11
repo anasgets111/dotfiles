@@ -1,5 +1,5 @@
 -- `position` is valid only at `position_updated_at` and nothing polls it, so the bar would sit still
--- between pushes. That stamp is `CLOCK_MONOTONIC`, which `mantle.system.monotonic` is not. `on_change`
+-- between pushes. Its stamp and `mantle.clock:monotonic()` share `CLOCK_MONOTONIC`. `on_change`
 -- is the one place a clock reading and a payload are simultaneous, so it anchors each push and `system`
 -- ticks the elapsed term once a second. A `:map` may not `:set`, so it cannot record the anchor.
 --
@@ -37,7 +37,7 @@ local anchor = state("media_anchor", 0)
 --- Stamps the anchor from the same clock `position_us` adds elapsed time against. Every writer goes
 --- through this: a seek that stamped a different clock would jump the position by the two epochs.
 local function anchor_now()
-    anchor:set((mantle.system:get() or {}).monotonic or 0)
+    anchor:set(mantle.clock:monotonic())
 end
 
 -- Keyed on the `position` value, not the push. A browser answers `Position` with the same number all
@@ -108,8 +108,8 @@ mantle.mpris:on_change(function()
 end)
 
 -- No clock read of its own: a `computed` must answer the same for the same inputs. Before
--- `mantle.system`'s first tick there is no "now", so the elapsed term is zero.
-local position_us = computed({ selected, mantle.system, anchor, seek_base }, function(player, system, anchored, base)
+-- `mantle.clock`'s first tick there is no "now", so the elapsed term is zero.
+local position_us = computed({ selected, mantle.clock, anchor, seek_base }, function(player, system, anchored, base)
     if not player then
         return -1
     end
@@ -213,8 +213,8 @@ local body = {
             end, {
                 slot = "media-switch",
                 visible = mantle.mpris:map(function(mpris)
-                    return #((mpris and mpris.players) or {}) > 1
-                end),
+                    return #mpris.players > 1
+                end, false),
             }),
         },
     },

@@ -44,8 +44,8 @@ end), nil, {
     -- No supported package manager leaves `package_manager` nil; an indicator that can only report
     -- its own failure is worse than none.
     visible = mantle.updates:map(function(updates)
-        return updates ~= nil and updates.package_manager ~= nil
-    end),
+        return updates.package_manager ~= nil
+    end, false),
     foreground = status:map(function(current)
         return LOOKS[current][2]
     end),

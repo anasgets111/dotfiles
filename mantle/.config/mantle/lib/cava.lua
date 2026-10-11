@@ -25,7 +25,7 @@ local function playing(mpris)
     end
     return false
 end
-cava.playing = mantle.mpris:map(playing)
+cava.playing = mantle.mpris:map(playing, false)
 
 local child
 local frames = 0

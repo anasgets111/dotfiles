@@ -2,7 +2,7 @@
 -- that knows the body is complete. Coordinates come from the timezone's city, not `ipapi.co` (429s
 -- on its free tier); write `weather_location` to pin a place instead.
 --
--- Retries and the refresh share one deadline, `next_attempt`, compared on `mantle.system`'s 1 Hz
+-- Retries and the refresh share one deadline, `next_attempt`, compared on `mantle.clock`'s 1 Hz
 -- push, which survives a reload where a `timer` would not. `launcher/currency.lua` refreshes the same way.
 --
 -- Nothing is owed until `mantle.storage` has pushed, since the stored stamp says whether a launch
@@ -89,7 +89,7 @@ local next_attempt = state("weather_next_attempt", 0)
 -- Monotonic, not wall: setting the clock must not park the next attempt an hour out. The stored
 -- freshness deadline below is wall, and the two are never compared.
 local function schedule(seconds)
-    next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + seconds)
+    next_attempt:set(mantle.clock:monotonic() + seconds)
 end
 
 local function retry_soon()
@@ -162,15 +162,11 @@ end
 -- Re-read each cycle so a machine that travels re-resolves; geocode only when the zone changed.
 local function fetch()
     in_flight:set(true)
-    local zone = ""
-    process.run("timedatectl", { "show", "-p", "Timezone", "--value" }, function(line, stream)
-        if stream == "stdout" then
-            zone = util.trim(line)
-        end
-    end, function(code)
+    process.capture("timedatectl", { "show", "-p", "Timezone", "--value" }, function(out, code)
         if code == nil then
             return retry_soon()
         end
+        local zone = util.trim(out)
         if code ~= 0 or zone == "" then
             in_flight:set(false)
             failed()
@@ -186,20 +182,20 @@ local function fetch()
 end
 
 function weather.refresh()
-    if in_flight:get() or os.time() - (store.weather_updated_at:get() or 0) < MANUAL_FLOOR_SECONDS then
+    if in_flight:get() or os.time() - store.weather_updated_at:get() < MANUAL_FLOOR_SECONDS then
         return
     end
     retries:set(0)
     fetch()
 end
 
-mantle.system:on_change(function(system)
+mantle.clock:on_change(function(system)
     if not system or in_flight:get() or mantle.storage:get() == nil then
         return
     end
     local due = next_attempt:get()
     -- Nothing scheduled: the deadline is the stored reading's own hour, in wall time.
-    local waiting = due == 0 and system.time < (store.weather_updated_at:get() or 0) + REFRESH_SECONDS
+    local waiting = due == 0 and system.time < store.weather_updated_at:get() + REFRESH_SECONDS
         or due ~= 0 and system.monotonic < due
     if not waiting then
         fetch()

@@ -38,8 +38,8 @@ end
 local function audio_control(opts)
     local picker = disclosure.state("audio_" .. opts.name .. "_picker", false)
     local devices = mantle.audio:map(function(audio)
-        return (audio and audio[opts.devices]) or {}
-    end)
+        return audio[opts.devices]
+    end, {})
     local choices = list {
         width = "fill",
         spacing = theme.spacing.xs,
@@ -50,8 +50,8 @@ local function audio_control(opts)
         end),
         scroll = scroll("audio_devices_" .. opts.name),
         animate = { scroll = theme.scroll_ease },
-        source = devices,
-        itemfn = function(device)
+        items = devices,
+        each = function(device)
             return panel_row {
                 slot = "audio-device-" .. opts.name .. "-" .. tostring(device.id),
                 leading = rect {
@@ -75,8 +75,8 @@ local function audio_control(opts)
         end,
     }
     local is_muted = mantle.audio:map(function(audio)
-        return audio ~= nil and audio[opts.muted]
-    end)
+        return audio[opts.muted]
+    end, false)
     local mute_glyph = util.choose(is_muted, opts.is_input and icons.mic_off or icons.vol_muted,
         opts.is_input and icons.mic_on or icons.vol_high)
     local tint = util.choose(is_muted, theme.DIM, theme.FG)
@@ -117,8 +117,8 @@ local function audio_control(opts)
                     slot = "audio-mute-" .. opts.name,
                     size = "md",
                     disabled = mantle.audio:map(function(audio)
-                        return audio == nil or audio[opts.volume] == nil
-                    end),
+                        return audio[opts.volume] == nil
+                    end, true),
                 }),
             },
         },
@@ -231,21 +231,21 @@ local STREAM_HEIGHT = theme.control.md + theme.spacing.xs + theme.slider_height
 -- speech-dispatcher's `sd_*` output modules hold idle streams open forever.
 local streams = mantle.audio:map(function(audio)
     local shown = {}
-    for _, app in ipairs((audio and audio.apps) or {}) do
+    for _, app in ipairs(audio.apps) do
         if not (app.binary or ""):match("^sd_") then
             shown[#shown + 1] = app
         end
     end
     return shown
-end)
+end, {})
 
 local body = {
     panel_header {
         title = "Audio",
-        icon = mantle.audio:map(util.volume_glyph),
+        icon = mantle.audio:map(util.volume_glyph, util.volume_glyph()),
         active = mantle.audio:map(function(audio)
-            return audio ~= nil and audio.volume ~= nil and not audio.muted
-        end),
+            return audio.volume ~= nil and not audio.muted
+        end, false),
         subtitle = util.label(mantle.audio, function(audio)
             if audio.muted then
                 return "Muted"
@@ -269,9 +269,9 @@ local body = {
                 width = "fill",
                 spacing = theme.spacing.sm,
                 align_v = "center",
-                visible = util.shown_when(mantle.audio, function(audio)
+                visible = mantle.audio:map(function(audio)
                     return audio.balance ~= nil
-                end),
+                end, false),
                 children = {
                     cell("L", theme.DIM, theme.font.xs),
                     -- Accent headroom keeps the fill one color past the center.
@@ -304,9 +304,9 @@ local body = {
         set_volume = "set_source_volume",
         set_default = "set_default_source",
         toggle_mute = "toggle_source_mute",
-        visible = util.shown_when(mantle.audio, function(audio)
+        visible = mantle.audio:map(function(audio)
             return util.active_device(audio.sources) ~= nil
-        end),
+        end, false),
     },
     -- Flat: a disclosure row and its list, not a third card.
     panel_row {
@@ -330,8 +330,8 @@ local body = {
             scroll = scroll("audio_mixer"),
             animate = { scroll = theme.scroll_ease },
             spacing = theme.spacing.sm,
-            source = streams,
-            itemfn = stream_row,
+            items = streams,
+            each = stream_row,
             key = function(app)
                 return tostring(app.id)
             end,

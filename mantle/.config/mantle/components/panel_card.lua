@@ -26,7 +26,7 @@ return function(children, opts)
         opacity = opts.opacity,
         animate = opts.animate,
         -- Nested cards leave the compositor blur to their dialog.
-        behind_blur = opts.behind_blur or dialog,
+        compositor_blur = opts.compositor_blur or dialog,
         effect = opts.effect,
         radius = opts.radius or theme.radius.lg,
         children = children,

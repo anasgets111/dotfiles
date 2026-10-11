@@ -30,19 +30,19 @@ ui_state.panel_kind:on_change(sync_polling)
 sync_polling()
 
 local disks = mantle.sysinfo:map(function(sysinfo)
-    return sysinfo and sysinfo.disks or {}
-end)
+    return sysinfo.disks
+end, {})
 
 local boot = state("sysinfo_boot", { started = 0, duration = "" })
 if boot:get().started == 0 then
-    util.capture("cat", { "/proc/uptime" }, function(text)
-        local seconds = tonumber(text:match("^([%d.]+)"))
+    file.read("/proc/uptime", function(text)
+        local seconds = text and tonumber(text:match("^([%d.]+)"))
         if seconds then boot:set(util.with(boot:get(), "started", os.time() - math.floor(seconds))) end
     end)
 end
 if boot:get().duration == "" then
-    util.capture("systemd-analyze", { "time" }, function(text)
-        local duration = text:match("=%s*([^%s]+)")
+    process.capture("systemd-analyze", { "time" }, function(text)
+        local duration = text and text:match("=%s*([^%s]+)")
         if duration then boot:set(util.with(boot:get(), "duration", duration)) end
     end)
 end
@@ -60,9 +60,9 @@ local function gpu_usage(sysinfo)
     return gpu_of(sysinfo, "util_percent") or 0
 end
 
-local has_gpu = util.shown_when(mantle.sysinfo, function(sysinfo)
+local has_gpu = mantle.sysinfo:map(function(sysinfo)
     return sysinfo.gpu ~= nil
-end)
+end, false)
 
 local size = util.bytes
 
@@ -85,12 +85,12 @@ end
 local gpu_color = mantle.sysinfo:map(function(sysinfo)
     local usage = gpu_of(sysinfo, "util_percent")
     return usage and tint_of(usage) or theme.DIM
-end)
+end, theme.DIM)
 
 local function tint(field)
     return mantle.sysinfo:map(function(sysinfo)
         return tint_of(percent_of(sysinfo, field))
-    end)
+    end, tint_of(0))
 end
 
 local function group(children, visible)
@@ -146,7 +146,7 @@ local SUMMARY = {
     { "RAM", "ram_percent" },
 }
 
-local summary = mantle.sysinfo:map(function(sysinfo)
+local function summary_of(sysinfo)
     local runs = {}
     for _, metric in ipairs(SUMMARY) do
         local label, field = table.unpack(metric)
@@ -177,7 +177,8 @@ local summary = mantle.sysinfo:map(function(sysinfo)
         color = theme.DIM,
     }
     return runs
-end)
+end
+local summary = mantle.sysinfo:map(summary_of, summary_of())
 
 local id = "notifications"
 local expanded = disclosure.state("sysinfo_expanded_" .. id, false)
@@ -211,7 +212,7 @@ local details = panel_card({
             }),
             group({
                 cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "fill" }),
-                cell(computed({ mantle.system, boot }, function(system, info)
+                cell(computed({ mantle.clock, boot }, function(system, info)
                     return system and info and info.started > 0 and
                         uptime(system.time - info.started) or "--"
                 end), theme.DIM, theme.font.sm, { width = "fill" }),
@@ -251,9 +252,9 @@ local details = panel_card({
         list {
             width = "fill",
             spacing = theme.spacing.sm,
-            source = disks,
+            items = disks,
             key = function(disk) return disk.name end,
-            itemfn = function(disk)
+            each = function(disk)
                 local partitions = {
                     tile_header(icons.disk, tint_of(disk.percent), disk.name,
                         string.format("%d%%", disk.percent), tint_of(disk.percent)),

@@ -112,7 +112,7 @@ local function inverted_corner(corner, glass_on_right, margin)
             radius = radius,
             corner_shape = "scoop",
             background = glass and theme.GLASS_SURFACE or nil,
-            behind_blur = not glass,
+            compositor_blur = not glass,
         }
     end
     return rect {
@@ -214,7 +214,7 @@ return panel {
                                                         height = { duration = theme.animation_ms, easing = "out_cubic" },
                                                     },
                                                     background = theme.GLASS_SURFACE,
-                                                    behind_blur = true,
+                                                    compositor_blur = true,
                                                     padding = { top = CARD_PADDING + theme.radius.md, right = CARD_PADDING,
                                                         bottom = CARD_PADDING, left = CARD_PADDING },
                                                 }),

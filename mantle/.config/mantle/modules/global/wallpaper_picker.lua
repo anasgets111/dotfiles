@@ -1,7 +1,7 @@
 -- A searchable file grid with settings beside it; a click or Enter applies to the chosen screen or
 -- to all of them.
 --
--- `mantle.files` follows the folder, so the grid is a `computed` and scans nothing. Tiles decode
+-- `mantle.folders` follows the folder, so the grid is a `computed` and scans nothing. Tiles decode
 -- `async`, which downsizes 4K files off-thread instead of holding the shell for a second on open.
 -- There is no wrapping layout, so `rows` chunks into `theme.wallpaper_columns`.
 local theme = require("config.theme")
@@ -62,7 +62,7 @@ local trimmed = query:map(function(text)
 end)
 
 ---@return FileEntry[]
-local filtered = computed({ mantle.files, trimmed }, function(files, needle)
+local filtered = computed({ mantle.folders, trimmed }, function(files, needle)
     local folder = wallpaper.folder_in(files)
     local entries = folder and folder.entries or {}
     if needle == "" then
@@ -245,8 +245,8 @@ local grid = list {
     height = GRID_HEIGHT,
     scroll = SCROLL,
     spacing = tile_gap,
-    source = rows,
-    itemfn = grid_row,
+    items = rows,
+    each = grid_row,
     key = function(entries)
         local paths = {}
         for i, entry in ipairs(entries) do
@@ -256,7 +256,7 @@ local grid = list {
     end,
 }
 
-local folder_state = computed({ mantle.files, filtered }, function(files, shown)
+local folder_state = computed({ mantle.folders, filtered }, function(files, shown)
     local folder = wallpaper.folder_in(files)
     if folder == nil or not folder.ready then
         return "loading"
@@ -280,10 +280,10 @@ end
 local empty_states = {
     panel_empty_state("Loading wallpapers…", state_is("loading"), { icon = spinner(state_is("loading"), theme.icon.xl) }),
     panel_empty_state(
-        mantle.files:map(function(files)
+        mantle.folders:map(function(files)
             local folder = wallpaper.folder_in(files)
             return string.format("Cannot read %s: %s", wallpaper.FOLDER, folder and folder.error or "")
-        end),
+        end, string.format("Cannot read %s: ", wallpaper.FOLDER)),
         state_is("error"),
         { icon = icons.wallpaper }
     ),
@@ -367,8 +367,8 @@ local effect_grid = list {
     width = "fill",
     direction = "vertical",
     spacing = theme.spacing.xs,
-    source = effect_rows,
-    itemfn = function(names)
+    items = effect_rows,
+    each = function(names)
         return segmented {
             slot = "wallpaper-effect-" .. names[1],
             options = names,

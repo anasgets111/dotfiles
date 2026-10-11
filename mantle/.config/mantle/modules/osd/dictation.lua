@@ -73,7 +73,7 @@ return panel {
             }
         end),
         background = theme.GLASS,
-        behind_blur = true,
+        compositor_blur = true,
         radius = theme.radius.md,
         border_width = theme.border_width_medium,
         border_color = theme.GLASS_BORDER,

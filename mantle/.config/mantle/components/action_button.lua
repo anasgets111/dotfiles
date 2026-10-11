@@ -21,9 +21,9 @@ local GROUND = {
 }
 
 ---@param label string|Bound
----@param on_activate? fun() Absent on a `submit` button, whose click is the field's Enter.
+---@param on_activate? fun() Absent on a `submits_secure` button, whose click is the field's Enter.
 ---@param slot string A `hover` slot unique to this button; two buttons sharing one light up together.
----@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, submit?: boolean }
+---@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, submits_secure?: boolean }
 return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
@@ -54,7 +54,7 @@ return function(label, on_activate, slot, opts)
         })
     end
     return row {
-        submit = opts.submit,
+        submits_secure = opts.submits_secure,
         width = opts.width,
         height = not opts.max_lines and height or nil,
         min_height = opts.max_lines and height or nil,

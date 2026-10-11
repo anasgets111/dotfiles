@@ -9,21 +9,21 @@ local network_panel = require("modules.bar.panels.network_panel")
 
 local SLOT = "network"
 local network_colour = mantle.network:map(function(network)
-    if network == nil or not network.connected then
+    if not network.connected then
         return theme.TEXT_OFF
     end
     return select(2, util.band_of(util.active_access_point(network)))
-end)
+end, theme.TEXT_OFF)
 local band = mantle.network:map(function(network)
     return (util.band_of(util.active_access_point(network))) or ""
-end)
+end, "")
 
 local function open(rect)
     ui_state.toggle_panel(network_panel.kind, rect)
     network_panel.scan_while_open()
 end
 
-local network_module = icon_button(mantle.network:map(util.network_glyph), nil, {
+local network_module = icon_button(mantle.network:map(util.network_glyph, util.network_glyph()), nil, {
     slot = SLOT,
     on_buttons = { left = open, right = open },
     selected = ui_state.panel_showing(network_panel.kind),
@@ -35,11 +35,11 @@ local network_module = icon_button(mantle.network:map(util.network_glyph), nil, 
         return { x = label == "2.4" and -2 * theme.spacing.xs or -theme.spacing.xs, y = -theme.spacing.xs }
     end),
     visible = mantle.network:map(function(network)
-        return network ~= nil
-    end),
+        return true
+    end, false),
 })
 
-local network_text = mantle.network:map(function(network)
+local function network_text_of(network)
     if network == nil then
         return { text = "Network: initializing…", detail = "", secondary = "" }
     end
@@ -67,7 +67,8 @@ local network_text = mantle.network:map(function(network)
         detail = "No network connection",
         secondary = "",
     }
-end)
+end
+local network_text = mantle.network:map(network_text_of, network_text_of())
 
 local network_tooltip = tooltip({
     slot = SLOT,

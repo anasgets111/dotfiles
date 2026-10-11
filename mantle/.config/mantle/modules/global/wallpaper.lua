@@ -42,8 +42,8 @@ end
 -- (`false` destroys it); otherwise an animated wallpaper repaints it for nobody. The picture is the
 -- desktop panel's shared cache entry, so the rebuild decodes nothing.
 local in_overview = mantle.workspaces:map(function(workspaces)
-    return workspaces ~= nil and workspaces.compositor == "niri" and workspaces.overview_open == true
-end)
+    return workspaces.compositor == "niri" and workspaces.overview_open == true
+end, false)
 
 return {
     desktop = wallpaper_panel("wallpaper"),

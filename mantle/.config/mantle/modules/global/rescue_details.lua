@@ -43,14 +43,14 @@ local log = list {
     max_height = theme.rescue_log_height,
     scroll = log_scroll,
     animate = { scroll = theme.scroll_ease },
-    source = error_log:map(function(text)
+    items = error_log:map(function(text)
         local lines = {}
         for line in text:gmatch("[^\n]+") do
             lines[#lines + 1] = (line:gsub("\t", "    "))
         end
         return lines
     end),
-    itemfn = function(line)
+    each = function(line)
         return cell(line, theme.FG, theme.font.xs, { width = "fill", wrap = "word", max_lines = 4 })
     end,
 }

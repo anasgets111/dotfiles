@@ -1,4 +1,4 @@
--- Current month grid with today marked: `os.date`/`os.time` arithmetic with `mantle.system.time`
+-- Current month grid with today marked: `os.date`/`os.time` arithmetic with `mantle.clock.time`
 -- supplying *today*, so it needs no calendar capability and none should be added.
 --
 -- Not a panel. It sits in the clock's hover tooltip, owned by `modules/bar/indicators/date_time.lua`.

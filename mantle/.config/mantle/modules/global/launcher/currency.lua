@@ -2,7 +2,7 @@
 --
 -- The engine has no HTTP, so rates come from `curl` and decode in `exit_cb`, the only callback that
 -- knows the body is complete. They are stored in `lib/store.lua`, so a restart inside the day
--- reuses them, and staleness is checked on `mantle.system`'s 1 Hz push, which a reload cannot drop.
+-- reuses them, and staleness is checked on `mantle.clock`'s 1 Hz push, which a reload cannot drop.
 -- A query whose target has no rate claims nothing, so nothing shows before the first fetch.
 local util = require("lib.util")
 local store = require("lib.store")
@@ -122,7 +122,7 @@ local function fetch()
         if type(rates) ~= "table" then
             local wait = code and RETRY_SECONDS or KILLED_RETRY_SECONDS
             log.warn(("currency: fetch failed (curl exited %s), retrying in %ds"):format(tostring(code), wait))
-            next_attempt:set(((mantle.system:get() or {}).monotonic or 0) + wait)
+            next_attempt:set(mantle.clock:monotonic() + wait)
             return
         end
         -- `data.usd["usd"] = 1.0`: the base is absent from its own table.
@@ -135,7 +135,7 @@ end
 -- Wait for storage: `currency_updated_at` reads its `0` default first, and fetching on that spends
 -- a request the stored rates were about to answer. A level test, not a first-push edge, which a
 -- reload would install too late to ever see.
-mantle.system:on_change(function(system)
+mantle.clock:on_change(function(system)
     if not system or mantle.storage:get() == nil then
         return
     end
@@ -143,7 +143,7 @@ mantle.system:on_change(function(system)
     if system.monotonic < next_attempt:get() then
         return
     end
-    if system.time - (store.currency_updated_at:get() or 0) >= REFRESH_SECONDS then
+    if system.time - store.currency_updated_at:get() >= REFRESH_SECONDS then
         fetch()
     end
 end)

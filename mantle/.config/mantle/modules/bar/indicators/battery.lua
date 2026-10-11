@@ -46,20 +46,20 @@ end
 local ON_PILL = theme.text_contrast(theme.GLASS_CONTROL)
 local ON_FILL = mantle.battery:map(function(battery)
     return theme.text_contrast(battery_color(battery))
-end)
+end, theme.text_contrast(battery_color()))
 
 -- `pulse` marks a change and `computed` keeps only the rising edge, so unplugging does not flash.
 -- The two-cycle flash lasts four `animation_fast_ms` in all.
 local plugged = mantle.battery:map(function(battery)
-    return battery ~= nil and battery.present and not util.battery_is_draining(battery.state)
-end)
+    return battery.present and not util.battery_is_draining(battery.state)
+end, false)
 local plug_flash = computed({ pulse(plugged, theme.animation_fast_ms * 4), plugged }, function(fired, on)
     return fired and on
 end)
 
 -- `cell`, not `glyph`: `components/glyph.lua` forces the icon font and would mismatch the circles
 -- beside it. Bold keeps dark ink readable over the opaque fill.
-local GLYPH = util.bold(mantle.battery:map(util.battery_glyph))
+local GLYPH = util.bold(mantle.battery:map(util.battery_glyph, util.battery_glyph()))
 local PERCENT = util.bold(util.label(mantle.battery, function(battery)
     return string.format("%d%%", battery.percent)
 end))
@@ -82,10 +82,10 @@ local fill = rect {
     -- Cuts its readout copy at the fill's edge, so the contrast colour flips there.
     clip = "box",
     width = mantle.battery:map(function(battery)
-        return string.format("%d%%", math.floor(math.max(0, math.min(100, (battery and battery.percent) or 0)) + 0.5))
-    end),
+        return string.format("%d%%", math.floor(math.max(0, math.min(100, battery.percent)) + 0.5))
+    end, "0%"),
     height = "fill",
-    background = mantle.battery:map(battery_color),
+    background = mantle.battery:map(battery_color, battery_color()),
     -- The level slides and the threshold colour fades; the entry's presence blinks the fill twice
     -- when the cable goes in.
     animate = plug_flash:map(function(flashing)
@@ -115,10 +115,10 @@ local battery_module = rect {
     border_color = theme.GLASS_BORDER,
     hover = hover(SLOT),
     -- A desktop's UPower `DisplayDevice` answers `present = false`, and a percentage pill reporting
-    -- no percentage is worse than none. `shown_when` also keeps it down until the first snapshot.
-    visible = util.shown_when(mantle.battery, function(battery)
+    -- no percentage is worse than none. `the map holds false until the first snapshot.
+    visible = mantle.battery:map(function(battery)
         return battery.present
-    end),
+    end, false),
     -- Pill copy first: the fill paints over it, and shows it again while the plug flash fades.
     children = { readout(ON_PILL), fill },
 }
@@ -126,9 +126,7 @@ local battery_module = rect {
 local battery_tooltip = tooltip({
     slot = SLOT,
     text = mantle.battery:map(function(battery)
-        if battery == nil then
-            return "Battery unavailable"
-        elseif battery.state == "fully_charged" then
+        if battery.state == "fully_charged" then
             return "Fully charged"
         end
         local eta = battery_eta(battery)
@@ -137,7 +135,7 @@ local battery_tooltip = tooltip({
         end
         local phrase = BATTERY_PHRASES[battery.state] or "state unknown"
         return phrase:sub(1, 1):upper() .. phrase:sub(2)
-    end),
+    end, "Battery unavailable"),
     detail = util.label(mantle.power, function(power)
         local parts = {}
         if power.on_battery ~= nil then

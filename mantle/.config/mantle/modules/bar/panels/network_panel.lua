@@ -65,9 +65,9 @@ local function radio_tile(radio, name, tile_icon, detail)
         label = util.label(mantle.network, function(network)
             return network[radio .. "_present"] and name or "No " .. name
         end),
-        disabled = util.shown_when(mantle.network, function(network)
+        disabled = mantle.network:map(function(network)
             return not network[radio .. "_present"]
-        end),
+        end, false),
         detail = util.label(mantle.network, detail),
         signal = mantle.network,
         read = function(network)
@@ -299,11 +299,11 @@ end
 local body = {
     panel_header {
         title = "Network",
-        icon = mantle.network:map(header_glyph),
+        icon = mantle.network:map(header_glyph, header_glyph()),
         active = mantle.network:map(function(network)
-            return network ~= nil and network.networking_enabled
-        end),
-        subtitle = mantle.network:map(state_line),
+            return network.networking_enabled
+        end, false),
+        subtitle = mantle.network:map(state_line, state_line()),
         trailing = {
             -- The rescan glyph spins in place while a scan is in flight.
             panel_action_icon(icons.refresh, scan, {
@@ -311,9 +311,9 @@ local body = {
                 spinning = util.shown_when(device, function(target)
                     return target.scanning
                 end),
-                visible = util.shown_when(mantle.network, function(network)
-                    return network ~= nil and (radio_on(network) or network.scanning)
-                end),
+                visible = mantle.network:map(function(network)
+                    return radio_on(network) or network.scanning
+                end, false),
             }),
             -- Controls the whole stack; off hides the tiles.
             toggle(mantle.network, function(network)
@@ -326,9 +326,9 @@ local body = {
     row {
         width = "fill",
         spacing = theme.spacing.xs,
-        visible = util.shown_when(mantle.network, function(network)
+        visible = mantle.network:map(function(network)
             return network.networking_enabled
-        end),
+        end, false),
         children = {
             radio_tile("wifi", "Wi-Fi", icons.wifi[4], function(network)
                 -- Keyed on the association, not `ssid`. A docked laptop's joined radio still has an
@@ -349,20 +349,20 @@ local body = {
         slot = "network-device",
         options = mantle.network:map(function(network)
             local ids = {}
-            for _, candidate in ipairs(network and network.wifi_devices or {}) do
+            for _, candidate in ipairs(network.wifi_devices) do
                 ids[#ids + 1] = candidate.id
             end
             return ids
-        end),
+        end, {}),
         value = device:map(function(target)
             return target and target.id
         end),
         on_select = function(id)
             picked:set(id)
         end,
-        visible = util.shown_when(mantle.network, function(network)
+        visible = mantle.network:map(function(network)
             return network.networking_enabled and #network.wifi_devices > 1
-        end),
+        end, false),
     },
     -- Dismissed until the next open or attempt; yields to the sheet so a failure never shows twice.
     callout(icons.warning, error_message, {
@@ -375,7 +375,7 @@ local body = {
         end, { slot = "network-error-dismiss", tint = theme.RED }),
     }),
     -- Typed passwords never reach this VM: `mask_character` plus `secure_submit` keeps keystrokes in
-    -- a native buffer and sends a `("network", "connect")` envelope, so `submit = true` is the only
+    -- a native buffer and sends a `("network", "connect")` envelope, so `submits_secure = true` is the only
     -- password path. The engine focuses a surface's *sole* secure field and refuses to guess between
     -- two, so the name field is plain; only shown fields are armed, letting each step take the
     -- keyboard while the other is down.
@@ -441,7 +441,7 @@ local body = {
                     -- No `on_activate`: its click *is* the field's Enter, the only path a password
                     -- has out of the Renderer.
                     action_button("Connect", nil, "network-sheet-connect",
-                        { tone = "accent", submit = true, visible = during("password") }),
+                        { tone = "accent", submits_secure = true, visible = during("password") }),
                     -- A failed attempt leaves no pending intent, so Retry is a fresh `connect`.
                     action_button("Retry", function()
                         mantle.network:connect(join.hidden_ssid:get(), true)
@@ -480,7 +480,7 @@ local body = {
                 return "Looking for networks…"
             end
             return "No networks found"
-        end),
+        end, "NetworkManager is not responding"),
         computed({ mantle.network, device, join.hidden_join }, function(network, target, joining)
             return not radio_on(network) or (not joining and #access_points(network, target) == 0)
         end)

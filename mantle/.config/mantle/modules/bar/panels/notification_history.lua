@@ -22,8 +22,8 @@ local function feed(payload)
 end
 
 local bell_glyph = mantle.notifications:map(function(payload)
-    return (payload and payload.dnd) and icons.bell_off or icons.bell
-end)
+    return payload.dnd and icons.bell_off or icons.bell
+end, icons.bell)
 
 -- `mantle.applications` supplies desktop-file names and icons. `util.today` moves "today" at midnight.
 local sections = computed({ mantle.notifications, mantle.applications, util.today },
@@ -86,7 +86,7 @@ local body = {
     panel_header {
         title = identity.full_name,
         icon = identity.initials,
-        subtitle = util.label(mantle.system, function(system)
+        subtitle = util.label(mantle.clock, function(system)
             return long_date(system.time)
         end),
     },
@@ -149,8 +149,8 @@ local body = {
         on_hover = function(hovered)
             mantle.notifications:hold_expiry(hovered and 300 or 0)
         end,
-        source = sections,
-        itemfn = function(item)
+        items = sections,
+        each = function(item)
             if item.kind == "header" then
                 return section_header(item.label)
             end

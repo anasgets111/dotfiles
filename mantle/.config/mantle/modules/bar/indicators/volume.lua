@@ -35,14 +35,14 @@ end)
 
 -- Muted makes the fill inactive, so 60% reads as a grey bar, not purple "loud".
 local fill = mantle.audio:map(function(audio)
-    return muted(audio) and theme.INACTIVE or theme.ACCENT
-end)
+    return audio.muted and theme.INACTIVE or theme.ACCENT
+end, theme.ACCENT)
 local headroom = mantle.audio:map(function(audio)
-    return muted(audio) and theme.INACTIVE or theme.RED
-end)
+    return audio.muted and theme.INACTIVE or theme.RED
+end, theme.RED)
 
 local width = util.choose(expanded, theme.volume_expanded_width, theme.item_width)
-local volume_glyph = mantle.audio:map(util.volume_glyph)
+local volume_glyph = mantle.audio:map(util.volume_glyph, util.volume_glyph())
 local readout = computed({ mantle.audio, held }, function(audio, pending)
     if volume(audio) == nil then
         return "--"

@@ -307,9 +307,9 @@ return function(group, ui, opts)
     for index = 1, limit do
         local notification = items[index]
         local age = in_history and notifications.absolute_time(notification.timestamp)
-            or mantle.system:map(function(system)
-                return system and notifications.age(system.time, notification.timestamp) or ""
-            end)
+            or mantle.clock:map(function(system)
+                return notifications.age(system.time, notification.timestamp)
+            end, "")
         members[#members + 1] = message(notification, ui, {
             scope = scope,
             standalone = not is_group or (index == 1 and not expanded),
@@ -352,7 +352,7 @@ return function(group, ui, opts)
         animate = in_history and { opacity = { duration = theme.animation_ms, from = 0 }, exit = FADE_EXIT, move = MOVE }
             or slide_in((group.rank - 1) * STAGGER_MS),
         background = in_history and theme.GLASS_CONTENT or theme.GLASS,
-        behind_blur = not in_history,
+        compositor_blur = not in_history,
         radius = theme.radius.md,
         border_width = in_history and theme.border_width or theme.border_width_medium,
         border_color = group.urgency == "critical" and theme.RED or theme.GLASS_BORDER,

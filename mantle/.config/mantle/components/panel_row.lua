@@ -10,7 +10,7 @@ local cell = require("components.cell")
 local glyph = require("components.glyph")
 local reveal = require("components.reveal")
 
--- Typed like `components/cell.lua`. Without these shapes a `list` `itemfn`'s `any` reaches
+-- Typed like `components/cell.lua`. Without these shapes a `list` `each`'s `any` reaches
 -- `text.content` unchanged, a notification span array included.
 ---@class PanelRowOpts
 ---@field title string|TextRun[]|Bound

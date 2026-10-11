@@ -14,15 +14,15 @@ local function alert(glyph, field, slot)
     return icon_button(glyph, nil, {
         slot = slot,
         background = theme.RED,
-        visible = util.shown_when(mantle.privacy, users_of(field)),
+        visible = mantle.privacy:map(users_of(field), false),
     })
 end
 
 -- The microphone shows while active or muted, so a muted one stays reachable to unmute. Muted is
 -- peach with a struck-through glyph, live is red with the plain one.
 local mic_muted = mantle.audio:map(function(audio)
-    return audio ~= nil and audio.source_muted == true
-end)
+    return audio.source_muted
+end, false)
 local mic_shown = computed({ mantle.privacy, mic_muted }, function(privacy, muted)
     return users_of("microphone_users")(privacy) or muted
 end)

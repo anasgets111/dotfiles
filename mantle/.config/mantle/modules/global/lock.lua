@@ -22,8 +22,8 @@ util.auto_english_layout(mantle.lock)
 
 -- The subtree survives unlock; both entry and exit need an explicit target.
 local up           = mantle.lock:map(function(lock)
-    return lock ~= nil and lock.active and not lock.unlocking
-end)
+    return lock.active and not lock.unlocking
+end, false)
 local opacity      = util.choose(up, 1, 0)
 local CLOSED_SCALE = 0.94
 
@@ -67,14 +67,15 @@ local function status_item(icon_glyph, label, visible)
 end
 
 -- Bold hours and regular minutes, without a leading zero.
-local clock = mantle.system:map(function(system)
-    local now = os.date("*t", system and system.time)
+local function clock_runs(time)
+    local now = os.date("*t", time)
     local hour = now.hour % 12
     return {
         { text = tostring(hour == 0 and 12 or hour), bold = true },
         { text = string.format(":%02d", now.min) },
     }
-end)
+end
+local clock = mantle.clock:map(function(system) return clock_runs(system.time) end, clock_runs())
 
 -- One secure field per output, armed on compositor focus.
 local function content(output)
@@ -84,7 +85,7 @@ local function content(output)
         spacing = theme.spacing.xs,
         children = {
             cell(clock, theme.FG, theme.lock_clock, { align = "center" }),
-            cell(util.label(mantle.system, function(system)
+            cell(util.label(mantle.clock, function(system)
                 return string.format("%s %d", os.date("%A, %B", system.time), os.date("*t", system.time).day)
             end), theme.DIM, theme.font.xl, { align = "center" }),
         },
@@ -131,16 +132,16 @@ local function content(output)
                 end)
             ),
             status_item(
-                mantle.battery:map(util.battery_glyph),
+                mantle.battery:map(util.battery_glyph, util.battery_glyph()),
                 util.label(mantle.battery, function(battery)
                     return string.format("%d%%", battery.percent)
                 end),
-                util.shown_when(mantle.battery, function(battery)
+                mantle.battery:map(function(battery)
                     return battery.present
-                end)
+                end, false)
             ),
             status_item(
-                mantle.network:map(util.network_glyph),
+                mantle.network:map(util.network_glyph, util.network_glyph()),
                 util.label(mantle.network, function(network)
                     return network.ssid or "Offline"
                 end)

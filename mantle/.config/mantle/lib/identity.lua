@@ -16,15 +16,15 @@ end
 
 if identity:get().name == "" then
     -- Field five is GECOS; its first comma-separated part is the full name.
-    process.run("getent", { "passwd", USER }, function(line)
-        remember("name", line:match("^[^:]*:[^:]*:[^:]*:[^:]*:([^,:]*)") or "")
-    end, function() end)
+    process.capture("getent", { "passwd", USER }, function(out)
+        remember("name", (out or ""):match("^[^:]*:[^:]*:[^:]*:[^:]*:([^,:]*)") or "")
+    end)
 end
 
 if identity:get().host == "" then
-    process.run("uname", { "-n" }, function(line)
-        remember("host", line)
-    end, function() end)
+    process.capture("uname", { "-n" }, function(out)
+        remember("host", out or "")
+    end)
 end
 
 local full_name = identity:map(function(who)

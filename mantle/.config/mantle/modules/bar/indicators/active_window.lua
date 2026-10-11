@@ -36,9 +36,9 @@ local title = computed({ mantle.applications, mantle.workspaces }, function(appl
     return label(applications, workspaces)
 end)
 local app_id = mantle.workspaces:map(function(workspaces)
-    local client = workspaces and workspaces.active_client
+    local client = workspaces.active_client
     return client and client.app_id or ""
-end)
+end, "")
 
 local content = geometry("active_window")
 local function swap(from) return { duration = theme.animation_fast_ms, easing = "out_cubic", from = from } end

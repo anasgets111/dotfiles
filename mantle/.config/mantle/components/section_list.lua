@@ -4,10 +4,10 @@ local util = require("lib.util")
 
 ---@param source Signal<table[]>
 ---@param name string Scroll state name.
----@param itemfn fun(item: table): Node
+---@param each fun(item: table): Node
 ---@param visible? boolean|Bound
 ---@return Node
-return function(source, name, itemfn, visible)
+return function(source, name, each, visible)
     return list {
         width = "fill",
         spacing = theme.spacing.xs,
@@ -19,8 +19,8 @@ return function(source, name, itemfn, visible)
                 return item.kind == "header" and theme.section_header_height or theme.control.lg
             end)
         end),
-        source = source,
-        itemfn = itemfn,
+        items = source,
+        each = each,
         key = function(item)
             return item.key
         end,

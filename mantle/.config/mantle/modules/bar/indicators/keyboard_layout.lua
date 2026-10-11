@@ -22,24 +22,23 @@ end
 
 action("keyboard.next_layout", next_layout)
 
-local indicator = icon_button(mantle.keyboard:map(layout_short), next_layout, {
+local indicator = icon_button(mantle.keyboard:map(layout_short, layout_short()), next_layout, {
     slot = SLOT,
     icon_size = theme.font.md,
     foreground = mantle.keyboard:map(function(keyboard)
-        return (keyboard and keyboard.caps_lock) and theme.PEACH or theme.FG
-    end),
+        return keyboard.caps_lock and theme.PEACH or theme.FG
+    end, theme.FG),
     -- One configured layout has nothing to switch to.
     visible = mantle.keyboard:map(function(keyboard)
-        return keyboard ~= nil and (keyboard.layout_count or 0) >= 2
-    end),
+        return keyboard.layout_count >= 2
+    end, false),
 })
 
 local layout_tooltip = tooltip({
     slot = SLOT,
     text = mantle.keyboard:map(function(keyboard)
-        return keyboard ~= nil and keyboard.active_layout ~= "" and keyboard.active_layout or
-            "Keyboard layout unavailable"
-    end)
+        return keyboard.active_layout ~= "" and keyboard.active_layout or "Keyboard layout unavailable"
+    end, "Keyboard layout unavailable")
 })
 
 return { indicator = indicator, tooltips = { layout_tooltip } }
