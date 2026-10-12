@@ -152,6 +152,8 @@ local function launch(target, output, label)
         -- `math.floor`: a rate round-tripped through JSON comes back a float, and `-f 60.0` is refused.
         "-f", tostring(math.floor(tonumber(settings.fps) or 60)),
         "-cursor", "yes",
+        -- Without a working VAAPI/NVENC driver it exits 52 instead of encoding on the CPU.
+        "-fallback-cpu-encoding", "yes",
         -- Otherwise it logs fps once a second; errors still reach the log.
         "-v", "no",
     }, AUDIO[settings.audio] or AUDIO.desktop)
