@@ -152,7 +152,8 @@ end
 --- @param sec integer
 --- @return string
 function idle.clock(sec)
-    return string.format("%d:%02d", math.max(0, sec) // 60, math.max(0, sec) % 60)
+    sec = math.max(0, math.ceil(sec))
+    return string.format("%d:%02d", sec // 60, sec % 60)
 end
 
 -- Named `state()` throughout: registry entries survive a reload, so an edit cannot forget a manual
