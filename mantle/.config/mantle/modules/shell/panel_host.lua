@@ -213,6 +213,8 @@ return panel {
                                                         width = { duration = theme.animation_ms, easing = "out_cubic" },
                                                         height = { duration = theme.animation_ms, easing = "out_cubic" },
                                                     },
+                                                    -- Cuts the content while `height` eases, else the bottom rows paint past the glass.
+                                                    clip = "box",
                                                     background = theme.GLASS_SURFACE,
                                                     compositor_blur = true,
                                                     padding = { top = CARD_PADDING + theme.radius.md, right = CARD_PADDING,

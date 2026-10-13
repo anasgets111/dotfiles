@@ -208,7 +208,8 @@ for index, action in ipairs(ACTIONS) do
             if role_of(index, chosen) == "cancel" then
                 return "Cancel"
             end
-            return chosen ~= "" and string.format("%s in %ds", ACTIONS[chosen].label, math.ceil(left or 0)) or action.label
+            return chosen ~= "" and string.format("%s in %ds", ACTIONS[chosen].label, math.ceil(left or 0)) or
+                action.label
         end),
         detail = pending:map(function(chosen)
             return chosen == "" and "" or HINTS[role_of(index, chosen)]

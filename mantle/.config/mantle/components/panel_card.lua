@@ -25,6 +25,7 @@ return function(children, opts)
         visible = opts.visible,
         opacity = opts.opacity,
         animate = opts.animate,
+        clip = opts.clip,
         -- Nested cards leave the compositor blur to their dialog.
         compositor_blur = opts.compositor_blur or dialog,
         effect = opts.effect,
