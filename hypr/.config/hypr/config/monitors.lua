@@ -5,8 +5,9 @@ local host_profiles = {
     Mentalist = { output = "eDP-1", mode = "1920x1200@60" },
 }
 
-local profile = assert(host_profiles[hostname], "unknown host: " .. hostname)
-hl.monitor(profile)
+-- An unknown host gets Hyprland's default: preferred mode, auto position.
+local profile = host_profiles[hostname] or {}
+if profile.output then hl.monitor(profile) end
 
 -- ICC prevents fullscreen HDR, so temporarily use an equivalent unprofiled rule.
 if profile.icc then

@@ -86,7 +86,7 @@ Before writing code, trace the real flow end to end, then stop at the first rung
 | Path | Holds |
 | --- | --- |
 | `mantle/.config/mantle/demo/` | Effects demo run as its own instance (`mantle -c`), sharing `config/`, `components/` and `lib/` through symlinks. Not required by `shell.lua`, but its edits still reload the main shell |
-| `bin/.local/bin/arch-install.sh` | Full Arch install for the Wolverine and Mentalist hosts |
+| `bin/.local/bin/arch-install.sh` | Full Arch install: Wolverine, Mentalist or a new host detected from its hardware |
 | `home/.profile` | XDG dirs, NVIDIA env, Wayland toolkit config, PATH |
 | `home/.stowrc` | Points stow at this repo and `~` |
 | `.luarc.json` | One LuaLS config for the mantle, Hyprland, Neovim and mpv Lua |

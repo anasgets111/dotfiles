@@ -4,7 +4,7 @@ Hardware: Ryzen 5900X • RTX 3080 • NVMe
 ## 0  Boot environment
 - Boot Arch ISO, open live shell.
 - Connect to hidden Wi-Fi  
-    iwctl station wlan0 connect-hidden Ghuzlan-private --passphrase Khghza12345
+    iwctl station wlan0 connect-hidden Ghuzlan-private --passphrase <passphrase>
 
 ## 1  Pre-install tweaks
 - /etc/pacman.conf → enable  
