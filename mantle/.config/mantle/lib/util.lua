@@ -225,12 +225,13 @@ end
 
 -- Stabilize the engine's HashMap order by name, then MAC. "\0" separates tied names.
 function util.sorted_devices(devices)
-    local function key(device)
-        return (device.name ~= "" and device.name:lower() or device.mac) .. "\0" .. device.mac
+    local out, keys = {}, {}
+    for i, device in ipairs(devices or {}) do
+        out[i] = device
+        keys[device] = (device.name ~= "" and device.name:lower() or device.mac) .. "\0" .. device.mac
     end
-    local out = table.move(devices or {}, 1, #(devices or {}), 1, {})
     table.sort(out, function(left, right)
-        return key(left) < key(right)
+        return keys[left] < keys[right]
     end)
     return out
 end

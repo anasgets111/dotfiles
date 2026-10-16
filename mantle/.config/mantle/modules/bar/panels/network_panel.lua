@@ -144,11 +144,10 @@ end)
 -- Connected, saved, then available. Within each, sort by tier, not
 -- raw strength, so scan jitter cannot swap rows under the pointer.
 local function before(left, right)
-    local left_tier, right_tier = util.signal_tier(left.ap.strength), util.signal_tier(right.ap.strength)
-    if left_tier ~= right_tier then
-        return left_tier > right_tier
+    if left.tier ~= right.tier then
+        return left.tier > right.tier
     end
-    return tostring(left.ap.ssid):lower() < tostring(right.ap.ssid):lower()
+    return left.sort_name < right.sort_name
 end
 
 local rows = computed({ mantle.network, device }, function(network, target)
@@ -160,6 +159,8 @@ local rows = computed({ mantle.network, device }, function(network, target)
             kind = "ap",
             ap = ap,
             key = "ap-" .. tostring(ap.ssid),
+            tier = util.signal_tier(ap.strength),
+            sort_name = tostring(ap.ssid):lower(),
             connecting = connecting ~= nil and connecting == ap.ssid,
             blocked = connecting ~= nil and connecting ~= ap.ssid,
         }

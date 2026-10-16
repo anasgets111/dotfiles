@@ -61,17 +61,26 @@ local trimmed = query:map(function(text)
     return util.trim(text):lower()
 end)
 
----@return FileEntry[]
-local filtered = computed({ mantle.folders, trimmed }, function(files, needle)
+-- Names lowercased once per folder change, not per keystroke.
+local folder_entries = mantle.folders:map(function(files)
     local folder = wallpaper.folder_in(files)
     local entries = folder and folder.entries or {}
+    local lowered = {}
+    for i, entry in ipairs(entries) do
+        lowered[i] = entry.name:lower()
+    end
+    return { entries = entries, lowered = lowered }
+end, { entries = {}, lowered = {} })
+
+---@return FileEntry[]
+local filtered = computed({ folder_entries, trimmed }, function(folder, needle)
     if needle == "" then
-        return entries
+        return folder.entries
     end
     local found = {}
-    for _, entry in ipairs(entries) do
-        if entry.name:lower():find(needle, 1, true) then
-            found[#found + 1] = entry
+    for i, name in ipairs(folder.lowered) do
+        if name:find(needle, 1, true) then
+            found[#found + 1] = folder.entries[i]
         end
     end
     return found

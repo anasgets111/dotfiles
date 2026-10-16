@@ -141,9 +141,19 @@ local function needs_reboot(name)
     return REBOOT[name] == true or name:find("^linux") ~= nil or name:find("^nvidia") ~= nil
 end
 
+-- Every install log line re-pushes `mantle.updates`, and past 256 entries the engine cannot see the
+-- list is unchanged, so the sort reran per line. `packages` is the answer of the check stamped
+-- `last_successful_check`, so the stamp says when to sort again.
+local sorted_at, sorted_count, sorted_rows = nil, nil, {}
+
 -- Group by repository, with AUR builds last; names sort within each group.
 local sorted_packages = mantle.updates:map(function(updates)
-    local list = util.concat(service.packages(updates))
+    local packages = service.packages(updates)
+    if updates.last_successful_check ~= nil and updates.last_successful_check == sorted_at
+        and #packages == sorted_count then
+        return sorted_rows
+    end
+    local list = util.concat(packages)
     table.sort(list, function(left, right)
         local left_repo, right_repo = left.repository or "", right.repository or ""
         if left_repo ~= right_repo then
@@ -168,6 +178,7 @@ local sorted_packages = mantle.updates:map(function(updates)
         group.count = group.count + 1
         rows[#rows + 1] = package
     end
+    sorted_at, sorted_count, sorted_rows = updates.last_successful_check, #packages, rows
     return rows
 end, {})
 

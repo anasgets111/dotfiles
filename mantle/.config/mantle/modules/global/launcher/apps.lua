@@ -4,8 +4,7 @@ local util = require("lib.util")
 
 local M = {}
 
-local function field_score(value, needle, weight)
-    local text = (value or ""):lower()
+local function field_score(text, needle, weight)
     if text == "" then
         return -1
     end
@@ -37,24 +36,43 @@ local function usage_of(usage, now, id)
     return math.log(entry.count + 1, 2) + recency
 end
 
+-- The shown entries with their fields lowercased once per change of the desktop entries, not per
+-- keystroke: lowering and joining on every query overran the 2.5ms budget on a 4-core laptop.
+function M.index(applications)
+    local index = {}
+    for _, app in ipairs(applications.entries) do
+        if not app.no_display then
+            index[#index + 1] = {
+                app = app,
+                name = (app.name or ""):lower(),
+                generic_name = (app.generic_name or ""):lower(),
+                keywords = table.concat(app.keywords or {}, " "):lower(),
+                id = (app.id or ""):lower(),
+            }
+        end
+    end
+    return index
+end
+
 -- Every match, best first; an empty query matches everything. Usage breaks score ties, but never
 -- outranks a better field match. `best` lets a bare currency code yield to a strong app match.
 ---@return { apps: AppSummary[], best: integer }
-function M.rank(applications, text, usage)
+function M.rank(index, text, usage)
     local needle = util.trim(text):lower()
     usage = usage or {}
     -- ponytail: recency can lag while the launcher sits idle. Feed an hourly clock if it matters.
     local now = os.time()
     local scored = {}
     local best = 0
-    for _, app in ipairs(applications.entries) do
+    for _, entry in ipairs(index) do
+        local app = entry.app
         local value = needle == "" and 0 or math.max(
-            field_score(app.name, needle, 80),
-            field_score(app.generic_name, needle, 60),
-            field_score(table.concat(app.keywords or {}, " "), needle, 40),
-            field_score(app.id, needle, 20)
+            field_score(entry.name, needle, 80),
+            field_score(entry.generic_name, needle, 60),
+            field_score(entry.keywords, needle, 40),
+            field_score(entry.id, needle, 20)
         )
-        if not app.no_display and value >= 0 then
+        if value >= 0 then
             scored[#scored + 1] = { app = app, score = value, usage = usage_of(usage, now, app.id) }
             best = math.max(best, value)
         end

@@ -108,7 +108,8 @@ local pill_motion = web:map(function(on)
 end)
 
 local trimmed = query:map(util.trim)
-local matches = computed({ mantle.applications, query, store.app_usage }, app_provider.rank,
+local app_index = mantle.applications:map(app_provider.index, {})
+local matches = computed({ app_index, query, store.app_usage }, app_provider.rank,
     { apps = {}, best = 0 })
 local results = computed({ matches, mode, trimmed }, function(found, current, text)
     if current == "apps" then
