@@ -82,8 +82,8 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 hotkey-overlay { skip-at-startup; }
 
 // --- Startup Applications ---
-// Absolute: at login niri's spawn env has not imported ~/.local/share/cargo/bin yet.
-spawn-at-startup "/home/anas/.local/share/cargo/bin/mantle"
+// At login niri's spawn env has not imported ~/.local/share/cargo/bin yet; a cargo build wins over mantle-bin.
+spawn-sh-at-startup "PATH=$HOME/.local/share/cargo/bin:$PATH exec mantle"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-at-startup "kdeconnectd"
 spawn-at-startup "zeditor"
