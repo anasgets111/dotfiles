@@ -602,6 +602,8 @@ bootstrap_user_environment() {
     run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
+		# Without a real ~/.local, stow folds the whole dir into the repo and apps write their data there.
+		mkdir -p "$HOME/.local"
 		for pkg in fish kitty mantle nvim mpv hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
