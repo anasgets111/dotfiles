@@ -5,13 +5,13 @@ local dictation = {}
 dictation.BARS = 20
 local RETRY_MS = 3000
 
--- `idle`, `recording`, `transcribing`, or `""` before the first line or without the daemon.
+-- `idle`, `recording`, `transcribing`, `stopped` (daemon not running), or `""` before the first line.
 dictation.phase = state("dictation_phase", "")
 dictation.levels = state("dictation_levels", {})
 local began_at = state("dictation_began_at", 0)
 
 dictation.active = dictation.phase:map(function(phase)
-    return phase ~= "" and phase ~= "idle"
+    return phase == "recording" or phase == "transcribing"
 end)
 
 dictation.elapsed_text = computed({ mantle.clock, began_at }, function(system, began)
