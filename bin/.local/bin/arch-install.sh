@@ -597,7 +597,7 @@ bootstrap_user_environment() {
         log_warning "backup-home restore failed; continuing."
     fi
 
-    run_as_user systemctl --user enable podman.socket podman-restart.service
+    systemctl --global enable podman.socket podman-restart.service
 
     run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'
