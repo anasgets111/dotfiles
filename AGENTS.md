@@ -122,6 +122,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 
 | Trap | Fix |
 | --- | --- |
+| Stow folds a target directory that does not exist yet (`~/.local`) into one symlink to the repo, so apps write into Dots | Create it first; `arch-install.sh` runs `mkdir -p ~/.local` before stow |
 | Zed reads only the root `.luarc.json`; nested ones are ignored | Keep all Lua settings in the root file |
 | LuaLS builtin `os` types reject valid mantle `os.time` calls | Keep builtin `os` and `debug` disabled in `.luarc.json` |
 | A running LuaLS ignores `runtime.*` changes | Restart the language server |
