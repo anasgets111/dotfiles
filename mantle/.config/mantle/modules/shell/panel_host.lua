@@ -26,6 +26,7 @@ local panels = { network_panel, bluetooth_panel, notification_history, update_pa
 
 -- Only the matching `kind` is a child: a hidden sibling would be frozen, not dropped. `geometry`
 -- keeps a gone section's last rect, so a reveal knows its height; one never shown reads zero.
+-- `id` stops a switch reusing the last panel's nodes by position, which tweened their colours over.
 local sections = {}
 local section_rects = {}
 for _, panel in ipairs(panels) do
@@ -33,6 +34,7 @@ for _, panel in ipairs(panels) do
     local panel_hover = panel.kind == media_panel.kind and hover("media_panel") or nil
     table.insert(section_rects, rect)
     sections[panel.kind] = column {
+        id = panel.kind,
         width = "fill",
         spacing = panel.spacing or theme.spacing.md,
         geometry = rect,
