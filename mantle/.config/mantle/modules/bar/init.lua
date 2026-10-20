@@ -5,7 +5,7 @@ local audio_panel = require("modules.bar.panels.audio_panel")
 
 local LEFT = {
     "rescue", "power_menu", "updates", "idle_inhibitor", "keyboard_layout", "battery",
-    "launcher_button", "wallpaper_button", "special_workspaces", "workspace_strip",
+    "wallpaper_button", "special_workspaces", "workspace_strip",
 }
 local RIGHT = { "privacy", "volume", "screen_recorder", "network", "bluetooth", "sys_tray", "date_time" }
 local tooltips = {}

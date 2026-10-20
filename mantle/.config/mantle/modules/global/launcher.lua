@@ -4,8 +4,8 @@
 -- `selected_id` holds the last key or hover choice; `effective_selected` keeps it while visible
 -- and falls back to the first. Mouse and arrows move the same selection.
 --
--- Search mode shows one row of app tiles above the first provider to claim the query: currency,
--- calculator, then web. Apps mode is the whole grid. Providers return plain tables because a
+-- Search mode shows every app while the query is empty, then one row of app tiles above the first
+-- provider to claim the query: currency, calculator, then web. Apps mode is the whole grid. Providers return plain tables because a
 -- `computed` cannot carry a closure.
 -- Ranking, the web provider and the mode rail live in `launcher/`.
 local theme = require("config.theme")
@@ -53,7 +53,7 @@ local RESULTS_PADDING = theme.spacing.sm
 -- Selections nest in the results card's corners.
 local SELECTION_RADIUS = theme.launcher_radius - RESULTS_PADDING
 local COLUMNS = math.floor((theme.launcher_width - 2 * RESULTS_PADDING) / theme.launcher_tile_width)
-local VISIBLE_ROWS = 4
+local VISIBLE_ROWS = 5
 local STEPS = { Left = -1, Right = 1, Up = -COLUMNS, Down = COLUMNS }
 local SCROLL = scroll("launcher_grid")
 
@@ -112,10 +112,10 @@ local app_index = mantle.applications:map(app_provider.index, {})
 local matches = computed({ app_index, query, store.app_usage }, app_provider.rank,
     { apps = {}, best = 0 })
 local results = computed({ matches, mode, trimmed }, function(found, current, text)
-    if current == "apps" then
+    if current == "apps" or (current == "search" and text == "") then
         return found.apps
     end
-    if current ~= "search" or text == "" then
+    if current ~= "search" then
         return {}
     end
     return { table.unpack(found.apps, 1, math.min(#found.apps, COLUMNS)) }
@@ -271,7 +271,7 @@ local function app_tile(app)
         children = {
             icon {
                 name = app.icon or "application-x-executable",
-                size = theme.icon.xl,
+                size = theme.launcher_icon,
                 align_h = "center",
                 scale = effective_selected:map(function(selected)
                     return selected == app.id and theme.selected_scale or 1
@@ -301,7 +301,12 @@ local grid = list {
         for i, app in ipairs(apps) do
             tiles[i] = app_tile(app)
         end
-        return row { width = "fill", children = tiles }
+        -- Centred as a block, so a short last row stays in its columns.
+        return rect {
+            width = COLUMNS * theme.launcher_tile_width,
+            align_h = "center",
+            children = { row { children = tiles } },
+        }
     end,
     key = function(apps)
         local ids = {}
