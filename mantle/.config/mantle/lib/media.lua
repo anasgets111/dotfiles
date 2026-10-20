@@ -37,8 +37,8 @@ mantle.mpris:on_change(function(mpris)
     was_playing = now
 end)
 
--- ponytail: MPRIS names no pid, so a player matches its PipeWire streams by app name. Two instances
--- of one browser share every stream. Upgrade: match `apps[].pid` once `PlayerState` carries one.
+-- A player's own process owns its streams. Name matching is the fallback: Chromium plays from a
+-- utility process, and a sandboxed app's streams report a pid from inside its sandbox.
 media.streams = computed({ media.selected, mantle.audio }, function(player, audio)
     if not player then
         return {}
@@ -49,15 +49,25 @@ media.streams = computed({ media.selected, mantle.audio }, function(player, audi
             names[name:lower()] = true
         end
     end
-    local matched = {}
+    local by_pid, by_name = {}, {}
     for _, app in ipairs(audio.apps) do
-        if not app.recording and util.find({ "binary", "process_name", "name", "icon" }, function(field)
+        if not app.recording and app.pid == player.pid then
+            by_pid[#by_pid + 1] = app
+        elseif not app.recording and util.find({ "binary", "process_name", "name", "icon" }, function(field)
                 return app[field] and names[app[field]:lower()]
             end) then
-            matched[#matched + 1] = app
+            by_name[#by_name + 1] = app
         end
     end
-    return matched
+    local matched = #by_pid > 0 and by_pid or by_name
+    -- A browser publishes one player for every tab; the playing tab's stream names its title.
+    local playing = {}
+    for _, app in ipairs(matched) do
+        if player.title ~= "" and app.media_name and app.media_name:find(player.title, 1, true) then
+            playing[#playing + 1] = app
+        end
+    end
+    return #playing > 0 and playing or matched
 end, {})
 
 action("media.control", function(command)
