@@ -103,9 +103,9 @@ local keybinds = {
         { locked = true, repeating = true } },
     { "XF86AudioMute",                       hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),   { locked = true } },
     { "XF86AudioMicMute",                    hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true } },
-    { "XF86AudioNext",                       hl.dsp.exec_cmd("playerctl next"),                               { locked = true } },
-    { { "XF86AudioPause", "XF86AudioPlay" }, hl.dsp.exec_cmd("playerctl play-pause"),                         { locked = true } },
-    { "XF86AudioPrev",                       hl.dsp.exec_cmd("playerctl previous"),                           { locked = true } },
+    { "XF86AudioNext",                       hl.dsp.exec_cmd("mantle call media.control next"),               { locked = true } },
+    { { "XF86AudioPause", "XF86AudioPlay" }, hl.dsp.exec_cmd("mantle call media.control play_pause"),         { locked = true } },
+    { "XF86AudioPrev",                       hl.dsp.exec_cmd("mantle call media.control previous"),           { locked = true } },
     { "XF86Calculator",                      hl.dsp.exec_cmd("uwsm app -- gnome-calculator"),                 { locked = true } },
 
     -- Screenshots

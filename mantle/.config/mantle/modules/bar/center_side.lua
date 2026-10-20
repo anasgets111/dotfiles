@@ -1,4 +1,3 @@
-local util = require("lib.util")
 local theme = require("config.theme")
 local media = require("modules.bar.indicators.media")
 local volume = require("modules.bar.indicators.volume")
@@ -6,15 +5,14 @@ local power_menu = require("modules.bar.indicators.power_menu")
 local workspaces = require("modules.bar.indicators.workspace_strip")
 local window_title_module = require("modules.bar.indicators.active_window")
 local media_panel = require("modules.bar.panels.media_panel")
+local media_state = require("lib.media")
 local ui_state = require("lib.ui_state")
 
 local MEDIA_SLOT = "media_indicator"
 
-local playback_available = mantle.mpris:map(function(mpris)
-    local players = mpris.players
-    return util.find(players, function(player) return player.play_state == "playing" end) ~= nil
-        or players[1] ~= nil and players[1].play_state ~= "stopped"
-end, false)
+local playback_available = media_state.selected:map(function(player)
+    return player ~= false and player.play_state ~= "stopped"
+end)
 
 -- Hidden, the row measures zero, so the test uses its last shown rect.
 local center_geometry = geometry("bar-center")
