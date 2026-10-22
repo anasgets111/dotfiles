@@ -410,14 +410,24 @@ for index, names in ipairs(util.chunk(SOURCES, EFFECTS_PER_ROW)) do
     }
 end
 local source_grid = column { width = "fill", spacing = theme.spacing.xs, children = source_bars }
+local from_wallpaper = store.colour_source:map(function(source) return source == "wallpaper" end)
 local STYLES = { tonal_spot = "Calm", content = "Match", vibrant = "Vivid" }
 local style_row = segmented {
-    visible = store.colour_source:map(function(source) return source == "wallpaper" end),
+    visible = from_wallpaper,
     slot = "wallpaper-colour-style",
     options = { "tonal_spot", "content", "vibrant" },
     value = store.colour_style,
     format = function(value) return STYLES[value] end,
     on_select = function(value) store:set("colour_style", value) end,
+}
+local CONTRASTS = { [0] = "Standard", [0.5] = "Medium", [1] = "High" }
+local contrast_row = segmented {
+    visible = from_wallpaper,
+    slot = "wallpaper-colour-contrast",
+    options = { 0, 0.5, 1 },
+    value = store.colour_contrast,
+    format = function(value) return CONTRASTS[value] end,
+    on_select = function(value) store:set("colour_contrast", value) end,
 }
 local mode_row = segmented {
     slot = "wallpaper-colour-mode",
@@ -453,6 +463,7 @@ local sidebar = column {
         section_header("colours"),
         source_grid,
         style_row,
+        contrast_row,
         mode_row,
         accent_row,
         section_header("folder"),

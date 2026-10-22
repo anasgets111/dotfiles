@@ -105,9 +105,10 @@ end
 ---@param seed string `#RRGGBB`
 ---@param dark boolean
 ---@param variant? string A `palette.scheme` variant, default "tonal_spot".
+---@param contrast? number -1 to 1, default 0.
 ---@return table<string, string>
-function theme.roles(seed, dark, variant)
-    local roles = palette.scheme(seed, { dark = dark, variant = variant }) --[[@as table<string, string>]]
+function theme.roles(seed, dark, variant, contrast)
+    local roles = palette.scheme(seed, { dark = dark, variant = variant, contrast = contrast }) --[[@as table<string, string>]]
     local status = presets.catppuccin[dark and "dark" or "light"]
     for _, name in ipairs({ "red", "peach", "yellow", "green", "teal", "blue" }) do
         roles[name] = palette.harmonize(status[name], seed)
@@ -156,14 +157,14 @@ function theme.preset_roles(name, dark, accent)
     }, dark)
 end
 
--- Written by `lib/app_colours.lua`, whose write reloads the shell: `{ seed, dark, variant }` from the
+-- Written by `lib/app_colours.lua`, whose write reloads the shell: `{ seed, dark, variant, contrast }` from the
 -- wallpaper or `{ preset, accent, dark }`. Missing (first run, `mantle check`) is Catppuccin Mocha.
 local found, generated         = pcall(require, "config.wallpaper_colours")
 generated                      = found and type(generated) == "table" and generated or {}
 local dark                     = generated.dark ~= false
 -- A malformed seed or variant raises in `palette`; Catppuccin keeps the shell up until the next write.
 local valid, roles             = pcall(function()
-    return generated.seed and theme.roles(generated.seed, dark, generated.variant)
+    return generated.seed and theme.roles(generated.seed, dark, generated.variant, generated.contrast)
         or theme.preset_roles(generated.preset or "catppuccin", dark, generated.accent or "mauve")
 end)
 roles                          = valid and roles or theme.preset_roles("catppuccin", dark, "mauve")

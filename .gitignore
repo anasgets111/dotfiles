@@ -16,3 +16,4 @@ mantle/.config/mantle/config/wallpaper_colours.lua
 hypr/.config/hypr/config/wallpaper_colours.lua
 kitty/.config/kitty/mantle-colours.conf
 niri/.config/niri/wallpaper-colours.kdl
+fish/.config/fish/themes/mantle.theme

@@ -75,9 +75,17 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 vim.api.nvim_create_autocmd("FileChangedRO", { command = "setlocal noreadonly" })
 
 -- UI
-vim.cmd.colorscheme("catppuccin")
-for _, group in ipairs({ "Normal", "NormalFloat" }) do
-    vim.api.nvim_set_hl(0, group, { bg = "none" })
+-- On every scheme load, since Mantle re-sources `mantle` live.
+vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = function()
+        for _, group in ipairs({ "Normal", "NormalFloat" }) do
+            vim.api.nvim_set_hl(0, group, { bg = "none" })
+        end
+    end,
+})
+-- Mantle's wallpaper-coloured Catppuccin (its templates/nvim.lua), else the bundled one.
+if not pcall(vim.cmd.colorscheme, "mantle") then
+    vim.cmd.colorscheme("catppuccin")
 end
 
 -- Core Keymaps

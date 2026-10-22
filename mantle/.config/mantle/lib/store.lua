@@ -17,6 +17,8 @@ return persistent_table {
         colour_scheme = "dark",
         -- `palette.scheme` variant: "tonal_spot" (calm), "content" (matches the wallpaper) or "vibrant".
         colour_style = "content",
+        -- `palette.scheme` contrast for the wallpaper's colours: 0, 0.5 or 1.
+        colour_contrast = 0,
         -- Wallpaper path to the candidate seed chosen as its accent; absent means Score's best.
         colour_accents = {},
         -- `"wallpaper"`, or a `config/colour_presets.lua` name to use that scheme instead.

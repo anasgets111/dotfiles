@@ -44,9 +44,21 @@ local TARGETS = {
         out = "~/.local/share/gtksourceview-5/styles/mantle.xml",
         reload = { "gsettings", { "set", "org.gnome.TextEditor", "style-scheme", "mantle" } },
     },
-    { template = "vesktop.css", out = "~/.config/vesktop/themes/mantle.css" },
+    { template = "vesktop.css",   out = "~/.config/vesktop/themes/mantle.css" },
     -- Zed reloads its themes directory live; its settings name `Mantle` for both modes.
-    { template = "zed.json",    out = "~/.config/zed/themes/mantle.json" },
+    { template = "zed.json",      out = "~/.config/zed/themes/mantle.json" },
+    -- Starship and fish re-read at the next prompt; fish through `conf.d/mantle_theme.fish`.
+    { template = "starship.toml", out = "~/.config/starship.toml" },
+    { template = "fish.theme",    out = "~/.config/fish/themes/mantle.theme" },
+    -- Every Neovim already on `mantle` re-sources it.
+    {
+        template = "nvim.lua",
+        out = "~/.local/share/nvim/site/colors/mantle.lua",
+        reload = { "sh", { "-c", [[
+for server in "$XDG_RUNTIME_DIR"/nvim.*; do
+nvim --server "$server" --remote-expr "execute(get(g:, 'colors_name', '') == 'mantle' ? 'colorscheme mantle' : '')"
+done >/dev/null 2>&1]] } }
+    },
 }
 -- GTK4 re-parses `gtk.css` with its imports when a portal preference changes. Reduced motion is the
 -- one whose 50 ms flip shows nothing; detached, so a shell reload cannot strand the user's value.
@@ -116,9 +128,15 @@ local function alternate(in_use, path_of, text, write, done)
 end
 
 -- GTK3 re-reads a theme only when its name changes. Each copy imports adw-gtk3 and replaces its named
--- colours; dark mode reads `gtk-dark.css`, and GTK4 apps without libadwaita the `gtk-4.0` files.
-local function write_gtk_theme(template, roles, done)
+-- colours, libadwaita's from `colours` as `@define-color`; dark mode reads `gtk-dark.css`, and GTK4
+-- apps without libadwaita the `gtk-4.0` files.
+local function write_gtk_theme(template, colours, roles, done)
     local themes = HOME .. "/.local/share/themes/"
+    local defines = {}
+    for name, value in render(colours, roles):gmatch("%-%-([%w-]+): ([^;]+);") do
+        defines[#defines + 1] = string.format("@define-color %s %s;", (name:gsub("-", "_")), value)
+    end
+    roles.adw_colours = table.concat(defines, "\n")
     roles.gtk = "gtk-3.0"
     local gtk3 = render(template, roles)
     roles.gtk = "gtk-4.0"
@@ -180,6 +198,16 @@ local function apply(roles, dark, record, compositor)
     roles.appearance = dark and "dark" or "light"
     -- Discord's white button text needs a deep fill on dark too.
     roles.brand_fill = dark and roles.primary_container or roles.primary
+    -- A tone step away from the ground for kitty's bright colours; `inverse_` sits on `on_surface`,
+    -- as Material's `inverse_primary` does, for starship's light segments; `tint_` is a muted line
+    -- ground under `on_surface`, for Neovim's diff and search.
+    for _, name in ipairs({ "red", "peach", "yellow", "green", "teal", "blue", "tertiary" }) do
+        local hct = palette.hct(roles[name])
+        roles["bright_" .. name] = palette.from_hct { hue = hct.hue, chroma = hct.chroma,
+            tone = math.max(0, math.min(100, hct.tone + (dark and 8 or -8))) }
+        roles["inverse_" .. name] = palette.from_hct { hue = hct.hue, chroma = hct.chroma, tone = dark and 40 or 80 }
+        roles["tint_" .. name] = palette.from_hct { hue = hct.hue, chroma = hct.chroma / 2, tone = dark and 25 or 90 }
+    end
     running = true
     -- Plus the GTK theme and the Qt scheme.
     local pending, gtk4_changed = #TARGETS + 2, false
@@ -220,7 +248,9 @@ local function apply(roles, dark, record, compositor)
             use(template)
         end)
     end
-    with_template("gtk-theme.css", function(template) write_gtk_theme(template, roles, settle) end)
+    with_template("gtk4-colours.css", function(colours)
+        with_template("gtk-theme.css", function(template) write_gtk_theme(template, colours, roles, settle) end)
+    end)
     with_template("mantle.colors", function(template) write_qt_scheme(render(template, roles), settle) end)
     for _, target in ipairs(TARGETS) do
         if target.compositor ~= nil and target.compositor ~= compositor then
@@ -258,14 +288,15 @@ function sync()
         return
     end
     local path, dark, variant = first_path(screens), store.colour_scheme:get() ~= "light", store.colour_style:get()
+    local contrast = store.colour_contrast:get() or 0
     local source = store.colour_source:get() or "wallpaper"
     local preset = presets[source]
     local chosen = (store[preset and "colour_preset_accents" or "colour_accents"]:get() or {})
         [preset and source or path]
     -- The compositor is part of the key: its border file waits until `workspaces` names it.
     local compositor = workspaces and workspaces.compositor
-    -- A preset ignores the style, so a style change there is no new key.
-    local key = table.concat({ source, path, tostring(dark), preset and "" or variant, tostring(chosen),
+    -- A preset ignores the style and contrast, so changing them there is no new key.
+    local key = table.concat({ source, path, tostring(dark), preset and "" or variant .. contrast, tostring(chosen),
         tostring(compositor) }, "|")
     if last == key then
         return
@@ -291,20 +322,31 @@ function sync()
     end
     local function start(candidates)
         local seed = chosen or candidates[1]
+        -- A grey seed under any other variant takes an arbitrary hue at full chroma.
+        local style = palette.hct(seed).chroma < 5 and "monochrome" or variant
         app_colours.candidates:set(candidates)
         app_colours.seed:set(seed)
-        apply(theme.roles(seed, dark, variant), dark,
-            string.format("{ seed = %q, dark = %s, variant = %q }", seed, dark, variant), compositor)
+        apply(theme.roles(seed, dark, style, contrast), dark,
+            string.format("{ seed = %q, dark = %s, variant = %q, contrast = %s }", seed, dark, style, contrast),
+            compositor)
     end
     if path:match("%.svg$") then
         return start({ FALLBACK_SEED })
     end
     quantizing = palette.quantize(path, { depth = 7 }, function(found)
-        start(found and palette.score(found) or { FALLBACK_SEED })
+        if not found or not found[1] then
+            return start({ FALLBACK_SEED })
+        end
+        local seeds = palette.score(found)
+        -- Score's stand-in when no swatch is chromatic; a grey wallpaper keeps its own commonest grey.
+        if seeds[1] == "#4285F4" and not util.find(found, function(swatch) return swatch.color:upper() == "#4285F4" end) then
+            seeds = { found[1].color }
+        end
+        start(seeds)
     end)
 end
 
-for _, signal in ipairs({ store.wallpapers, store.colour_source, store.colour_style, store.colour_scheme,
+for _, signal in ipairs({ store.wallpapers, store.colour_source, store.colour_style, store.colour_contrast, store.colour_scheme,
     store.colour_accents, store.colour_preset_accents, mantle.screens, mantle.folders, mantle.workspaces }) do
     signal:on_change(sync)
 end
