@@ -101,6 +101,6 @@ mantle.clock:on_change(function(system)
 end)
 
 -- Non-button changes to "is something holding this awake". The button uses `idle.set_manual`;
--- settings land on `mantle.storage`, so turning the capture hold off drops it mid-call.
+-- a settings change drops the capture hold mid-call.
 mantle.privacy:on_change(idle.sync_inhibit)
-mantle.storage:on_change(idle.sync_inhibit)
+store.idle:on_change(idle.sync_inhibit)
