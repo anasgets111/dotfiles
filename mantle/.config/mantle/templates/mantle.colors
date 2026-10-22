@@ -77,7 +77,7 @@ ForegroundVisited={{tertiary.rgb}}
 
 [Colors:View]
 BackgroundAlternate={{surface_container.rgb}}
-BackgroundNormal={{surface_container_low.rgb}}
+BackgroundNormal={{surface_container_lowest.rgb}}
 DecorationFocus={{primary.rgb}}
 DecorationHover={{outline.rgb}}
 ForegroundActive={{tertiary.rgb}}
@@ -104,7 +104,7 @@ ForegroundPositive={{green.rgb}}
 ForegroundVisited={{tertiary.rgb}}
 
 [Colors:Selection]
-BackgroundAlternate={{primary_container.rgb}}
+BackgroundAlternate={{primary.rgb}}
 BackgroundNormal={{primary.rgb}}
 DecorationFocus={{primary.rgb}}
 DecorationHover={{outline.rgb}}

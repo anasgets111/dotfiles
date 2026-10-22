@@ -59,23 +59,29 @@ local function lighten(hex, amount)
     return string.format("#%02x%02x%02x%02x", mix(r), mix(g), mix(b), math.floor(alpha * 255 + 0.5))
 end
 
--- WCAG relative luminance at the 0.179 threshold, compositing translucent colours over `BG` first.
+-- The ink with the higher WCAG contrast on `hex`, compositing a translucent `hex` over `BG` first.
 -- Alone, the swatch reads light-purple `ON_HOVER` at 45% as bright, yet it reaches the screen dark.
-function theme.text_contrast(hex)
-    local function linear(byte)
-        local c = byte / 255
-        if c <= 0.04045 then
-            return c / 12.92
+-- `dark_text` and `light_text` replace black and white, so a scheme's own inks can stand in.
+function theme.text_contrast(hex, dark_text, light_text)
+    dark_text, light_text = dark_text or "#000000ff", light_text or "#ffffffff"
+    local function luminance(r, g, b)
+        local function linear(byte)
+            local c = byte / 255
+            return c <= 0.04045 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4
         end
-        return ((c + 0.055) / 1.055) ^ 2.4
+        return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
     end
     local r, g, b, mix = channels(hex)
     if mix < 1 then
         local gr, gg, gb = channels(theme.BG)
         r, g, b = r * mix + gr * (1 - mix), g * mix + gg * (1 - mix), b * mix + gb * (1 - mix)
     end
-    local luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
-    return luminance > 0.179 and "#000000ff" or "#ffffffff"
+    local fill = luminance(r, g, b)
+    local function ratio(ink)
+        local own = luminance(channels(ink))
+        return (math.max(own, fill) + 0.05) / (math.min(own, fill) + 0.05)
+    end
+    return ratio(dark_text) >= ratio(light_text) and dark_text or light_text
 end
 
 -- The hover ground for any `background`: glass takes its own tint, anything else the 0.16 lift.
@@ -100,6 +106,16 @@ local function with_hover(roles, dark)
     return roles
 end
 
+-- Light mode caps a text colour at tone 55: Latte's yellow, peach and green read under 3:1 on a light
+-- ground, tone 55 reads 3.5:1. Anything already dark enough keeps its exact hex.
+local function readable(hex, dark)
+    local hct = palette.hct(hex)
+    if dark or hct.tone <= 55 then
+        return hex
+    end
+    return palette.from_hct { hue = hct.hue, chroma = hct.chroma, tone = 55 }
+end
+
 ---Material 3 roles for `seed`, plus Catppuccin's status colours pulled toward it, so red still reads as
 ---red. `lib/app_colours.lua` fills `templates/` from the same roles, so the shell and apps agree.
 ---@param seed string `#RRGGBB`
@@ -111,7 +127,7 @@ function theme.roles(seed, dark, variant, contrast)
     local roles = palette.scheme(seed, { dark = dark, variant = variant, contrast = contrast }) --[[@as table<string, string>]]
     local status = presets.catppuccin[dark and "dark" or "light"]
     for _, name in ipairs({ "red", "peach", "yellow", "green", "teal", "blue" }) do
-        roles[name] = palette.harmonize(status[name], seed)
+        roles[name] = readable(palette.harmonize(status[name], seed), dark)
     end
     return with_hover(roles, dark)
 end
@@ -125,35 +141,37 @@ end
 function theme.preset_roles(name, dark, accent)
     local preset = presets[name] or presets.catppuccin
     local p = preset[dark and "dark" or "light"]
-    local primary = p[accent] or p[preset.default_accent]
+    local primary = readable(p[accent] or p[preset.default_accent], dark)
     local hct = palette.hct(primary)
     return with_hover({
         primary = primary,
-        on_primary = p.base,
-        -- No palette has one: the accent at Material's container tone, so mentions and Discord's
-        -- filled buttons stay readable and tinted.
+        -- A light accent (Latte's yellow) takes dark text in either mode.
+        on_primary = theme.text_contrast(primary, dark and p.base or p.text, dark and p.text or p.base),
+        -- No palette has one: the accent at Material's container tones, so mentions stay tinted.
         primary_container = palette.from_hct { hue = hct.hue, chroma = hct.chroma, tone = dark and 30 or 90 },
-        on_primary_container = primary,
-        secondary = p.blue,
-        tertiary = p.pink,
+        on_primary_container = palette.from_hct { hue = hct.hue, chroma = hct.chroma, tone = dark and 90 or 10 },
+        -- Blue is the accent in Tokyo Night, so it cannot also be the second colour.
+        secondary = readable(accent == "blue" and p.mauve or p.blue, dark),
+        tertiary = readable(p.pink, dark),
         surface = p.base,
         surface_dim = dark and p.mantle or p.surface0,
         shadow = p.crust,
         surface_container_lowest = dark and p.mantle or p.base,
         surface_container_low = p.mantle,
         surface_container = p.mantle,
-        surface_container_high = p.surface0,
-        surface_container_highest = dark and p.surface0 or p.crust,
+        -- Light containers darken upward, as Material's do; every light crust is lighter than surface0.
+        surface_container_high = dark and p.surface0 or p.crust,
+        surface_container_highest = dark and p.surface1 or p.surface0,
         on_surface = p.text,
         on_surface_variant = p.subtext0,
-        outline = p.overlay0,
+        outline = readable(p.overlay0, dark),
         outline_variant = p.surface1,
-        red = p.red,
-        peach = p.peach,
-        yellow = p.yellow,
-        green = p.green,
-        teal = p.teal,
-        blue = p.blue,
+        red = readable(p.red, dark),
+        peach = readable(p.peach, dark),
+        yellow = readable(p.yellow, dark),
+        green = readable(p.green, dark),
+        teal = readable(p.teal, dark),
+        blue = readable(p.blue, dark),
     }, dark)
 end
 
@@ -189,8 +207,9 @@ theme.ON_HOVER                 = roles.on_hover
 theme.CLEAR                    = "#00000000"
 
 -- Derived steps from the swatches, so a scheme swap edits only those.
-theme.ELEVATED                 = lighten(theme.BG, 0.12)
-theme.ELEVATED_HOVER           = lighten(theme.BG, 0.18)
+-- Lightening a light ground changes nothing, so light mode steps down Material's containers instead.
+theme.ELEVATED                 = dark and lighten(theme.BG, 0.12) or roles.surface_container_high
+theme.ELEVATED_HOVER           = dark and lighten(theme.BG, 0.18) or roles.surface_container_highest
 -- Dimmer than DIM, for a bar indicator with nothing connected. Half, not a third: on glass over a
 -- bright wallpaper a third vanished.
 theme.TEXT_OFF                 = theme.with_opacity(theme.DIM, theme.opacity.disabled)
@@ -212,8 +231,8 @@ theme.ACCENT_MEDIUM            = theme.with_opacity(theme.ACCENT, theme.opacity.
 theme.ACCENT_HOVER             = lighten(theme.ACCENT, 0.16)
 -- The same lift for an opaque `RED` ground.
 theme.RED_HOVER                = lighten(theme.RED, 0.16)
--- Lifted detail text for active or hovered toggle cards.
-theme.TEXT_ACTIVE              = lighten(theme.FG, 0.16)
+-- Lifted detail text for active or hovered toggle cards; light mode's FG is already the strongest.
+theme.TEXT_ACTIVE              = dark and lighten(theme.FG, 0.16) or theme.FG
 
 -- The chrome is translucent throughout. Opaque controls turn floating pills into filled rectangles,
 -- and radius cannot fix it. Alpha reaches the compositor, so the layer composites against wallpaper.

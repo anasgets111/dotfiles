@@ -19,8 +19,8 @@ fish_color_cwd {{yellow.bare}}
 fish_color_user {{teal.bare}}
 fish_color_host {{primary.bare}}
 fish_color_host_remote {{green.bare}}
-fish_color_search_match --background={{surface_container_highest.bare}}
-fish_color_selection --background={{surface_container_highest.bare}}
+fish_color_search_match --background={{tint_primary.bare}}
+fish_color_selection --background={{tint_primary.bare}}
 fish_pager_color_completion {{on_surface.bare}}
 fish_pager_color_description {{outline.bare}}
 fish_pager_color_prefix {{primary.bare}}

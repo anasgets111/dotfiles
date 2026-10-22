@@ -11,7 +11,7 @@
 .theme-dark,
 .theme-light,
 :root {
-  --background-base-lowest: {{surface_container_lowest}} !important;
+  --background-base-lowest: {{chrome}} !important;
   --background-base-lower: {{surface}} !important;
   --background-base-low: {{surface_container_low}} !important;
   --background-surface-high: {{surface_container}} !important;
@@ -21,11 +21,11 @@
   --background-primary: {{surface}} !important;
   --background-secondary: {{surface_container_low}} !important;
   --background-secondary-alt: {{surface_container}} !important;
-  --background-tertiary: {{surface_container_lowest}} !important;
+  --background-tertiary: {{chrome}} !important;
   --background-floating: {{surface_container_high}} !important;
   --background-nested-floating: {{surface_container_high}} !important;
   --bg-overlay-chat: {{surface}} !important;
-  --bg-overlay-app-frame: {{surface_container_lowest}} !important;
+  --bg-overlay-app-frame: {{chrome}} !important;
   --modal-background: {{surface_container_high}} !important;
   --modal-footer-background: {{surface_container}} !important;
   --input-background: {{surface_container_highest}} !important;

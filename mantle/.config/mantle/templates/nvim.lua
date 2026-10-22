@@ -53,8 +53,8 @@ local roles = {
     -- Blended grounds: CursorLine, QuickFixLine, Search, CurSearch, then the diffs.
     ["#2a2b3c"] = "{{surface_container}}",
     ["#e9ebf1"] = "{{surface_container}}",
-    ["#52476a"] = "{{primary_container}}",
-    ["#d0baf3"] = "{{primary_container}}",
+    ["#52476a"] = "{{tint_primary}}",
+    ["#d0baf3"] = "{{tint_primary}}",
     ["#3e5767"] = "{{tint_teal}}",
     ["#a8daf0"] = "{{tint_teal}}",
     ["#89556b"] = "{{inverse_tertiary}}",
@@ -80,3 +80,5 @@ for name, hl in pairs(vim.api.nvim_get_hl(0, {})) do
         vim.api.nvim_set_hl(0, name, hl)
     end
 end
+-- Text selection is the accent tint in every app.
+vim.api.nvim_set_hl(0, "Visual", { bg = "{{tint_primary}}" })

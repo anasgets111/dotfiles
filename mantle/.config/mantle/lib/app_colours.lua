@@ -196,18 +196,27 @@ local function apply(roles, dark, record, compositor)
     roles.ansi_white = dark and roles.on_surface_variant or roles.surface_container_highest
     roles.adw = dark and "adw-gtk3-dark" or "adw-gtk3"
     roles.appearance = dark and "dark" or "light"
-    -- Discord's white button text needs a deep fill on dark too.
-    roles.brand_fill = dark and roles.primary_container or roles.primary
     -- A tone step away from the ground for kitty's bright colours; `inverse_` sits on `on_surface`,
     -- as Material's `inverse_primary` does, for starship's light segments; `tint_` is a muted line
     -- ground under `on_surface`, for Neovim's diff and search.
-    for _, name in ipairs({ "red", "peach", "yellow", "green", "teal", "blue", "tertiary" }) do
+    for _, name in ipairs({ "primary", "red", "peach", "yellow", "green", "teal", "blue", "tertiary" }) do
         local hct = palette.hct(roles[name])
         roles["bright_" .. name] = palette.from_hct { hue = hct.hue, chroma = hct.chroma,
             tone = math.max(0, math.min(100, hct.tone + (dark and 8 or -8))) }
         roles["inverse_" .. name] = palette.from_hct { hue = hct.hue, chroma = hct.chroma, tone = dark and 40 or 80 }
         roles["tint_" .. name] = palette.from_hct { hue = hct.hue, chroma = hct.chroma / 2, tone = dark and 25 or 90 }
     end
+    -- Bars and frames sit a step out from the content: darkest in dark mode, a darker container in
+    -- light, where `surface_container_lowest` is the whitest.
+    roles.chrome = roles[dark and "surface_container_lowest" or "surface_container_high"]
+    -- Text on a status fill: the scheme's darkest or lightest ink, whichever reads.
+    for _, name in ipairs({ "red", "yellow", "green" }) do
+        roles["on_" .. name] = theme.text_contrast(roles[name], dark and roles.surface or roles.on_surface,
+            dark and roles.on_surface or roles.surface)
+    end
+    -- Discord's button text is white in both modes, so its fill sits at tone 40.
+    local accent = palette.hct(roles.primary)
+    roles.brand_fill = palette.from_hct { hue = accent.hue, chroma = accent.chroma, tone = 40 }
     running = true
     -- Plus the GTK theme and the Qt scheme.
     local pending, gtk4_changed = #TARGETS + 2, false

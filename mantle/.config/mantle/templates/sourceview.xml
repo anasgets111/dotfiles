@@ -29,11 +29,12 @@
   <color name="surface0"  value="{{surface_container_high}}"/>
   <color name="base"      value="{{surface}}"/>
   <color name="mantle"    value="{{surface_container_low}}"/>
-  <color name="crust"     value="{{surface_container_lowest}}"/>
+  <color name="selection" value="{{tint_primary}}"/>
+  <color name="crust"     value="{{chrome}}"/>
 
   <!-- Base editor colors -->
   <style name="text"                     foreground="text" background="base"/>
-  <style name="selection"                foreground="text" background="surface2"/>
+  <style name="selection"                foreground="text" background="selection"/>
   <style name="cursor"                   foreground="rosewater"/>
   <style name="current-line"             background="surface0"/>
   <style name="line-numbers"             foreground="overlay0" background="base"/>
