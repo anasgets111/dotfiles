@@ -116,6 +116,8 @@ local function write_qt_scheme(text, done)
             file.write(schemes .. name .. ".colors", text, function()
                 local path = "color_scheme_path=" .. schemes .. name .. ".colors"
                 local updated, count = conf:gsub("color_scheme_path=[^\n]*", path, 1)
+                -- Breeze paints with the palette; a Kvantum theme keeps its own colours.
+                updated = updated:gsub("\nstyle=kvantum[^\n]*", "\nstyle=Breeze")
                 if count == 0 then
                     updated = updated .. "\n[Appearance]\n" .. path .. "\ncustom_palette=true\nstyle=Breeze\n"
                 end
