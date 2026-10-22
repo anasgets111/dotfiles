@@ -79,3 +79,8 @@
   --status-danger: {{red}} !important;
 }
 
+
+/* Text selection is the accent tint in every app; the text keeps its own colour. */
+::selection {
+  background: {{tint_primary}} !important;
+}
