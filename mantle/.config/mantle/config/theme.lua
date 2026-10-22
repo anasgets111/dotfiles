@@ -1,6 +1,8 @@
--- Catppuccin Mocha, or Material 3 roles from the wallpaper once `lib/app_colours.lua` has a seed.
+-- Colour roles from the wallpaper (Material 3) or a preset in `config/colour_presets.lua`; Catppuccin Mocha until `lib/app_colours.lua` writes one.
 -- Shared tokens live here because every `shell.lua` module reads them and no module owns them.
 -- The module cache clears before each re-evaluation, so edits recolour the bar in place.
+local presets = require("config.colour_presets")
+
 local theme = {}
 
 -- `s(base)` scales non-colour tokens from 1080p values, read once during evaluation from the first
@@ -91,55 +93,98 @@ theme.opacity = {
     strong   = 0.8,
 }
 
--- Status colours stay Catppuccin's, Mocha on dark and Latte on light, so red still reads as red.
-local STATUS  = {
-    [true]  = { green = "#a6e3a1", yellow = "#f9e2af", peach = "#fab387", red = "#f38ba8", blue = "#89b4fa", teal = "#94e2d5" },
-    [false] = { green = "#40a02b", yellow = "#df8e1d", peach = "#fe640b", red = "#d20f39", blue = "#1e66f5", teal = "#179299" },
-}
-
----Material 3 roles for `seed`, plus the status colours pulled toward it. `lib/app_colours.lua` writes
----the same roles into GTK, Qt and kitty, so the shell and apps agree.
----@param seed string `#RRGGBB`
----@param dark boolean
----@return table<string, string>
-function theme.roles(seed, dark)
-    local roles = palette.scheme(seed, { dark = dark }) --[[@as table<string, string>]]
-    for name, hex in pairs(STATUS[dark]) do
-        roles[name] = palette.harmonize(hex, seed)
-    end
+-- Both role sources end the same way: the hover tint is the accent at a middle tone.
+local function with_hover(roles, dark)
     local primary = palette.hct(roles.primary)
     roles.on_hover = palette.from_hct { hue = primary.hue, chroma = primary.chroma, tone = dark and 60 or 50 }
     return roles
 end
 
--- `{ seed, dark }` from the wallpaper, written by `lib/app_colours.lua`; the write reloads the shell.
--- Missing (first run, `mantle check`) or seedless (an SVG wallpaper) keeps Catppuccin Mocha.
-local found, generated = pcall(require, "config.wallpaper_colours")
-local roles = found and type(generated) == "table" and generated.seed and theme.roles(generated.seed, generated.dark)
-theme.DARK = not roles or generated.dark == true
-local function pick(role, catppuccin)
-    return roles and roles[role] or catppuccin
+---Material 3 roles for `seed`, plus Catppuccin's status colours pulled toward it, so red still reads as
+---red. `lib/app_colours.lua` fills `templates/` from the same roles, so the shell and apps agree.
+---@param seed string `#RRGGBB`
+---@param dark boolean
+---@param variant? string A `palette.scheme` variant, default "tonal_spot".
+---@return table<string, string>
+function theme.roles(seed, dark, variant)
+    local roles = palette.scheme(seed, { dark = dark, variant = variant }) --[[@as table<string, string>]]
+    local status = presets.catppuccin[dark and "dark" or "light"]
+    for _, name in ipairs({ "red", "peach", "yellow", "green", "teal", "blue" }) do
+        roles[name] = palette.harmonize(status[name], seed)
+    end
+    return with_hover(roles, dark)
 end
 
+---The same roles from a `config/colour_presets.lua` palette and one of its accent names; an unknown
+---preset is Catppuccin and an unknown accent the preset's own.
+---@param name string
+---@param dark boolean
+---@param accent string
+---@return table<string, string>
+function theme.preset_roles(name, dark, accent)
+    local preset = presets[name] or presets.catppuccin
+    local p = preset[dark and "dark" or "light"]
+    local primary = p[accent] or p[preset.default_accent]
+    local hct = palette.hct(primary)
+    return with_hover({
+        primary = primary,
+        on_primary = p.base,
+        -- No palette has one: the accent at Material's container tone, so mentions and Discord's
+        -- filled buttons stay readable and tinted.
+        primary_container = palette.from_hct { hue = hct.hue, chroma = hct.chroma, tone = dark and 30 or 90 },
+        on_primary_container = primary,
+        secondary = p.blue,
+        tertiary = p.pink,
+        surface = p.base,
+        surface_dim = dark and p.mantle or p.surface0,
+        shadow = p.crust,
+        surface_container_lowest = dark and p.mantle or p.base,
+        surface_container_low = p.mantle,
+        surface_container = p.mantle,
+        surface_container_high = p.surface0,
+        surface_container_highest = dark and p.surface0 or p.crust,
+        on_surface = p.text,
+        on_surface_variant = p.subtext0,
+        outline = p.overlay0,
+        outline_variant = p.surface1,
+        red = p.red,
+        peach = p.peach,
+        yellow = p.yellow,
+        green = p.green,
+        teal = p.teal,
+        blue = p.blue,
+    }, dark)
+end
+
+-- Written by `lib/app_colours.lua`, whose write reloads the shell: `{ seed, dark, variant }` from the
+-- wallpaper or `{ preset, accent, dark }`. Missing (first run, `mantle check`) is Catppuccin Mocha.
+local found, generated         = pcall(require, "config.wallpaper_colours")
+generated                      = found and type(generated) == "table" and generated or {}
+local dark                     = generated.dark ~= false
+-- A malformed seed or variant raises in `palette`; Catppuccin keeps the shell up until the next write.
+local valid, roles             = pcall(function()
+    return generated.seed and theme.roles(generated.seed, dark, generated.variant)
+        or theme.preset_roles(generated.preset or "catppuccin", dark, generated.accent or "mauve")
+end)
+roles                          = valid and roles or theme.preset_roles("catppuccin", dark, "mauve")
+
 -- The swatches everything else derives from.
-theme.BG                       = pick("surface", "#1e1e2eff")
-theme.MANTLE                   = pick(theme.DARK and "surface_container_lowest" or "surface_container", "#181825ff")
-theme.CRUST                    = pick(theme.DARK and "shadow" or "surface_container_highest", "#11111bff")
-theme.SURFACE                  = pick(theme.DARK and "surface_container_highest" or "surface_dim", "#313244ff")
-theme.FG                       = pick("on_surface", "#cdd6f4ff")
--- Catppuccin subtext0, since overlay0 reads as disabled rather than secondary. The one secondary-text
--- colour. Faded controls use node `opacity`.
-theme.DIM                      = pick("on_surface_variant", "#a6adc8ff")
--- Mauve, not blue.
-theme.ACCENT                   = pick("primary", "#cba6f7ff")
-theme.GREEN                    = pick("green", "#a6e3a1ff")
-theme.YELLOW                   = pick("yellow", "#f9e2afff")
-theme.PEACH                    = pick("peach", "#fab387ff")
-theme.RED                      = pick("red", "#f38ba8ff")
-theme.BLUE                     = pick("blue", "#89b4faff")
-theme.TEAL                     = pick("teal", "#94e2d5ff")
-theme.INACTIVE                 = pick("outline_variant", "#45475aff")
-theme.ON_HOVER                 = pick("on_hover", "#a28dcdff")
+theme.BG                       = roles.surface
+theme.MANTLE                   = roles[dark and "surface_container_lowest" or "surface_container"]
+theme.CRUST                    = roles[dark and "shadow" or "surface_container_highest"]
+theme.SURFACE                  = roles[dark and "surface_container_highest" or "surface_dim"]
+theme.FG                       = roles.on_surface
+-- The one secondary-text colour; faded controls use node `opacity`.
+theme.DIM                      = roles.on_surface_variant
+theme.ACCENT                   = roles.primary
+theme.GREEN                    = roles.green
+theme.YELLOW                   = roles.yellow
+theme.PEACH                    = roles.peach
+theme.RED                      = roles.red
+theme.BLUE                     = roles.blue
+theme.TEAL                     = roles.teal
+theme.INACTIVE                 = roles.outline_variant
+theme.ON_HOVER                 = roles.on_hover
 theme.CLEAR                    = "#00000000"
 
 -- Derived steps from the swatches, so a scheme swap edits only those.

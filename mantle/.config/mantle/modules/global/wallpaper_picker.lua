@@ -19,6 +19,8 @@ local segmented = require("components.segmented")
 local section_header = require("components.section_header")
 local spinner = require("components.spinner")
 local store = require("lib.store")
+local app_colours = require("lib.app_colours")
+local presets = require("config.colour_presets")
 
 local SCROLL = scroll("wallpaper_grid")
 local COLUMNS = theme.wallpaper_columns
@@ -394,6 +396,44 @@ local effect_grid = list {
     end,
 }
 
+-- Colours from the wallpaper or a preset scheme; for the wallpaper, how strongly they follow it. Then
+-- dark or light, and which accent leads.
+local SOURCES = { "wallpaper", "catppuccin", "rosepine", "gruvbox", "tokyonight", "dracula" }
+local source_bars = {}
+for index, names in ipairs(util.chunk(SOURCES, EFFECTS_PER_ROW)) do
+    source_bars[index] = segmented {
+        slot = "wallpaper-colour-source-" .. index,
+        options = names,
+        value = store.colour_source,
+        format = function(name) return presets[name] and presets[name].label or "Wallpaper" end,
+        on_select = function(name) store:set("colour_source", name) end,
+    }
+end
+local source_grid = column { width = "fill", spacing = theme.spacing.xs, children = source_bars }
+local STYLES = { tonal_spot = "Calm", content = "Match", vibrant = "Vivid" }
+local style_row = segmented {
+    visible = store.colour_source:map(function(source) return source == "wallpaper" end),
+    slot = "wallpaper-colour-style",
+    options = { "tonal_spot", "content", "vibrant" },
+    value = store.colour_style,
+    format = function(value) return STYLES[value] end,
+    on_select = function(value) store:set("colour_style", value) end,
+}
+local mode_row = segmented {
+    slot = "wallpaper-colour-mode",
+    options = { "dark", "light" },
+    value = store.colour_scheme,
+    format = function(value) return value == "dark" and "Dark" or "Light" end,
+    on_select = function(value) store:set("colour_scheme", value) end,
+}
+local accent_row = segmented {
+    slot = "wallpaper-colour-accent",
+    options = app_colours.candidates,
+    value = app_colours.seed,
+    swatch = true,
+    on_select = app_colours.set_accent,
+}
+
 -- Escape and a click outside close the picker, as they do the launcher, so the sidebar has no ×.
 local sidebar = column {
     width = theme.wallpaper_sidebar_width,
@@ -410,6 +450,11 @@ local sidebar = column {
         fit_row,
         section_header("transition"),
         effect_grid,
+        section_header("colours"),
+        source_grid,
+        style_row,
+        mode_row,
+        accent_row,
         section_header("folder"),
         cell(wallpaper.FOLDER, theme.DIM, theme.font.xs, { width = "fill" }),
         cell(filtered:map(function(entries)

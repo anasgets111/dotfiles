@@ -11,6 +11,7 @@ local switch = require("components.switch")
 ---@field options any[]|Signal The values, in bar order.
 ---@field value Signal The chosen value.
 ---@field format? fun(value: any): string Default `tostring`.
+---@field swatch? boolean The values are colours, each drawn as a chip instead of text.
 ---@field on_select fun(value: any)
 ---@field width? Length
 ---@field height? integer Default `theme.control.md`.
@@ -33,14 +34,20 @@ return function(opts)
             border = false,
             rest = theme.CLEAR,
         })
-        node.children = { cell(format(value), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM),
-            opts.font_size or theme.font.xs, {
-                bold = chosen,
-                width = "fill",
-                align = "center",
-                align_v = "center",
-                animate = { foreground = theme.animation_ms },
-            }) }
+        if opts.swatch then
+            -- The chosen segment's tint frames its chip.
+            node.padding = theme.spacing.xs
+            node.children = { rect { width = "fill", height = "fill", radius = theme.radius.sm, background = value } }
+        else
+            node.children = { cell(format(value), tint(theme.ACCENT, theme.ACCENT, theme.FG, theme.DIM),
+                opts.font_size or theme.font.xs, {
+                    bold = chosen,
+                    width = "fill",
+                    align = "center",
+                    align_v = "center",
+                    animate = { foreground = theme.animation_ms },
+                }) }
+        end
         return rect(node)
     end
 

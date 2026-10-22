@@ -38,12 +38,12 @@ Upstream checkout at `/mnt/Work/0Coding/1Rust/mantle`. Read it; never edit it fr
 ```
 mantle/.config/mantle/
   shell.lua     Entry: font chain, requires modules, returns the surface list
-  config/       Tokens: theme.lua (wallpaper Material roles, Catppuccin Mocha until generated), icons.lua, dev_tools.lua
+  config/       Tokens: theme.lua (wallpaper Material roles or a preset), colour_presets.lua, icons.lua, dev_tools.lua
   components/   Reusable widgets with no state of their own
   lib/          Node-free domain logic and state; ui_state owns navigation, disclosure owns panel resets
   modules/      bar/{indicators,panels}, global/, notification/, osd/, shell/panel_host.lua
   shaders/      `.frag` sources compiled by the engine at runtime: wallpaper transitions and the launcher rail
-  templates/    App colour files `lib/app_colours.lua` fills from the wallpaper: GTK, Qt/KDE, kitty, Hyprland, GtkSourceView, Zed
+  templates/    App colour files `lib/app_colours.lua` fills from the wallpaper
 ```
 
 ## Patterns
@@ -59,7 +59,7 @@ mantle/.config/mantle/
 | Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
 | Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `mantle.workspaces:get().compositor` |
 | Theme | `config/theme.lua` tokens and `config/icons.lua` glyphs. Never hardcode colours, sizes or spacing |
-| App colours | `lib/app_colours.lua` writes `templates/` and `config/wallpaper_colours.lua` (gitignored, reloads the shell) from the first screen's wallpaper; `mantle call colours.mode` flips dark and light. Never edit a generated file; add a role to `theme.roles` or a template. Once per host, outside the repo: Zed's `theme` light and dark to `Mantle`, Vesktop's `enabledThemes` to `mantle.css` (while it is closed), Zen's `chrome/userChrome.css` on GTK system colours plus `zen.theme.use-system-colors`, Thunderbird's theme to System (it paints with GTK colours) |
+| App colours | `lib/app_colours.lua` writes `templates/` and `config/wallpaper_colours.lua` (gitignored, reloads the shell) from the first screen's wallpaper. The wallpaper picker sets the source (`colour_source`: the wallpaper, or a `config/colour_presets.lua` scheme on Catppuccin's slot names), the wallpaper style (`colour_style`), dark or light (`colour_scheme`, also `mantle call colours.mode`) and the accent: per wallpaper among Score's candidates (`colour_accents`), per preset by name (`colour_preset_accents`). Never edit a generated file; add a role to `theme.roles` or a template. Once per host, outside the repo: btop's `color_theme` to `mantle`, Zed's `theme` light and dark to `Mantle`, Vesktop's `enabledThemes` to `mantle.css` (while it is closed), Zen's `chrome/userChrome.css` on GTK system colours plus `zen.theme.use-system-colors`, Thunderbird's theme to System |
 | Panels | Four bands, top down. `panel_header` first, its subtitle one live state line, trailing only a badge (count), `panel_action_icon` (verb) or `toggle` (the subject's power). Then one row of controls: `panel_toggle_card` switches or `accent` `action_button`s; a radio anywhere is one `segmented` bar, never a row of tiles; every primary in a panel is that tinted glass, `solid` belongs to a modal's confirm, `danger` to the one action that ends something running. Then a flat body: `section_header` + `panel_row`s; "more" is always `panel_row { expanded }` in place, never a view swap; a `panel_card` only wraps a composite control (row + slider, status + meter, a table). Last, text buttons that conclude what the body showed. A modal is the same panel with a `theme.font.xl` masthead (`on_close` included), `lg` padding, `md` spacing and its one scroll area on an `outlined` card; a search modal's search bar is its masthead |
 | Shaders | A new `shaders/wallpaper_<name>.frag` shows in the picker as `<name>`; other `.frag` files stay out of it. Add a `lib/wallpaper.lua` row only for non-zero uniforms |
 
@@ -118,6 +118,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | Named state resets when its scalar seed changes | Keep the seed stable |
 | `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |
 | `fonts` is read once at startup | Restart the shell after editing it |
+| `mantle input` takes surface-logical coordinates, and a surface anchored to every edge starts below the bar's exclusive zone | Subtract the bar height (`modal_host` sits 42 px down on 1440p) |
 | UPower's `PendingCharge` also follows `Discharging` | Only `Charging` to `PendingCharge` means charging stopped (`modules/global/power_events.lua`) |
 
 ### Tooling

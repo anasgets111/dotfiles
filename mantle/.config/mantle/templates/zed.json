@@ -83,20 +83,16 @@
         "pane_group.border": "{{surface_container_high}}",
         "scrollbar.thumb.background": "{{outline_variant}}80",
         "scrollbar.thumb.hover_background": "{{outline}}",
-        "scrollbar.thumb.active_background": null,
-        "scrollbar.thumb.border": null,
         "scrollbar.track.background": "{{surface_container_lowest}}",
         "scrollbar.track.border": "{{on_surface}}12",
         "minimap.thumb.background": "{{primary}}33",
         "minimap.thumb.hover_background": "{{primary}}66",
         "minimap.thumb.active_background": "{{primary}}99",
-        "minimap.thumb.border": null,
         "editor.foreground": "{{on_surface}}",
         "editor.background": "{{surface}}",
         "editor.gutter.background": "{{surface}}",
         "editor.subheader.background": "{{surface_container_low}}",
         "editor.active_line.background": "{{on_surface}}12",
-        "editor.highlighted_line.background": null,
         "editor.line_number": "{{outline}}",
         "editor.active_line_number": "{{primary}}",
         "editor.invisible": "{{on_surface_variant}}66",
@@ -180,46 +176,14 @@
         "unreachable.border": "{{red}}",
         "unreachable.background": "{{red}}1f",
         "players": [
-          {
-            "cursor": "{{primary}}",
-            "selection": "{{on_surface_variant}}40",
-            "background": "{{primary}}"
-          },
-          {
-            "cursor": "{{primary}}",
-            "selection": "{{primary}}40",
-            "background": "{{primary}}"
-          },
-          {
-            "cursor": "{{secondary}}",
-            "selection": "{{secondary}}40",
-            "background": "{{secondary}}"
-          },
-          {
-            "cursor": "{{blue}}",
-            "selection": "{{blue}}40",
-            "background": "{{blue}}"
-          },
-          {
-            "cursor": "{{green}}",
-            "selection": "{{green}}40",
-            "background": "{{green}}"
-          },
-          {
-            "cursor": "{{yellow}}",
-            "selection": "{{yellow}}40",
-            "background": "{{yellow}}"
-          },
-          {
-            "cursor": "{{peach}}",
-            "selection": "{{peach}}40",
-            "background": "{{peach}}"
-          },
-          {
-            "cursor": "{{red}}",
-            "selection": "{{red}}40",
-            "background": "{{red}}"
-          }
+          { "cursor": "{{primary}}", "selection": "{{on_surface_variant}}40", "background": "{{primary}}" },
+          { "cursor": "{{primary}}", "selection": "{{primary}}40", "background": "{{primary}}" },
+          { "cursor": "{{secondary}}", "selection": "{{secondary}}40", "background": "{{secondary}}" },
+          { "cursor": "{{blue}}", "selection": "{{blue}}40", "background": "{{blue}}" },
+          { "cursor": "{{green}}", "selection": "{{green}}40", "background": "{{green}}" },
+          { "cursor": "{{yellow}}", "selection": "{{yellow}}40", "background": "{{yellow}}" },
+          { "cursor": "{{peach}}", "selection": "{{peach}}40", "background": "{{peach}}" },
+          { "cursor": "{{red}}", "selection": "{{red}}40", "background": "{{red}}" }
         ],
         "version_control.added": "{{green}}",
         "version_control.deleted": "{{red}}",
@@ -232,516 +196,108 @@
         "debugger.accent": "{{red}}",
         "editor.debugger_active_line.background": "{{peach}}12",
         "syntax": {
-          "variable": {
-            "color": "{{on_surface}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "variable.builtin": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "variable.parameter": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "variable.member": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "variable.special": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "constant": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "constant.builtin": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "constant.macro": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "module": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "label": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string": {
-            "color": "{{green}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.documentation": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.regexp": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.escape": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.special": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.special.path": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.special.symbol": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.special.url": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "character": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "character.special": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "boolean": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "number": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "number.float": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "tag": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "tag.attribute": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "tag.delimiter": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "type": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "type.builtin": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "type.definition": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "type.interface": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "type.super": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "attribute": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "selector.pseudo": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "property": {
-            "color": "{{secondary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "function": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "function.builtin": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "function.call": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "function.macro": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "function.method": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "function.method.call": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "constructor": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "operator": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.modifier": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.type": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.coroutine": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.function": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.operator": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.import": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.repeat": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.return": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.debug": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.exception": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.conditional": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.conditional.ternary": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.directive": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.directive.define": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "keyword.export": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "punctuation": {
-            "color": "{{on_surface_variant}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "punctuation.delimiter": {
-            "color": "{{on_surface_variant}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "punctuation.bracket": {
-            "color": "{{on_surface_variant}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "punctuation.special": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "punctuation.special.symbol": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "punctuation.list_marker": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment": {
-            "color": "{{on_surface_variant}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.doc": {
-            "color": "{{on_surface_variant}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.documentation": {
-            "color": "{{on_surface_variant}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.info": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.error": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.warning": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.warn": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.hint": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.todo": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "comment.note": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "diff.plus": {
-            "color": "{{green}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "diff.minus": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "parameter": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "field": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "namespace": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "float": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "symbol": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.regex": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "emphasis.strong": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": 700
-          },
-          "emphasis": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "embedded": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "text.literal": {
-            "color": "{{green}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "concept": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "enum": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": 700
-          },
-          "function.decorator": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "type.class.definition": {
-            "color": "{{yellow}}",
-            "font_style": null,
-            "font_weight": 700
-          },
-          "hint": {
-            "color": "{{outline}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "link_text": {
-            "color": "{{secondary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "link_uri": {
-            "color": "{{blue}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "parent": {
-            "color": "{{peach}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "predictive": {
-            "color": "{{outline}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "predoc": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "preproc": {
-            "color": "{{tertiary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "primary": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "tag.doctype": {
-            "color": "{{primary}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "string.doc": {
-            "color": "{{teal}}",
-            "font_style": null,
-            "font_weight": null
-          },
-          "title": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": 800
-          },
-          "variant": {
-            "color": "{{red}}",
-            "font_style": null,
-            "font_weight": null
-          }
+          "variable": { "color": "{{on_surface}}" },
+          "variable.builtin": { "color": "{{red}}" },
+          "variable.parameter": { "color": "{{red}}" },
+          "variable.member": { "color": "{{blue}}" },
+          "variable.special": { "color": "{{red}}" },
+          "constant": { "color": "{{peach}}" },
+          "constant.builtin": { "color": "{{peach}}" },
+          "constant.macro": { "color": "{{primary}}" },
+          "module": { "color": "{{yellow}}" },
+          "label": { "color": "{{blue}}" },
+          "string": { "color": "{{green}}" },
+          "string.documentation": { "color": "{{teal}}" },
+          "string.regexp": { "color": "{{tertiary}}" },
+          "string.escape": { "color": "{{tertiary}}" },
+          "string.special": { "color": "{{tertiary}}" },
+          "string.special.path": { "color": "{{tertiary}}" },
+          "string.special.symbol": { "color": "{{tertiary}}" },
+          "string.special.url": { "color": "{{primary}}" },
+          "character": { "color": "{{teal}}" },
+          "character.special": { "color": "{{tertiary}}" },
+          "boolean": { "color": "{{peach}}" },
+          "number": { "color": "{{peach}}" },
+          "number.float": { "color": "{{peach}}" },
+          "tag": { "color": "{{blue}}" },
+          "tag.attribute": { "color": "{{yellow}}" },
+          "tag.delimiter": { "color": "{{teal}}" },
+          "type": { "color": "{{yellow}}" },
+          "type.builtin": { "color": "{{primary}}" },
+          "type.definition": { "color": "{{yellow}}" },
+          "type.interface": { "color": "{{yellow}}" },
+          "type.super": { "color": "{{yellow}}" },
+          "attribute": { "color": "{{yellow}}" },
+          "selector.pseudo": { "color": "{{yellow}}" },
+          "property": { "color": "{{secondary}}" },
+          "function": { "color": "{{blue}}" },
+          "function.builtin": { "color": "{{red}}" },
+          "function.call": { "color": "{{blue}}" },
+          "function.macro": { "color": "{{primary}}" },
+          "function.method": { "color": "{{blue}}" },
+          "function.method.call": { "color": "{{blue}}" },
+          "constructor": { "color": "{{tertiary}}" },
+          "operator": { "color": "{{teal}}" },
+          "keyword": { "color": "{{primary}}" },
+          "keyword.modifier": { "color": "{{primary}}" },
+          "keyword.type": { "color": "{{primary}}" },
+          "keyword.coroutine": { "color": "{{primary}}" },
+          "keyword.function": { "color": "{{primary}}" },
+          "keyword.operator": { "color": "{{primary}}" },
+          "keyword.import": { "color": "{{primary}}" },
+          "keyword.repeat": { "color": "{{primary}}" },
+          "keyword.return": { "color": "{{primary}}" },
+          "keyword.debug": { "color": "{{primary}}" },
+          "keyword.exception": { "color": "{{primary}}" },
+          "keyword.conditional": { "color": "{{primary}}" },
+          "keyword.conditional.ternary": { "color": "{{primary}}" },
+          "keyword.directive": { "color": "{{tertiary}}" },
+          "keyword.directive.define": { "color": "{{tertiary}}" },
+          "keyword.export": { "color": "{{primary}}" },
+          "punctuation": { "color": "{{on_surface_variant}}" },
+          "punctuation.delimiter": { "color": "{{on_surface_variant}}" },
+          "punctuation.bracket": { "color": "{{on_surface_variant}}" },
+          "punctuation.special": { "color": "{{tertiary}}" },
+          "punctuation.special.symbol": { "color": "{{tertiary}}" },
+          "punctuation.list_marker": { "color": "{{teal}}" },
+          "comment": { "color": "{{on_surface_variant}}" },
+          "comment.doc": { "color": "{{on_surface_variant}}" },
+          "comment.documentation": { "color": "{{on_surface_variant}}" },
+          "comment.info": { "color": "{{teal}}" },
+          "comment.error": { "color": "{{red}}" },
+          "comment.warning": { "color": "{{yellow}}" },
+          "comment.warn": { "color": "{{yellow}}" },
+          "comment.hint": { "color": "{{blue}}" },
+          "comment.todo": { "color": "{{tertiary}}" },
+          "comment.note": { "color": "{{primary}}" },
+          "diff.plus": { "color": "{{green}}" },
+          "diff.minus": { "color": "{{red}}" },
+          "parameter": { "color": "{{red}}" },
+          "field": { "color": "{{blue}}" },
+          "namespace": { "color": "{{yellow}}" },
+          "float": { "color": "{{peach}}" },
+          "symbol": { "color": "{{tertiary}}" },
+          "string.regex": { "color": "{{tertiary}}" },
+          "emphasis.strong": { "color": "{{red}}", "font_weight": 700 },
+          "emphasis": { "color": "{{red}}" },
+          "embedded": { "color": "{{red}}" },
+          "text.literal": { "color": "{{green}}" },
+          "concept": { "color": "{{blue}}" },
+          "enum": { "color": "{{teal}}", "font_weight": 700 },
+          "function.decorator": { "color": "{{peach}}" },
+          "type.class.definition": { "color": "{{yellow}}", "font_weight": 700 },
+          "hint": { "color": "{{outline}}" },
+          "link_text": { "color": "{{secondary}}" },
+          "link_uri": { "color": "{{blue}}" },
+          "parent": { "color": "{{peach}}" },
+          "predictive": { "color": "{{outline}}" },
+          "predoc": { "color": "{{red}}" },
+          "preproc": { "color": "{{tertiary}}" },
+          "primary": { "color": "{{red}}" },
+          "tag.doctype": { "color": "{{primary}}" },
+          "string.doc": { "color": "{{teal}}" },
+          "title": { "color": "{{red}}", "font_weight": 800 },
+          "variant": { "color": "{{red}}" }
         }
       }
     }

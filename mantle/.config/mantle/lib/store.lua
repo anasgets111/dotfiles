@@ -15,6 +15,14 @@ return persistent_table {
         wallpaper_transition = "fade",
         -- `"dark"` or `"light"`; `lib/app_colours.lua` pushes it to the portal and every app config.
         colour_scheme = "dark",
+        -- `palette.scheme` variant: "tonal_spot" (calm), "content" (matches the wallpaper) or "vibrant".
+        colour_style = "content",
+        -- Wallpaper path to the candidate seed chosen as its accent; absent means Score's best.
+        colour_accents = {},
+        -- `"wallpaper"`, or a `config/colour_presets.lua` name to use that scheme instead.
+        colour_source = "wallpaper",
+        -- Preset name to its chosen accent name; absent means the preset's own.
+        colour_preset_accents = {},
         -- Cached whole so a restart inside the hour draws before any request. `weather_location`
         -- carries the `timezone` it was resolved from, telling "same place" from "moved"; write it by
         -- hand to pin a place and skip lookups.

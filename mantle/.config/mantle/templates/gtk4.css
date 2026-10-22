@@ -1,6 +1,4 @@
-/* Written by Mantle (lib/app_colours.lua) from templates/gtk4.css: edit the template.
-   GTK re-parses this file, imports included, when a portal preference changes, so the colours live
-   in the import that Mantle rewrites. */
+/* Written by Mantle (lib/app_colours.lua) from templates/gtk4.css: edit the template. */
 @import url("mantle-colours.css");
 
 /* GTK 4.24 sends an ext-background-effect region on every surface, which
