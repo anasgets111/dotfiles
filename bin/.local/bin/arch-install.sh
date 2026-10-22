@@ -609,6 +609,15 @@ bootstrap_user_environment() {
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done
 		cd "$1" && shift && stow -R -t "$HOME" "$@"
+		# qt6ct-kde's icon engine drops `-symbolic` when Tela has the full-colour icon, so Telegram's
+		# monochrome tray names point at Tela's own panel icons.
+		for panel in /usr/share/icons/Tela-circle-dracula/*/panel; do
+			overlay="$HOME/.local/share/icons/Tela-circle-dracula/${panel#/usr/share/icons/Tela-circle-dracula/}"
+			mkdir -p "$overlay"
+			for variant in "" -attention -mute; do
+				ln -sf "$panel/telegram$variant-panel.svg" "$overlay/org.telegram.desktop$variant-symbolic.svg"
+			done
+		done
 SCRIPT
 
     # The backup restores a cargo-built mantle; only a system without one needs the package.

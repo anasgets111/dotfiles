@@ -137,6 +137,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | `niri --config x validate` is rejected | `niri validate --config x` |
 | `systemd-run --scope` rejects `--pipe`, and fixed-name scopes linger after exit | Transient service with `--pipe --collect` |
 | Upstream qt6ct never reports a colour scheme, so Qt apps that check dark mode pick light; Kirigami apps (KDE Connect) read only a KDE `.colors` scheme | `qt6ct-kde` with a `.colors` scheme; keep `QT_QPA_PLATFORMTHEME=qt6ct` |
+| qt6ct-kde's KDE icon engine drops `-symbolic` when the theme has the full-colour icon, so Telegram (`org.telegram.desktop-symbolic`) shows its colour tray icon and hides "Use monochrome icon" | `arch-install.sh` links Tela's `telegram*-panel.svg` under those names in `~/.local/share/icons/Tela-circle-dracula` |
 | `GTK_THEME` in the environment overrides every GTK theme and libadwaita colour | Never set it; `lib/app_colours.lua` sets the theme through gsettings |
 | Running apps never re-read colours under the same name: KSharedConfig caches a `.colors` by path, GTK3 reloads its user `gtk.css` never and its theme only on a name change. GtkSourceView never rescans at all, so Text Editor recolours on its next launch | Alternate `Mantle-A`/`Mantle-B` copies (KDE scheme in `qt6ct.conf`, GTK theme in gsettings) |
 | GTK4 re-reads `~/.config/gtk-4.0/gtk.css` imports only when a portal preference changes; a `color-scheme` flip flashes every app light | Colours in an import; flip `org.gnome.desktop.a11y.interface reduced-motion` for 50 ms |
