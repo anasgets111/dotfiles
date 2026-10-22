@@ -1,4 +1,4 @@
--- Catppuccin Mocha. An invented palette would be a worse version of one already balanced.
+-- Catppuccin Mocha, or Material 3 roles from the wallpaper once `lib/app_colours.lua` has a seed.
 -- Shared tokens live here because every `shell.lua` module reads them and no module owns them.
 -- The module cache clears before each re-evaluation, so edits recolour the bar in place.
 local theme = {}
@@ -82,7 +82,7 @@ function theme.hover(color)
 end
 
 -- `opacity` multiplies down the subtree, so dimming a control is one property, not a colour per part.
-theme.opacity                  = {
+theme.opacity = {
     subtle   = 0.15,
     light    = 0.25,
     medium   = 0.35,
@@ -91,25 +91,55 @@ theme.opacity                  = {
     strong   = 0.8,
 }
 
+-- Status colours stay Catppuccin's, Mocha on dark and Latte on light, so red still reads as red.
+local STATUS  = {
+    [true]  = { green = "#a6e3a1", yellow = "#f9e2af", peach = "#fab387", red = "#f38ba8", blue = "#89b4fa", teal = "#94e2d5" },
+    [false] = { green = "#40a02b", yellow = "#df8e1d", peach = "#fe640b", red = "#d20f39", blue = "#1e66f5", teal = "#179299" },
+}
+
+---Material 3 roles for `seed`, plus the status colours pulled toward it. `lib/app_colours.lua` writes
+---the same roles into GTK, Qt and kitty, so the shell and apps agree.
+---@param seed string `#RRGGBB`
+---@param dark boolean
+---@return table<string, string>
+function theme.roles(seed, dark)
+    local roles = palette.scheme(seed, { dark = dark }) --[[@as table<string, string>]]
+    for name, hex in pairs(STATUS[dark]) do
+        roles[name] = palette.harmonize(hex, seed)
+    end
+    local primary = palette.hct(roles.primary)
+    roles.on_hover = palette.from_hct { hue = primary.hue, chroma = primary.chroma, tone = dark and 60 or 50 }
+    return roles
+end
+
+-- `{ seed, dark }` from the wallpaper, written by `lib/app_colours.lua`; the write reloads the shell.
+-- Missing (first run, `mantle check`) or seedless (an SVG wallpaper) keeps Catppuccin Mocha.
+local found, generated = pcall(require, "config.wallpaper_colours")
+local roles = found and type(generated) == "table" and generated.seed and theme.roles(generated.seed, generated.dark)
+theme.DARK = not roles or generated.dark == true
+local function pick(role, catppuccin)
+    return roles and roles[role] or catppuccin
+end
+
 -- The swatches everything else derives from.
-theme.BG                       = "#1e1e2eff"
-theme.MANTLE                   = "#181825ff"
-theme.CRUST                    = "#11111bff"
-theme.SURFACE                  = "#313244ff"
-theme.FG                       = "#cdd6f4ff"
+theme.BG                       = pick("surface", "#1e1e2eff")
+theme.MANTLE                   = pick(theme.DARK and "surface_container_lowest" or "surface_container", "#181825ff")
+theme.CRUST                    = pick(theme.DARK and "shadow" or "surface_container_highest", "#11111bff")
+theme.SURFACE                  = pick(theme.DARK and "surface_container_highest" or "surface_dim", "#313244ff")
+theme.FG                       = pick("on_surface", "#cdd6f4ff")
 -- Catppuccin subtext0, since overlay0 reads as disabled rather than secondary. The one secondary-text
 -- colour. Faded controls use node `opacity`.
-theme.DIM                      = "#a6adc8ff"
+theme.DIM                      = pick("on_surface_variant", "#a6adc8ff")
 -- Mauve, not blue.
-theme.ACCENT                   = "#cba6f7ff"
-theme.GREEN                    = "#a6e3a1ff"
-theme.YELLOW                   = "#f9e2afff"
-theme.PEACH                    = "#fab387ff"
-theme.RED                      = "#f38ba8ff"
-theme.BLUE                     = "#89b4faff"
-theme.TEAL                     = "#94e2d5ff"
-theme.INACTIVE                 = "#45475aff"
-theme.ON_HOVER                 = "#a28dcdff"
+theme.ACCENT                   = pick("primary", "#cba6f7ff")
+theme.GREEN                    = pick("green", "#a6e3a1ff")
+theme.YELLOW                   = pick("yellow", "#f9e2afff")
+theme.PEACH                    = pick("peach", "#fab387ff")
+theme.RED                      = pick("red", "#f38ba8ff")
+theme.BLUE                     = pick("blue", "#89b4faff")
+theme.TEAL                     = pick("teal", "#94e2d5ff")
+theme.INACTIVE                 = pick("outline_variant", "#45475aff")
+theme.ON_HOVER                 = pick("on_hover", "#a28dcdff")
 theme.CLEAR                    = "#00000000"
 
 -- Derived steps from the swatches, so a scheme swap edits only those.

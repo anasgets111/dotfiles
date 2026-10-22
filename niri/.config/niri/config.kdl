@@ -419,3 +419,6 @@ layer-rule {
         xray false
     }
 }
+
+// Wallpaper colours from Mantle (lib/app_colours.lua); missing until its first run.
+include optional=true "wallpaper-colours.kdl"

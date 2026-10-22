@@ -72,7 +72,7 @@ COMMON_PACKAGES=(
     telegram-desktop thunderbird
     cava mpv-mpris satty zed
     # Theme / fonts
-    kvantum qt6ct tela-circle-icon-theme-dracula
+    adw-gtk-theme breeze tela-circle-icon-theme-dracula
     adobe-source-code-pro-fonts gnu-free-fonts inter-font noto-fonts-emoji noto-fonts-extra opendesktop-fonts
     otf-font-awesome terminus-font ttf-bitstream-vera ttf-cascadia-code-nerd ttf-fira-code ttf-firacode-nerd ttf-liberation
     ttf-roboto-mono-nerd ttf-scheherazade-new ttf-jetbrains-mono-nerd
@@ -87,7 +87,7 @@ MENTALIST_PACKAGES=(acpi_call pipewire-libcamera pipewire-v4l2)
 
 # Chaotic-AUR / Omarchy (post-chroot)
 COMMON_EXTRA_PACKAGES=(
-    omarchy-keyring shellcheck-bin yay bibata-cursor-theme fish-autopair
+    omarchy-keyring shellcheck-bin yay bibata-cursor-theme fish-autopair qt6ct-kde
     nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git
     vesktop slack-desktop rustdesk-bin
     claude-code piper-tts-git voxtype-bin

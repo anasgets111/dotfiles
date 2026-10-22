@@ -1,0 +1,11 @@
+/* Written by Mantle (lib/app_colours.lua) from templates/gtk4.css: edit the template.
+   GTK re-parses this file, imports included, when a portal preference changes, so the colours live
+   in the import that Mantle rewrites. */
+@import url("mantle-colours.css");
+
+/* GTK 4.24 sends an ext-background-effect region on every surface, which
+   overrides Hyprland's global blur; request it here (>= 20px counts). */
+window,
+popover > contents {
+  backdrop-filter: blur(20px);
+}

@@ -4,6 +4,11 @@ local palette = {
     inactive    = "rgba(aaaaaaaa)",
     transparent = "rgba(0,0,0,0)",
 }
+-- Wallpaper colours, written by Mantle's `lib/app_colours.lua`; absent until its first run.
+local found, wallpaper = pcall(require, "config.wallpaper_colours")
+for key, value in pairs(found and type(wallpaper) == "table" and wallpaper or {}) do
+    palette[key] = value
+end
 
 -- 1. Core
 hl.config({

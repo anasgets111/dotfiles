@@ -38,11 +38,12 @@ Upstream checkout at `/mnt/Work/0Coding/1Rust/mantle`. Read it; never edit it fr
 ```
 mantle/.config/mantle/
   shell.lua     Entry: font chain, requires modules, returns the surface list
-  config/       Tokens: theme.lua (Catppuccin Mocha), icons.lua, dev_tools.lua
+  config/       Tokens: theme.lua (wallpaper Material roles, Catppuccin Mocha until generated), icons.lua, dev_tools.lua
   components/   Reusable widgets with no state of their own
   lib/          Node-free domain logic and state; ui_state owns navigation, disclosure owns panel resets
   modules/      bar/{indicators,panels}, global/, notification/, osd/, shell/panel_host.lua
   shaders/      `.frag` sources compiled by the engine at runtime: wallpaper transitions and the launcher rail
+  templates/    App colour files `lib/app_colours.lua` fills from the wallpaper: GTK, Qt/KDE, kitty, Hyprland, GtkSourceView, Zed
 ```
 
 ## Patterns
@@ -58,6 +59,7 @@ mantle/.config/mantle/
 | Processes | `process.run` dies with the generation, `process.detach` outlives the shell, `session_process` survives reloads |
 | Compositor | Per-compositor commands go in `lib/compositor.lua`; behavior reads `mantle.workspaces:get().compositor` |
 | Theme | `config/theme.lua` tokens and `config/icons.lua` glyphs. Never hardcode colours, sizes or spacing |
+| App colours | `lib/app_colours.lua` writes `templates/` and `config/wallpaper_colours.lua` (gitignored, reloads the shell) from the first screen's wallpaper; `mantle call colours.mode` flips dark and light. Never edit a generated file; add a role to `theme.roles` or a template |
 | Panels | Four bands, top down. `panel_header` first, its subtitle one live state line, trailing only a badge (count), `panel_action_icon` (verb) or `toggle` (the subject's power). Then one row of controls: `panel_toggle_card` switches or `accent` `action_button`s; a radio anywhere is one `segmented` bar, never a row of tiles; every primary in a panel is that tinted glass, `solid` belongs to a modal's confirm, `danger` to the one action that ends something running. Then a flat body: `section_header` + `panel_row`s; "more" is always `panel_row { expanded }` in place, never a view swap; a `panel_card` only wraps a composite control (row + slider, status + meter, a table). Last, text buttons that conclude what the body showed. A modal is the same panel with a `theme.font.xl` masthead (`on_close` included), `lg` padding, `md` spacing and its one scroll area on an `outlined` card; a search modal's search bar is its masthead |
 | Shaders | A new `shaders/wallpaper_<name>.frag` shows in the picker as `<name>`; other `.frag` files stay out of it. Add a `lib/wallpaper.lua` row only for non-zero uniforms |
 
@@ -133,3 +135,9 @@ The default terminal resolves through `xdg-terminal-exec`.
 | `niri msg action spawn` passes an activation token that overrides `open-focused false` | Spawn through `env -u XDG_ACTIVATION_TOKEN`, then focus explicitly |
 | `niri --config x validate` is rejected | `niri validate --config x` |
 | `systemd-run --scope` rejects `--pipe`, and fixed-name scopes linger after exit | Transient service with `--pipe --collect` |
+| Upstream qt6ct never reports a colour scheme, so Qt apps that check dark mode pick light; Kirigami apps (KDE Connect) read only a KDE `.colors` scheme | `qt6ct-kde` with a `.colors` scheme; keep `QT_QPA_PLATFORMTHEME=qt6ct` |
+| `GTK_THEME` in the environment overrides every GTK theme and libadwaita colour | Never set it; `lib/app_colours.lua` sets the theme through gsettings |
+| Running apps never re-read colours under the same name: KSharedConfig caches a `.colors` by path, GTK3 reloads its user `gtk.css` never and its theme only on a name change. GtkSourceView never rescans at all, so Text Editor recolours on its next launch | Alternate `Mantle-A`/`Mantle-B` copies (KDE scheme in `qt6ct.conf`, GTK theme in gsettings) |
+| GTK4 re-reads `~/.config/gtk-4.0/gtk.css` imports only when a portal preference changes; a `color-scheme` flip flashes every app light | Colours in an import; flip `org.gnome.desktop.a11y.interface reduced-motion` for 50 ms |
+| A GTK3 theme without `gtk-3.0/gtk-dark.css` falls back to Adwaita in dark mode | Ship `gtk-dark.css` |
+| Zen (Gecko) follows the GTK theme live only through system colours in `userChrome.css`, and pairs `AccentColor`/`AccentColorText` differently per mode; web content gets stand-ins, not GTK colours | Accent as `-moz-nativehyperlinktext` (adw-gtk3's `accent_color`), surfaces as `-moz-dialog`/`Field`/`-moz-headerbar`; leave `userContent.css` static |

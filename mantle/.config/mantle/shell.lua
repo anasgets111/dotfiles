@@ -26,9 +26,11 @@ local modal_host = require("modules.global.modal_host")
 local lock_screen = require("modules.global.lock")
 local polkit_dialog = require("modules.global.polkit")
 local bluetooth_pairing = require("modules.global.bluetooth_pairing")
--- Not surfaces: these register the battery effects and the idle clock's actions, and return nothing.
+-- Not surfaces: these register the battery effects, the idle clock's actions and the wallpaper
+-- colours, and return nothing.
 require("modules.global.power_events")
 require("modules.global.idle")
+require("lib.app_colours")
 
 local surfaces = {
     wallpaper.desktop,

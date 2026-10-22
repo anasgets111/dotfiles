@@ -13,6 +13,8 @@ return persistent_table {
         wallpapers = {},
         -- `<name>` of a `wallpaper_<name>.frag` in `wallpaper.SHADER_FOLDER`, or `"fade"` for the built-in.
         wallpaper_transition = "fade",
+        -- `"dark"` or `"light"`; `lib/app_colours.lua` pushes it to the portal and every app config.
+        colour_scheme = "dark",
         -- Cached whole so a restart inside the hour draws before any request. `weather_location`
         -- carries the `timezone` it was resolved from, telling "same place" from "moved"; write it by
         -- hand to pin a place and skip lookups.
