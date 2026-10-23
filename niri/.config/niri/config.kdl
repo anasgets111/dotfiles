@@ -85,7 +85,7 @@ hotkey-overlay { skip-at-startup; }
 // At login niri's spawn env has not imported ~/.local/share/cargo/bin yet; a cargo build wins over mantle-bin.
 spawn-sh-at-startup "PATH=$HOME/.local/share/cargo/bin:$PATH exec mantle"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
-spawn-at-startup "kdeconnectd"
+spawn-sh-at-startup "PATH=$HOME/.local/share/cargo/bin:$PATH exec kdeconnect-service"
 spawn-at-startup "zeditor"
 spawn-sh-at-startup "sleep 1 && zen-browser"
 spawn-at-startup "slack"
