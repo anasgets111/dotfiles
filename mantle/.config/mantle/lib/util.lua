@@ -215,7 +215,12 @@ function util.network_glyph(network)
     if network.ssid == nil then
         return icons.wifi_none
     end
-    return icons.wifi[util.signal_tier(network.strength)]
+    return icons.wifi[util.signal_tier(util.primary_wifi(network).strength)]
+end
+
+-- The primary Wi-Fi interface, or an empty table without Wi-Fi hardware.
+function util.primary_wifi(network)
+    return network and network.wifi_devices[1] or {}
 end
 
 function util.signal_tier(strength)
@@ -255,7 +260,7 @@ end
 ---@param network NetworkState?
 ---@return AccessPointInfo? # The associated access point, or `nil`.
 function util.active_access_point(network)
-    return util.active_device(network and network.available_networks)
+    return util.active_device(util.primary_wifi(network).available_networks)
 end
 
 -- Shared tooltip ownership: leaving one button must not clear another button's hover.

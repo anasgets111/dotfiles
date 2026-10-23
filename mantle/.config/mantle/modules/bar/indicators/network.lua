@@ -49,16 +49,17 @@ local function network_text_of(network)
             text = "Ethernet",
             detail = string.format("IP: %s", network.ethernet_ip or "--"),
             secondary = ap and
-                string.format("Wi-Fi: %s (%d%%) · IP: %s", ap.ssid, ap.strength or 0, network.wifi_ip or "--") or
+                string.format("Wi-Fi: %s (%d%%) · IP: %s", ap.ssid, ap.strength or 0, util.primary_wifi(network).wifi_ip or "--") or
                 "",
         }
     end
     if network.ssid ~= nil and network.ssid ~= "" then
-        local strength = (network.strength or 0) > 0 and string.format("%d%%", network.strength) or "--"
+        local percent = util.primary_wifi(network).strength or 0
+        local strength = percent > 0 and string.format("%d%%", percent) or "--"
         local ap_band = ap and ap.band or ""
         return {
             text = string.format("%s (%s)%s", network.ssid, strength, ap_band ~= "" and " • " .. ap_band or ""),
-            detail = string.format("IP: %s", network.wifi_ip or "--"),
+            detail = string.format("IP: %s", util.primary_wifi(network).wifi_ip or "--"),
             secondary = network.ethernet_ip and string.format("Ethernet: IP: %s", network.ethernet_ip) or "",
         }
     end

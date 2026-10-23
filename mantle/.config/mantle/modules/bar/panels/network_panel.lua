@@ -36,7 +36,7 @@ end)
 
 -- Payload order is connected, saved, then descending raw signal. The list re-sorts by tier.
 local function access_points(network, target)
-    return (target and target.available_networks) or network.available_networks
+    return (target and target.available_networks) or {}
 end
 
 local function scan()
@@ -104,7 +104,7 @@ local function state_line(network)
     if not network.wifi_enabled then
         return "Wi-Fi off"
     end
-    return network.scanning and "Scanning…" or "Not connected"
+    return util.primary_wifi(network).scanning and "Scanning…" or "Not connected"
 end
 
 local function header_glyph(network)
@@ -313,7 +313,7 @@ local body = {
                     return target.scanning
                 end),
                 visible = mantle.network:map(function(network)
-                    return radio_on(network) or network.scanning
+                    return radio_on(network) or util.primary_wifi(network).scanning
                 end, false),
             }),
             -- Controls the whole stack; off hides the tiles.
@@ -335,7 +335,7 @@ local body = {
                 -- Keyed on the association, not `ssid`. A docked laptop's joined radio still has an
                 -- address while `ssid` names the cable.
                 local ap = util.active_access_point(network)
-                return ap and detail_line(network.wifi_ip, (util.band_of(ap)))
+                return ap and detail_line(util.primary_wifi(network).wifi_ip, (util.band_of(ap)))
                     or network.wifi_enabled and "Not connected" or ""
             end),
             radio_tile("ethernet", "Ethernet", icons.ethernet, function(network)
@@ -477,7 +477,7 @@ local body = {
                 return "No Wi-Fi adapter found"
             elseif not network.wifi_enabled then
                 return "Turn on Wi-Fi to see networks"
-            elseif network.scanning then
+            elseif util.primary_wifi(network).scanning then
                 return "Looking for networks…"
             end
             return "No networks found"
