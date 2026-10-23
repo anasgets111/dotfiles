@@ -115,7 +115,7 @@ local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bl
     return out
 end, {})
 
--- One always-on signal for every busy spinner; one minted per row in `each` would leak.
+-- `spinner` shows while its signal is true; every busy row's spinner shares this always-on one.
 local SPINNING = mantle.bluetooth:map(function()
     return true
 end, true)

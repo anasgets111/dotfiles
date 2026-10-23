@@ -72,6 +72,18 @@ icons.bt_conn         = "\u{F00B1}"
 icons.bt_visible      = "\u{F043E}"
 icons.bt_scan         = "\u{F0018}"
 
+-- KDE Connect: the bar glyph with or without a linked phone, signal bars 0..4, and the row actions.
+icons.phone_link      = "\u{F0121}"
+icons.phone_link_off  = "\u{F0122}"
+icons.cellular        = { [0] = "\u{F08BF}", "\u{F08BC}", "\u{F08BD}", "\u{F08BE}", "\u{F08BE}" }
+icons.ring            = "\u{F11AB}"
+icons.clipboard_send  = "\u{F0CF9}"
+icons.folder_open     = "\u{F0770}"
+icons.eject           = "\u{F01EA}"
+-- A command a phone can run here, and the row that adds one.
+icons.command         = "\u{F018D}"
+icons.plus            = "\u{F0415}"
+
 -- Notifications, plus `bell_off` for the clock glyph when there are none.
 icons.bell            = "\u{F0A2}"
 icons.bell_active     = "\u{F116B}"
@@ -112,6 +124,7 @@ icons.device          = {
     headset    = icons.headset,
     phone      = "\u{F011C}",
     computer   = "\u{F0322}",
+    tablet     = "\u{F04F6}",
     generic    = icons.bt_on,
 }
 

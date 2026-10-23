@@ -4,6 +4,7 @@ local util = require("lib.util")
 local theme = require("config.theme")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
+local spinner = require("components.spinner")
 
 -- `solid` and `danger` are the only opaque grounds and pick their own ink. The other tints show panel
 -- glass through the label.
@@ -23,7 +24,7 @@ local GROUND = {
 ---@param label string|Bound
 ---@param on_activate? fun() Absent on a `submits_secure` button, whose click is the field's Enter.
 ---@param slot string A `hover` slot unique to this button; two buttons sharing one light up together.
----@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, submits_secure?: boolean }
+---@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, spinning?: Signal, submits_secure?: boolean }
 return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]
@@ -42,6 +43,9 @@ return function(label, on_activate, slot, opts)
     -- A Nerd Font glyph in the same slot, a `text` node, so it takes the button's ink.
     if opts.glyph then
         children[#children + 1] = glyph(opts.glyph, foreground, theme.icon.sm, { align_v = "center" })
+    end
+    if opts.spinning then
+        children[#children + 1] = spinner(opts.spinning, theme.icon.sm, foreground)
     end
     if label and label ~= "" then
         local label_content = type(label) == "string" and { { text = label, bold = true } } or label

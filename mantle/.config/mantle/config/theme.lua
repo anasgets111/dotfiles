@@ -279,6 +279,8 @@ theme.font                     = {
     xxl = s(28, 20),
 }
 theme.band_font_size           = s(9, 7)
+-- A phone's battery digits under its bar glyph, two characters where a band has one or three.
+theme.battery_badge_font_size  = s(7, 6)
 
 theme.radius                   = {
     sm = s(6, 4),
@@ -353,9 +355,11 @@ theme.spring_tracking          = { spring = { stiffness = 400, damping = 42 } }
 -- A wheel notch glides to its stop; touchpads still move the offset at once.
 theme.scroll_ease              = { duration = theme.animation_fast_ms, easing = "out_cubic" }
 -- Bar panels share one card in `modules/shell/panel_host.lua`. A list scrolls past `panel_list_height`,
--- cut between rows by `util.fit_height`, so it needs each row's height: headers take a fixed one.
+-- cut between rows by `util.fit_height`, so it needs each row's height: a header or an item's `height`, else `control.lg`.
 theme.panel_width              = s(340, 280)
 theme.panel_list_height        = s(280, 210)
+-- The phone panel, whose open device carries its action row and a grid of plugin tiles.
+theme.phone_list_height        = s(440, 330)
 -- A drag track, so a list of them can be cut between rows.
 theme.slider_height            = s(16, 12)
 -- The audio panel's device sliders, taller so the label inside stays readable.

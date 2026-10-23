@@ -60,6 +60,8 @@ function M.open_panel(kind, rect)
     M.panel_open:set(true)
     if kind == "bluetooth" then
         mantle.bluetooth:start_discovery()
+    elseif kind == "phone" then
+        mantle.android_connect:broadcast()
     end
 end
 

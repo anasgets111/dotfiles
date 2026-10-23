@@ -20,9 +20,10 @@ local audio_panel = require("modules.bar.panels.audio_panel")
 local media_panel = require("modules.bar.panels.media_panel")
 local tray_menu = require("modules.bar.panels.tray_menu")
 local screen_recorder_panel = require("modules.bar.panels.screen_recorder_panel")
+local phone_panel = require("modules.bar.panels.phone_panel")
 
 local panels = { network_panel, bluetooth_panel, notification_history, update_panel, audio_panel,
-    media_panel, tray_menu, screen_recorder_panel }
+    media_panel, tray_menu, screen_recorder_panel, phone_panel }
 
 -- Only the matching `kind` is a child: a hidden sibling would be frozen, not dropped. `geometry`
 -- keeps a gone section's last rect, so a reveal knows its height; one never shown reads zero.
@@ -149,10 +150,15 @@ return panel {
     -- scope's sole field on compositor focus. History's reply field needs only `"on_demand"`, since a
     -- click there takes the keyboard and other windows give it back.
     keyboard_interactivity = computed(
-        { network_join.credential_step, ui_state.panel_showing("notifications") },
-        function(step, showing_notifications)
-            -- The sheet stays `exclusive`: this panel's click raised it and the catcher ends it.
-            return step ~= "" and "exclusive" or showing_notifications and "on_demand" or "none"
+        { network_join.credential_step, ui_state.panel_showing("notifications"), ui_state.panel_showing("phone"),
+            phone_panel.typing },
+        function(step, showing_notifications, showing_phone, typing)
+            -- The sheet stays `exclusive`: this panel's click raised it and the catcher ends it. So does
+            -- the phone's add-command form, whose name field takes keys as it opens.
+            if step ~= "" or showing_phone and typing then
+                return "exclusive"
+            end
+            return showing_notifications and "on_demand" or "none"
         end
     ),
     -- Input follows drawn nodes, so a closed panel leaves only the bar and its corners clickable.

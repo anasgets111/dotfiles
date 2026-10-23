@@ -73,7 +73,7 @@ return function(glyph, on_activate, opts)
         font_weight = theme.band_font_weight,
         foreground = foreground,
         font = theme.condensed_font,
-        font_size = theme.band_font_size,
+        font_size = opts.badge_size or theme.band_font_size,
         align_h = "end",
         align_v = "end",
         translate = opts.badge_translate or { x = -theme.spacing.xs, y = -theme.spacing.xs },

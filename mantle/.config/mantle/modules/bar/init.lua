@@ -7,7 +7,7 @@ local LEFT = {
     "rescue", "power_menu", "updates", "idle_inhibitor", "keyboard_layout", "battery",
     "wallpaper_button", "special_workspaces", "workspace_strip",
 }
-local RIGHT = { "privacy", "volume", "screen_recorder", "network", "bluetooth", "sys_tray", "date_time" }
+local RIGHT = { "privacy", "volume", "screen_recorder", "network", "bluetooth", "phone", "sys_tray", "date_time" }
 local tooltips = {}
 
 local function side(names, name, align)
