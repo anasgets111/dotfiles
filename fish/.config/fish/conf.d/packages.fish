@@ -1,193 +1,186 @@
 if type -q pacman
-    # packages: list explicitly installed packages (by repo)
-    # Usage: packages [-r|--repo <repo[,repo...]>] [-v|--version]
+    # packages: list explicitly installed packages grouped by repository
+    # Usage: packages [-r|--repo <repo[,repo...]>] [-v|--version] [-h|--help] [repo...]
     function packages
-        set -l c_name ""
-        set -l c_ver ""
-        set -l c_warn ""
-        set -l c_rst ""
-        if isatty stdout; and set -q TERM; and test "$TERM" != dumb
-            set c_name (set_color green)
-            set c_ver (set_color blue)
-            set c_warn (set_color yellow)
-            set c_rst (set_color normal)
+        argparse h/help 'r/repo=+' v/version -- $argv; or return
+
+        if set -q _flag_h
+            printf "Usage: packages [-r|--repo <repo[,...]>] [-v|--version] [-h|--help] [repo...]\n"
+            printf "  -r, --repo <repo[,...]>  Filter by repo (native = core,extra,multilib; aur = foreign)\n"
+            printf "  -v, --version            Show versions and sync status (✓ synced, ⬆ outdated, + ahead, • foreign)\n"
+            printf "  -h, --help               Show this help\n"
+            return 0
         end
-        set -l missing
-        for cmd in expac vercmp
-            command -q $cmd; or set -a missing $cmd
-        end
-        if test (count $missing) -gt 0
-            echo "Error: missing required commands: "(string join ", " $missing)
+
+        command -q expac; or begin
+            echo "Error: missing required command: expac" >&2
             return 1
         end
-        argparse 'r/repo=+' v/version -- $argv || return
 
-        set -l detected (pacman-conf --repo-list)
-        set -l repos $argv
-        set -l check_aur 0
-        set -l auto 0
-        set -l used_native 0
-        set -l used_aur 0
-        if set -q _flag_r
-            set repos (string split ',' -- $_flag_r)
-        else if test (count $repos) -eq 0
-            set repos $detected
-            set check_aur 1
-            set used_aur 1
-            set used_native 1
-            set auto 1
-        end
-
-        set -l target
-        for r in $repos
-            switch $r
-                case aur
-                    set check_aur 1
-                    set used_aur 1
-                case native
-                    set used_native 1
-                    set -a target core extra multilib
-                case '*'
-                    set -a target $r
-            end
-        end
-        set target (string match -r '.+' -- (printf '%s\n' $target | sort -u))
-
-        set -l installed (pacman -Qqe)
-        test -z "$installed"; and begin
+        set -l local_lines (pacman -Qe)
+        test -n "$local_lines"; or begin
             echo "No explicit packages" >&2
             return 1
         end
-        set -l repo_re (string join '|' -- $target)
-        test -z "$repo_re"; and set repo_re '^$' || set repo_re '^('$repo_re')$'
 
-        set -l fmt_local '%n'
-        set -l fmt_repo '%r\t%n'
-        if set -q _flag_v
-            set fmt_local '%n\t%v'
-            set fmt_repo '%r\t%n\t%v'
+        # 1. Resolve repos, targets, and terminal capabilities
+        set -l repos (pacman-conf --repo-list) aur
+        set -l targets (string split -n ',' -- (string replace -r '\bnative\b' 'core,extra,multilib' -- $_flag_r $argv))
+
+        set -l tty 0
+        set -l c_name ""
+        set -l c_ver ""
+        set -l c_warn ""
+        set -l c_dim ""
+        set -l c_rst ""
+        if isatty stdout
+            set tty 1
+            if set -q TERM; and test "$TERM" != dumb
+                set c_name (set_color green)
+                set c_ver (set_color blue)
+                set c_warn (set_color yellow)
+                set c_dim (set_color brblack)
+                set c_rst (set_color normal)
+            end
         end
-        set -l local_list (expac -Q $fmt_local $installed)
-        set -l repo_list (expac -S $fmt_repo $installed 2>/dev/null)
-        set -l sep (printf '\x1f')
-        set -l info (printf '%s\n%s\n' $local_list $repo_list | awk -F'\t' -v regex="$repo_re" -v check_aur="$check_aur" -v verbose="$_flag_v" -v sep="$sep" '
-            NF==0 { next }
-            NF==1 || (verbose && NF==2) { name=$1; local_ver[name]=$(NF); next }
-            { repo=$1; name=$2; seen[name]=1; if(repo~regex && !printed[name]++) print name (verbose ? sep local_ver[name] sep $3 : "") }
-            END{ if(check_aur) for(pkg in local_ver) if(!seen[pkg]) print pkg (verbose ? sep local_ver[pkg] sep local_ver[pkg] : "") }
-        ' | sort)
 
-        set -l pkg_count (count $info)
-        if test $pkg_count -eq 0
-            set -l searched $target
-            test $check_aur -eq 1; and set -a searched aur
-            echo "No packages found in: "(string join ", " $searched)
+        # 2. Fetch local and sync metadata (both ordered alphabetically by package name)
+        set -l l_names (string split -f 1 ' ' -- $local_lines)
+        set -l l_vers (string split -f 2 ' ' -- $local_lines)
+        set -l sync_lines (expac -S -1 '%n\t%r\t%v' $l_names 2>/dev/null)
+        set -l s_names (string split -f 1 \t -- $sync_lines)
+        set -l s_repos (string split -f 2 \t -- $sync_lines)
+        set -l s_vers (string split -f 3 \t -- $sync_lines)
+
+        set -l si 1
+        set -l all_repos
+        set -l m_repos
+        set -l m_names
+        set -l m_vers
+        set -l m_sts
+        set -l updates 0
+
+        for i in (seq (count $l_names))
+            set -l name $l_names[$i]
+            set -l lv $l_vers[$i]
+            set -l r aur
+            set -l rv $lv
+            if test "$s_names[$si]" = "$name"
+                set r $s_repos[$si]
+                set rv $s_vers[$si]
+                set si (math $si + 1)
+            end
+            set -a all_repos $r
+            set -q targets[1]; and not contains -- $r $targets; and continue
+
+            if test $tty -eq 0
+                set -a m_names (set -q _flag_v; and printf "%s\t%s\t%s\t%s\t%s" $r $name $lv $rv $r; or printf "%s\t%s" $r $name)
+                continue
+            end
+
+            set -a m_repos $r
+            set -a m_names $name
+            if set -q _flag_v
+                if test "$r" = aur
+                    set -a m_sts "$c_warn•$c_rst "
+                    set -a m_vers $lv
+                else if test "$lv" = "$rv"
+                    set -a m_sts "$c_name✓$c_rst "
+                    set -a m_vers $lv
+                else
+                    set updates (math $updates + 1)
+                    if test (vercmp "$lv" "$rv") -lt 0
+                        set -a m_sts "$c_warn⬆$c_rst "
+                        set -a m_vers "$lv -> $rv"
+                    else
+                        set -a m_sts "$c_warn+$c_rst "
+                        set -a m_vers "$lv ($rv)"
+                    end
+                end
+            end
+        end
+
+        if not set -q m_names[1]
+            echo "No packages found in: "(string join ", " $targets) >&2
             return 1
         end
 
+        # 3. Piped output: plain records, no headers or footer
+        if test $tty -eq 0
+            for r in $repos
+                string replace -rf -- "^$r\t" "" $m_names
+            end
+            return 0
+        end
+
+        # 4. Interactive TTY: vectorized cell padding and repo grid sections
+        set -l d_names (string shorten -m (set -q _flag_v; and echo 24; or echo 28) -- $m_names)
+        set -l w_n (math "max(0, "(string join , (string length --visible -- $d_names))")")
+        set -l pad_names (string pad -r -w $w_n -- "$c_name"$d_names"$c_rst")
+
+        set -l w_v 0
+        set -l pad_vers
         if set -q _flag_v
-            set -l statuses
-            set -l names
-            set -l locals
-            set -l w_name 0
-            set -l w_local 0
-            for pkg in $info
-                set -l f (string split $sep -- $pkg)
-                set -l name $f[1]
-                set -l lver $f[2]
-                set -l rver $f[3]
-                set -l st "✓"
-                if test "$lver" != "$rver"
-                    set st "+"
-                    test (vercmp "$lver" "$rver") -lt 0; and set st "⬆"
-                end
-                test (string length --visible -- $name) -gt 24; and set name (string sub -s 1 -l 24 -- $name)
-                set -a statuses $st
-                set -a names $name
-                set -a locals $lver
-                set -l ln (string length --visible -- $name)
-                test $ln -gt $w_name; and set w_name $ln
-                set -l lv (string length --visible -- $lver)
-                test $lv -gt $w_local; and set w_local $lv
-            end
-            set -l triplets
-            for i in (seq (count $names))
-                set -l st $statuses[$i]
-                set -l nm $names[$i]
-                set -l lv $locals[$i]
-                set -l stc $c_warn
-                test "$st" = "✓"; and set stc $c_name
-                set -l name_pad (string repeat -n (math "$w_name - "(string length --visible -- $nm)) " ")
-                set -l local_pad (string repeat -n (math "max(0, $w_local - "(string length --visible -- $lv)" - 1)") " ")
-                set -a triplets (printf "%s%s%s %s%s%s%s %s%s%s%s" $stc $st $c_rst $c_name $nm $c_rst $name_pad $c_ver $lv $c_rst $local_pad)
-            end
-            set -l per_row 3
-            set -l total (count $triplets)
-            set -l i 1
-            while test $i -le $total
-                set -l end (math "$i + $per_row - 1")
-                test $end -gt $total; and set end $total
-                echo (string join "  " $triplets[$i..$end])
-                set i (math "$end + 1")
-            end
-        else
-            set -l display
-            for pkg in $info
-                set -a display "$c_name"(string split \t -- $pkg)[1]"$c_rst"
-            end
-            echo (string join " " $display)
+            set -l d_vers (string shorten -m 26 -- $m_vers)
+            set w_v (math "max(0, "(string join , (string length --visible -- $d_vers))")")
+            set pad_vers " "(string pad -r -w $w_v -- "$c_ver"$d_vers"$c_rst")
         end
 
-        set -l repo_parts
-        for repo in $target
-            set -l color $c_ver
-            if test $used_native -eq 1
-                switch $repo
-                    case core extra multilib
-                        set color $c_name
+        set -l tagged_cells
+        for i in (seq (count $m_names))
+            set -a tagged_cells "$m_repos[$i]"\t"$m_sts[$i]$pad_names[$i]$pad_vers[$i]"
+        end
+
+        set -l cols $COLUMNS
+        test -n "$cols"; or set cols 100
+        set -l cell_w (set -q _flag_v; and math "2 + $w_n + 1 + $w_v"; or echo $w_n)
+        set -l per_row (math "max(1, floor(($cols + 2) / ($cell_w + 2)))")
+
+        set -l sections 0
+        set -l alt_idx 0
+        set -l cycle magenta red cyan blue
+        set -l breakdown
+
+        for r in $repos
+            set -l total_r (count (string match -- $r $all_repos))
+            test $total_r -eq 0; and continue
+
+            set -l rc ""
+            if test -n "$c_rst"
+                switch $r
+                    case core
+                        set rc (set_color -o cyan)
+                    case extra
+                        set rc (set_color -o blue)
+                    case multilib
+                        set rc (set_color -o green)
+                    case aur
+                        set rc (set_color -o yellow)
+                    case '*'
+                        set alt_idx (math "($alt_idx % 4) + 1")
+                        set rc (set_color -o $cycle[$alt_idx])
                 end
             end
-            set -a repo_parts "$color$repo$c_rst"
-        end
-        set -l repo_label (string join "," $repo_parts)
-        set -l repo_prefix ""
-        test $auto -eq 1; and set repo_prefix "$c_warn""auto:""$c_rst"
+            set -a breakdown "$rc$r$c_rst $total_r"
 
-        set -l detected_target (printf '%s\n' $detected | sort -u)
-        set -l detected_re (string join '|' -- $detected_target)
-        test -z "$detected_re"; and set detected_re '^$' || set detected_re '^('$detected_re')$'
-        set -l local_names (printf '%s\n' $local_list | awk -F'\t' '{print $1}')
-        set -l detected_info (printf '%s\n%s\n' $local_names $repo_list | awk -F'\t' -v regex="$detected_re" -v check_aur="$check_aur" '
-            NF==0 { next }
-            NF==1 { name=$1; local_seen[name]=1; next }
-            { repo=$1; name=$2; if(repo~regex && local_seen[name] && !printed[name]++) { print name; seen[name]=1 } }
-            END{ if(check_aur) for(pkg in local_seen) if(!seen[pkg]) print pkg }
-        ' | sort)
-        set -l detected_count (count $detected_info)
+            set -l cells (string replace -rf -- "^$r\t" "" $tagged_cells)
+            set -l cnt (count $cells)
+            test $cnt -eq 0; and continue
+            test $sections -gt 0; and echo
+            set sections (math $sections + 1)
+            printf "%s%s%s %s(%d)%s\n" $rc $r $c_rst $c_dim $cnt $c_rst
 
-        set -l detected_parts
-        for repo in $detected_target
-            set -l color $c_ver
-            switch $repo
-                case core extra multilib
-                    set color $c_name
+            for i in (seq 1 $per_row $cnt)
+                set -l end_i (math "min($cnt, $i + $per_row - 1)")
+                echo (string trim -r -- (string join "  " $cells[$i..$end_i]))
             end
-            set -a detected_parts "$color$repo$c_rst"
-        end
-        set -l detected_label (string join "," $detected_parts)
-        test $check_aur -eq 1; and set detected_label "$detected_label,$c_warn""aur""$c_rst"
-
-        set -l used_label "$repo_prefix$repo_label"
-        if test $used_aur -eq 1
-            test -n "$repo_label"; and set used_label "$used_label "
-            set used_label "$used_label$c_warn""aur""$c_rst"
         end
 
-        if test $auto -eq 1
-            printf '\n%sExplicit packages:%s %s%d%s (repos: %s)\n' $c_warn $c_rst $c_ver $pkg_count $c_rst $detected_label
-        else
-            printf '\n%sExplicit packages:%s %s%d%s (used: %s) | %sDetected repos:%s %s%d%s (detected: %s)\n' \
-                $c_warn $c_rst $c_ver $pkg_count $c_rst $used_label $c_warn $c_rst $c_ver $detected_count $c_rst $detected_label
-        end
+        set -l count_str "$c_ver"(count $m_names)"$c_rst"
+        set -q targets[1]; and set count_str "$count_str/"(count $l_names)
+        set -l upd_str ""
+        test $updates -gt 0; and set upd_str " $c_warn($updates out of sync)$c_rst"
+        printf "\n%sExplicit:%s %s%s %s[%s%s%s]%s\n" \
+            $c_warn $c_rst $count_str $upd_str $c_dim $c_rst (string join " $c_dim·$c_rst " $breakdown) $c_dim $c_rst
     end
 end
