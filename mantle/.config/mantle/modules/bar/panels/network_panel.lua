@@ -35,7 +35,7 @@ local device = computed({ mantle.network, picked }, function(network, id)
 end)
 
 -- Payload order is connected, saved, then descending raw signal. The list re-sorts by tier.
-local function access_points(network, target)
+local function access_points(target)
     return (target and target.available_networks) or {}
 end
 
@@ -153,7 +153,7 @@ end
 local rows = computed({ mantle.network, device }, function(network, target)
     local connecting = network.connecting_ssid
     local sections = { connected = {}, saved = {}, available = {} }
-    for _, ap in ipairs(access_points(network, target)) do
+    for _, ap in ipairs(access_points(target)) do
         local group = ap.active and sections.connected or ap.saved and sections.saved or sections.available
         group[#group + 1] = {
             kind = "ap",
@@ -483,7 +483,7 @@ local body = {
             return "No networks found"
         end, "NetworkManager is not responding"),
         computed({ mantle.network, device, join.hidden_join }, function(network, target, joining)
-            return not radio_on(network) or (not joining and #access_points(network, target) == 0)
+            return not radio_on(network) or (not joining and #access_points(target) == 0)
         end, true)
     ),
 }

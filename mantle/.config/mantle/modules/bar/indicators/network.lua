@@ -49,7 +49,8 @@ local function network_text_of(network)
             text = "Ethernet",
             detail = string.format("IP: %s", network.ethernet_ip or "--"),
             secondary = ap and
-                string.format("Wi-Fi: %s (%d%%) · IP: %s", ap.ssid, ap.strength or 0, util.primary_wifi(network).wifi_ip or "--") or
+                string.format("Wi-Fi: %s (%d%%) · IP: %s", ap.ssid, ap.strength or 0,
+                    util.primary_wifi(network).wifi_ip or "--") or
                 "",
         }
     end
