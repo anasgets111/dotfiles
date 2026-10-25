@@ -19,7 +19,10 @@ local segmented = require("components.segmented")
 local disclosure = require("lib.disclosure")
 local input = require("components.input")
 
-local android = mantle.android_connect
+local android = (mantle and mantle.android_connect) or nil
+if not android then
+    return { kind = "phone", build = function() return nil end, linked = function() return {} end, tooltip = nil }
+end
 -- `spinner` shows while its signal is true; every waiting row's spinner shares this always-on one.
 local SPINNING = android:map(function()
     return true
