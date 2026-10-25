@@ -5,6 +5,11 @@ local util = require("lib.util")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 local ui_state = require("lib.ui_state")
+
+-- A binary older than `android_connect` has no phone to show; the bar skips a nil indicator.
+if not mantle.android_connect then
+    return { tooltips = {} }
+end
 local phone_panel = require("modules.bar.panels.phone_panel")
 
 local SLOT = "phone"

@@ -20,6 +20,10 @@ local disclosure = require("lib.disclosure")
 local input = require("components.input")
 
 local android = mantle.android_connect
+-- A binary older than `android_connect`: `panel_host` still lists the kind and reads `typing`.
+if not android then
+    return { kind = "phone", typing = state("phone_command_adding", false) }
+end
 -- `spinner` shows while its signal is true; every waiting row's spinner shares this always-on one.
 local SPINNING = android:map(function()
     return true
