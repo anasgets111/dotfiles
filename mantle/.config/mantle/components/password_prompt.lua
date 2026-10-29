@@ -43,7 +43,7 @@ local ERROR_TEXT = {
 return function(opts)
     local source = mantle[opts.capability]
     local busy = source:map(function(state)
-        return state.authenticating or state.unlocking
+        return state.authenticating or state.unlocking == true
     end, false)
     local failed = source:map(function(state)
         return state.active and not state.authenticating and not state.unlocking and (state.error or "") ~= ""
