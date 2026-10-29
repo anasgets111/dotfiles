@@ -88,8 +88,8 @@ show_status() {
 self_test() {
     is_valid_tld test
     is_valid_tld local-dev
-    ! is_valid_tld .test
-    ! is_valid_tld 'test;option'
+    is_valid_tld .test && exit 1
+    is_valid_tld 'test;option' && exit 1
     echo "${SCRIPT_NAME}: self-test passed"
 }
 

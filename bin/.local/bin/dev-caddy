@@ -294,16 +294,16 @@ show_status() {
 self_test() {
     is_valid_name sacredcube
     is_valid_name local-dev
-    ! is_valid_name 'Bad Name'
+    is_valid_name 'Bad Name' && exit 1
     is_valid_port 1
     is_valid_port 65535
-    ! is_valid_port 0
-    ! is_valid_port 65536
-    ! is_valid_port 99999999999999999999
+    is_valid_port 0 && exit 1
+    is_valid_port 65536 && exit 1
+    is_valid_port 99999999999999999999 && exit 1
     is_valid_host localhost
     is_valid_host 127.0.0.1
     is_valid_host '[::1]'
-    ! is_valid_host 'localhost { abort }'
+    is_valid_host 'localhost { abort }' && exit 1
     [[ "$(quote_caddy_value 'a path')" == '"a path"' ]]
     [[ "$(quote_caddy_value 'a"b')" == '"a\"b"' ]]
     echo "${SCRIPT_NAME}: self-test passed"
