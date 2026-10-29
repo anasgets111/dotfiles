@@ -1,5 +1,5 @@
 # 1. Environment
-fish_add_path -a /mnt/Work/0Coding/Exercism
+fish_add_path -g -a /mnt/Work/0Coding/Exercism
 
 # 2. Context-Aware History
 if set -q TERMINAL_EMULATOR
