@@ -131,7 +131,6 @@ The default terminal resolves through `xdg-terminal-exec`.
 | A running LuaLS ignores `runtime.*` changes | Restart the language server |
 | Hyprland 0.56 parses its socket as Lua, so `hyprctl dispatch exit` fails | `hyprctl dispatch 'hl.dsp.exit()'` |
 | Hyprland 0.56.1 fades mapped `Top` surfaces when fullscreen starts, but not ones mapped after | Handle both on Hyprland; Niri does neither |
-| Hyprland sends the pointer only to a layer with `Exclusive` keyboard interactivity, so other surfaces stop taking clicks | `OnDemand` on Hyprland; it still takes focus when it maps |
 | A niri workspace switch hands an `OnDemand` layer's keyboard to a window | `Exclusive` on niri (`modules/global/modal_host.lua`) |
 | Hyprland's auto HDR exit rebuilds the monitor's colour description a frame after fullscreen ends, dropping an ICC profile restored before it; an `hl.monitor` change waits for a rendered frame | Restore with a config reload from a delayed recheck (`hl.timer`, `config/monitors.lua`) |
 | Hyprland writes `hyprland.log` with a delay, so a read right after an event can miss it | Follow `hyprctl rollinglog -f` |

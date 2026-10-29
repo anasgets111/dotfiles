@@ -59,15 +59,9 @@ return panel {
     visible = shown,
     reset_on_close = reset,
     -- Released by the unmap, costing `theme.animation_ms` of swallowed typing; a stray workspace
-    -- switch is worse. `exclusive` on niri, where a workspace switch hands an on-demand layer's keys
-    -- to a window. `on_demand` on Hyprland, which sends the pointer only to an exclusive layer and
-    -- killed the bar; it still focuses an on-demand layer when it maps.
-    keyboard_interactivity = computed({ shown, mantle.workspaces }, function(open, workspaces)
-        if not open then
-            return "none"
-        end
-        return workspaces.compositor == "niri" and "exclusive" or "on_demand"
-    end, "none"),
+    -- switch is worse. `exclusive`, since a niri workspace switch hands an on-demand layer's keys to
+    -- a window.
+    keyboard_interactivity = util.choose(shown, "exclusive", "none"),
     child = rect {
         width = "fill",
         height = "fill",
