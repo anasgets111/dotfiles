@@ -34,7 +34,7 @@ hl.config({
         },
     },
 
-    render     = { direct_scanout = 2, cm_auto_hdr = 1 },
+    render     = { direct_scanout = 2 },
 
     decoration = {
         rounding         = 14,
@@ -44,9 +44,9 @@ hl.config({
         blur             = { size = 5, passes = 3 },
     },
 
-    dwindle    = { preserve_split = true, special_scale_factor = 0.85 },
-    master     = { new_status = "master", special_scale_factor = 0.85 },
-    scrolling  = { follow_focus = true, follow_min_visible = 0, focus_fit_method = 1 },
+    dwindle    = { preserve_split = true },
+    master     = { new_status = "master" },
+    scrolling  = { follow_min_visible = 0 },
 
     misc       = {
         force_default_wallpaper    = 0,
@@ -63,7 +63,6 @@ local curves = {
     wind      = { { 0.05, 0.90 }, { 0.10, 1.05 } },
     winIn     = { { 0.10, 1.10 }, { 0.10, 1.10 } },
     winOut    = { { 0.30, -0.30 }, { 0.00, 1.00 } },
-    linear    = { { 1.00, 1.00 }, { 1.00, 1.00 } },
     overshot  = { { 0.05, 0.90 }, { 0.10, 1.10 } },
     smoothOut = { { 0.50, 0.00 }, { 0.99, 0.99 } },
 }
@@ -92,7 +91,7 @@ end
 
 -- 4. Layer rules
 -- Mantle asks for blur per box (behind_blur, ext-background-effect-v1), so it
--- gets no `blur` rule: one would also frost its shadows. Hyprland 0.56 blurs a
+-- gets no `blur` rule: one would also frost its shadows. Hyprland blurs a
 -- layer's popups (tooltips) only under `blur_popups`, then clips to that region.
 hl.layer_rule({ match = { namespace = "^mantle-.*" }, blur_popups = true })
 

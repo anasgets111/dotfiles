@@ -11,16 +11,18 @@ hl.window_rule({ match = { fullscreen = true }, no_blur = true, no_anim = true }
 hl.window_rule({ match = { class = "steam_app_.*" }, fullscreen = true, immediate = true })
 
 -- Lazy Workspaces
-for workspace, app in pairs({
+local lazy_apps = {
     ["1"]                = "zen-browser",
     ["3"]                = "zeditor",
     ["special:vesktop"]  = "vesktop",
     ["special:telegram"] = "Telegram",
     ["special:slack"]    = "slack",
     ["special:terminal"] = "xdg-terminal-exec",
-}) do
-    hl.workspace_rule({ workspace = workspace, on_created_empty = app })
-end
+}
+hl.on("workspace.created", function(workspace)
+    local app = lazy_apps[workspace.name]
+    if app and workspace.is_empty then hl.exec_cmd("uwsm app -- " .. app, { workspace = workspace.addressable_name }) end
+end)
 
 -- Smart gaps for single tiled/fullscreen windows, excluding special workspaces
 for _, selector in ipairs({ "w[tv1]s[false]", "f[1]s[false]" }) do
@@ -93,12 +95,7 @@ float_rule(sizes.large, { initial_title = "Picture-in-Picture" }, {
     move = { "(monitor_w*0.38)", "(monitor_h*0.38)" },
 })
 
-hl.window_rule({
-    match = {
-        class = "org.gnome.Nautilus",
-        initial_title = "^Save As.*|^Open.*|^Select.*|^Choose.*|^Attach.*|^Import.*",
-    },
-    size = sizes.large,
-    float = true,
-    center = true,
+float_rule(sizes.large, {
+    class = [[org\.gnome\.Nautilus]],
+    initial_title = "^Save As.*|^Open.*|^Select.*|^Choose.*|^Attach.*|^Import.*",
 })
