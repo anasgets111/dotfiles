@@ -4,9 +4,6 @@
 local wallpaper = require("lib.wallpaper")
 local theme = require("config.theme")
 
--- Sigma for the overview's backdrop, 0.6 of 64, x2.
-local OVERVIEW_BLUR = 32
-
 -- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it.
 local function wallpaper_panel(id, visible, blur)
     -- `"ignore"` (layer-shell `-1`) covers the output; `false` would yield to the bar's reservation.
@@ -47,5 +44,5 @@ end, false)
 
 return {
     desktop = wallpaper_panel("wallpaper"),
-    overview = wallpaper_panel("overview_wallpaper", in_overview, OVERVIEW_BLUR),
+    overview = wallpaper_panel("overview_wallpaper", in_overview, theme.blur.overview),
 }

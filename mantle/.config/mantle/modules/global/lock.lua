@@ -10,8 +10,6 @@ local scrim           = require("components.scrim")
 local identity        = require("lib.identity")
 local weather         = require("lib.weather")
 
-local WALLPAPER_BLUR  = 24
-local CARD_BLUR       = 16
 local STAGGER         = 90
 
 -- Keep the lock until the card's exit finishes, plus scheduling slack.
@@ -108,10 +106,10 @@ local function content(output)
         width = theme.dialog_width,
         align_h = "center",
         padding = theme.spacing.xl,
-        background = theme.with_opacity(theme.ELEVATED, 0.3),
+        background = theme.with_opacity(theme.ELEVATED, theme.opacity.medium),
         glass = true,
         radius = theme.radius.xl,
-        effect = { backdrop = { blur = CARD_BLUR } },
+        effect = { backdrop = { blur = theme.blur.card } },
     })
 
     -- Context, not a control, so it sits on the wallpaper at the bottom edge.
@@ -170,7 +168,7 @@ local function content(output)
                     if lock == nil or not lock.active then
                         return { backdrop = { blur = 0 } }
                     end
-                    return { backdrop = { blur = lock.unlocking and WALLPAPER_BLUR / 2 or WALLPAPER_BLUR } }
+                    return { backdrop = { blur = lock.unlocking and theme.blur.wallpaper / 2 or theme.blur.wallpaper } }
                 end),
                 animate = { effect = { duration = theme.animation_slow_ms, easing = "out_cubic", from = {} } },
             }),

@@ -123,7 +123,7 @@ local function slot(index)
                     duration = theme.animation_slow_ms,
                     easing = "in_out_quad",
                     loops = "infinite",
-                    keyframes = { 1, 0.4, 1 },
+                    keyframes = { 1, theme.opacity.medium, 1 },
                 }
             end
             return eases

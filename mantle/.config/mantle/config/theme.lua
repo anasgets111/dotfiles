@@ -337,6 +337,8 @@ theme.workspace_drag_shadow_y  = 2
 theme.battery_pill_width       = s(80, 60)
 -- The hovered volume control holds "150%" plus a drag track.
 theme.volume_expanded_width    = s(220, 140)
+-- Backdrop blur sigmas: a glass card, a dimmed full-screen wallpaper, the niri overview.
+theme.blur                     = { card = 16, wallpaper = 24, overview = 32 }
 -- Milliseconds for a node's `animate` table; the engine eases `in_out_quad` by default.
 theme.animation_ms             = 147
 theme.animation_fast_ms        = 100

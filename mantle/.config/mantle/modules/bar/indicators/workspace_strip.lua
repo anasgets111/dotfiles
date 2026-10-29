@@ -15,6 +15,8 @@ local icon_button = require("components.icon_button")
 local expanding_pill = require("components.expanding_pill")
 
 local PADDED_SLOTS = 10
+-- A press held this long becomes a drag.
+local HOLD_MS = 200
 
 local function output_of(workspaces)
     return workspaces and (workspaces.outputs or {})[1]
@@ -98,7 +100,7 @@ local listed = mantle.workspaces:map(workspaces_of, {})
 local pill = expanding_pill.new({
     slot = "workspace-pill",
     hold_open = is_dragging,
-    collapse_ms = theme.animation_ms + 200,
+    collapse_ms = theme.animation_ms + HOLD_MS,
     count = listed:map(function(entries)
         return #entries
     end),
@@ -126,7 +128,7 @@ local function workspace_button(workspace)
         return drop and theme.ACCENT or (is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER)
     end)
     local opacity = dragging_from:map(function(from)
-        if from == id then return 0.4 end
+        if from == id then return theme.opacity.medium end
         return workspace.populated and 1 or theme.opacity.muted
     end)
     local cursor = workspace.populated and util.choose(is_dragging, "grabbing", "pointer") or nil
@@ -146,12 +148,12 @@ local function workspace_button(workspace)
                 hold_ready = false
                 start_cx, start_cy = cx, cy
                 cancel_hold()
-                hold_timer = timer(200, function()
+                hold_timer = timer(HOLD_MS, function()
                     hold_timer = nil
                     hold_ready = true
                 end)
             elseif phase == "move" then
-                if hold_ready and not drag_armed and (math.abs(cx - start_cx) > 10 or math.abs(cy - start_cy) > 10) then
+                if hold_ready and not drag_armed and (math.abs(cx - start_cx) > theme.spacing.sm or math.abs(cy - start_cy) > theme.spacing.sm) then
                     arm_drag(workspace, cx, cy)
                 end
                 if drag_armed then
@@ -163,12 +165,12 @@ local function workspace_button(workspace)
                             local center_x = geom.x + geom.width / 2
                             local center_y = geom.y + geom.height / 2
                             local dist = math.abs(cx - center_x)
-                            if math.abs(cy - center_y) < 40 and dist < best_dist then
+                            if math.abs(cy - center_y) < theme.item_width and dist < best_dist then
                                 best_dist, best_id = dist, ws.id
                             end
                         end
                     end
-                    drag_target:set(best_dist < 40 and best_id or nil)
+                    drag_target:set(best_dist < theme.item_width and best_id or nil)
                 end
             elseif phase == "end" then
                 local released_on_source = cx >= rect.x and cx < rect.x + rect.width
