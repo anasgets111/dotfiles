@@ -64,8 +64,6 @@ local has_gpu = mantle.sysinfo:map(function(sysinfo)
     return sysinfo.gpu ~= nil
 end, false)
 
-local size = util.bytes
-
 local function rate(bytes)
     return util.bytes(bytes) .. "/s"
 end
@@ -238,7 +236,7 @@ local details = panel_card({
             return used and total and total > 0 and used * 100 / total or 0
         end, COLOR.gpu, readout(function(sysinfo)
             local used, total = gpu_of(sysinfo, "mem_used"), gpu_of(sysinfo, "mem_total")
-            return used and total and string.format("%s / %s", size(used), size(total)) or ""
+            return used and total and string.format("%s / %s", util.bytes(used), util.bytes(total)) or ""
         end), util.shown_when(mantle.sysinfo, function(sysinfo)
             local total = gpu_of(sysinfo, "mem_total")
             return gpu_of(sysinfo, "mem_used") and total and total > 0
@@ -262,7 +260,7 @@ local details = panel_card({
                         string.format("%d%%", disk.percent), tint_of(disk.percent, COLOR.disk)),
                     meter(disks, function() return disk.percent end,
                         tint_of(disk.percent, COLOR.disk), theme.spacing.xs),
-                    cell(size(disk.used_bytes) .. " / " .. size(disk.total_bytes),
+                    cell(util.bytes(disk.used_bytes) .. " / " .. util.bytes(disk.total_bytes),
                         theme.DIM, theme.font.xs, { width = "fill" }),
                 }
                 for _, partition in ipairs(disk.partitions) do
@@ -273,8 +271,8 @@ local details = panel_card({
                             children = {
                                 cell(partition.mount_point == "/" and "Root" or partition.mount_point,
                                     theme.FG, theme.font.xs, { width = "fill" }),
-                                cell(string.format("%s / %s · %d%%", size(partition.used_bytes),
-                                        size(partition.total_bytes), partition.percent),
+                                cell(string.format("%s / %s · %d%%", util.bytes(partition.used_bytes),
+                                        util.bytes(partition.total_bytes), partition.percent),
                                     theme.DIM, theme.font.xs),
                             },
                         },

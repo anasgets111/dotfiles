@@ -49,12 +49,7 @@ mantle.mpris:on_change(function(mpris)
                 handle = process.run("sh", { "-c", FETCH, "sh", path, url }, function() end,
                     function(code)
                         if code == 0 then
-                            local next_held = {}
-                            for other, fetched in pairs(held:get()) do
-                                next_held[other] = fetched
-                            end
-                            next_held[id] = url
-                            held:set(next_held)
+                            held:set(util.with(held:get(), id, url))
                         end
                     end)
             }
@@ -182,11 +177,12 @@ local function transport(slot, icon, command, disabled)
     end), { slot = slot, disabled = disabled })
 end
 
-local play_disabled = selected:map(function(p)
-    if not p then
+local play_disabled = selected:map(function(player)
+    if not player then
         return true
     end
-    return (p.play_state == "playing" and not p.can_pause) or (p.play_state ~= "playing" and not p.can_play)
+    return (player.play_state == "playing" and not player.can_pause) or
+        (player.play_state ~= "playing" and not player.can_play)
 end)
 
 local body = {
@@ -358,8 +354,8 @@ local body = {
                             return player ~= false and player.shuffle
                         end),
                     }),
-                    transport("media-previous", icons.previous, "previous", selected:map(function(p)
-                        return not (p and p.can_go_previous)
+                    transport("media-previous", icons.previous, "previous", selected:map(function(player)
+                        return not (player and player.can_go_previous)
                     end)),
                     icon_button(selected:map(function(player)
                         return (player and player.play_state == "playing") and icons.pause or icons.play
@@ -375,11 +371,11 @@ local body = {
                         background = theme.ACCENT,
                         opacity = util.choose(play_disabled, theme.opacity.disabled, 1),
                     }),
-                    transport("media-stop", icons.stop, "stop", selected:map(function(p)
-                        return not p or p.play_state == "stopped"
+                    transport("media-stop", icons.stop, "stop", selected:map(function(player)
+                        return not player or player.play_state == "stopped"
                     end)),
-                    transport("media-next", icons.next, "next", selected:map(function(p)
-                        return not (p and p.can_go_next)
+                    transport("media-next", icons.next, "next", selected:map(function(player)
+                        return not (player and player.can_go_next)
                     end)),
                     panel_action_icon(selected:map(function(player)
                         return LOOP_ICONS[player and player.loop_status] or icons.repeat_off

@@ -266,13 +266,13 @@ local function announce_saved(exit_code)
     local name = path:match("[^/]+$")
 
     if exit_code ~= nil and exit_code ~= 0 then
-        process.run("notify-send", {
+        process.detach("notify-send", {
             "-a", "Screen Recorder",
             "-i", "media-record",
             "-u", "critical",
             "Recording failed",
             string.format("gpu-screen-recorder exited %d; see the shell's log", exit_code),
-        }, function() end, function() end)
+        })
         return
     end
 

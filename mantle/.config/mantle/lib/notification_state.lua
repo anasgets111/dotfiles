@@ -19,7 +19,6 @@ function M.mark_popups_seen()
     M.popup_seen:set(seen)
 end
 
--- Derived signals have no on_change; blanking and store writes must sync quiet explicitly.
 local function screencast(privacy, wanted)
     -- `~= false`: the store reads nil before its first push, and the default is on.
     return wanted ~= false and privacy ~= nil and #privacy.screencast_users > 0
@@ -27,23 +26,11 @@ end
 
 M.sharing = computed({ mantle.privacy, store.notifications_dnd_while_sharing }, screencast, false)
 
-local function notification_quiet(is_sharing)
-    local lock = mantle.lock:get()
-    return (is_sharing or idle.blanked:get() or (lock ~= nil and lock.active)) and true or false
-end
-
-function M.sync_notification_quiet()
-    mantle.notifications:set_quiet(notification_quiet(M.sharing:get()))
-end
-
-mantle.privacy:on_change(M.sync_notification_quiet)
-mantle.lock:on_change(M.sync_notification_quiet)
-
-function M.set_dnd_while_sharing(on)
-    store:set("notifications_dnd_while_sharing", on)
-    -- `sharing:get()` is still the previous push. `on` is the value just written.
-    mantle.notifications:set_quiet(notification_quiet(screencast(mantle.privacy:get(), on)))
-end
+computed({ M.sharing, idle.blanked, mantle.lock }, function(sharing, blanked, lock)
+    return sharing or blanked or (lock ~= nil and lock.active)
+end, false):on_change(function(quiet)
+    mantle.notifications:set_quiet(quiet)
+end)
 
 -- Retire the popup while retaining its history entry.
 function M.hide_popup(notification)

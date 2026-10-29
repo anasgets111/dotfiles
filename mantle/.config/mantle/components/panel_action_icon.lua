@@ -16,15 +16,10 @@ return function(glyph, on_activate, opts)
     local disabled = opts.disabled
 
     local active = opts.active
-    local foreground
-    if active then
-        foreground = computed({ hovered, active }, function(is_hovered, is_active)
-            return is_active and theme.ACCENT
-                or is_hovered and tint or theme.with_opacity(theme.FG, theme.opacity.muted)
-        end)
-    else
-        foreground = util.choose(hovered, tint, theme.with_opacity(theme.FG, theme.opacity.muted))
-    end
+    local foreground = computed({ hovered, active or false }, function(is_hovered, is_active)
+        return is_active and theme.ACCENT
+            or is_hovered and tint or theme.with_opacity(theme.FG, theme.opacity.muted)
+    end)
 
     local opacity = disabled and util.choose(disabled, theme.opacity.disabled, 1) or nil
 

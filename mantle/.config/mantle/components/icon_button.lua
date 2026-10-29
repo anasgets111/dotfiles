@@ -13,16 +13,9 @@ return function(glyph, on_activate, opts)
     local base_hover = opts.background_hover or util.lift(base, theme.hover)
     local hovered = hover(opts.slot)
 
-    -- `computed` takes only signals, so a plain colour rides on `hovered` and is read directly.
-    local base_live, hover_live = type(base) == "userdata", type(base_hover) == "userdata"
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    local ground = computed({ hovered, base_live and base or hovered, hover_live and base_hover or hovered },
-        function(is_hovered, plain, lit)
-            if is_hovered then
-                return hover_live and lit or base_hover
-            end
-            return base_live and plain or base
-        end)
+    local ground = computed({ hovered, base, base_hover }, function(is_hovered, plain, lit)
+        return is_hovered and lit or plain
+    end)
 
     local foreground = opts.foreground or util.lift(ground, theme.text_contrast)
 

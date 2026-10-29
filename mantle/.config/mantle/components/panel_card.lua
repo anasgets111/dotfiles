@@ -39,10 +39,10 @@ return function(children, opts)
                 width = "fill",
                 height = "fill",
                 source = mantle.config_dir .. "/shaders/launcher_sheen.frag",
-                params = util.lift(type(border) == "userdata" and border or ground, function(color)
+                params = computed({ ground, border }, function(fill, sheen)
                     return {
-                        fill = theme.rgba(type(ground) == "userdata" and ground:get() or ground),
-                        sheen = theme.rgba(type(border) == "userdata" and color or border),
+                        fill = theme.rgba(fill),
+                        sheen = theme.rgba(sheen),
                         shade = theme.rgba(theme.LAUNCHER_SHADOW),
                         edge_width = opts.border_width or theme.border_width,
                         corner_radius = card.radius,

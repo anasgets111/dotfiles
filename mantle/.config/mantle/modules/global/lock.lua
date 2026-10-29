@@ -79,12 +79,12 @@ local clock = mantle.clock:map(function(system) return clock_runs(system.time) e
 
 -- One secure field per output, armed on compositor focus.
 local function content(output)
-    -- Lua rejects `%-d`; read the unpadded day from the date table.
     local time = column(entering({
         align_h = "center",
         spacing = theme.spacing.xs,
         children = {
             cell(clock, theme.FG, theme.lock_clock, { align = "center" }),
+            -- Lua rejects `%-d`; read the unpadded day from the date table.
             cell(util.label(mantle.clock, function(system)
                 return string.format("%s %d", os.date("%A, %B", system.time), os.date("*t", system.time).day)
             end), theme.DIM, theme.font.xl, { align = "center" }),

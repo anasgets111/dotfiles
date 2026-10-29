@@ -135,13 +135,12 @@ end
 
 -- `selected_path` if visible, else the applied file, else the first tile.
 local effective_selected = computed({ selected_path, current_path, filtered }, function(chosen, applied, entries)
-    entries = entries or {}
     return util.find({ chosen, applied }, function(path) return index_of(entries, path) > 0 end)
         or (entries[1] and entries[1].path) or ""
 end)
 
 local function move(delta)
-    local entries = filtered:get() or {}
+    local entries = filtered:get()
     if #entries == 0 then
         return
     end
@@ -153,7 +152,7 @@ end
 
 -- With no query, ring `applied` (default the applied file) and scroll to it; else the first match.
 local function reset_selection(applied)
-    local entries = filtered:get() or {}
+    local entries = filtered:get()
     local index = math.max(1, trimmed:get() == "" and index_of(entries, applied or current_path:get()) or 1)
     selected_path:set(entries[index] and entries[index].path or "")
     SCROLL:reveal(math.ceil(index / COLUMNS))

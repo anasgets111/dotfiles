@@ -75,7 +75,7 @@ local function status_line(updates, current, tool, dev)
     return "Up to date"
 end
 
-local function detail_line(updates, current, tool, dev)
+local function detail_line(updates, current, tool, dev, start)
     if current == "loading" then
         return ""
     elseif tool ~= "" then
@@ -91,8 +91,8 @@ local function detail_line(updates, current, tool, dev)
     end
     if current == "done" or current == "failed" then
         -- The reason heads the log, beside the output it came from.
-        local start = service.started_at:get()
-        local seconds = (dev.finished_at or updates.install_finished_at or os.time()) - start
+        -- A spawn failure has no finish time, so no duration.
+        local seconds = (dev.finished_at or updates.install_finished_at or 0) - start
         local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
             or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
         if current == "failed" then
@@ -405,7 +405,7 @@ local body = {
                 spacing = theme.spacing.sm,
                 align_v = "center",
                 children = {
-                    cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result }, detail_line, ""),
+                    cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result, service.started_at }, detail_line, ""),
                         status_color, theme.font.xs, { width = "fill", wrap = "word" }),
                     cell(computed({ mantle.updates, mantle.clock }, function(updates, clock)
                         return last_check_line(updates, clock.time)

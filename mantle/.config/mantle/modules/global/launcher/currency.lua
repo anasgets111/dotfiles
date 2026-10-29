@@ -1,6 +1,6 @@
 -- "50 usd to egp" becomes one row whose Enter copies the converted amount.
 --
--- The engine has no HTTP, so rates come from `curl` and decode in `exit_cb`, the only callback that
+-- The engine has no HTTP, so rates come from `curl` and decode in `on_exit`, the only callback that
 -- knows the body is complete. They are stored in `lib/store.lua`, so a restart inside the day
 -- reuses them, and staleness is checked on `mantle.clock`'s 1 Hz push, which a reload cannot drop.
 -- A query whose target has no rate claims nothing, so nothing shows before the first fetch.
@@ -14,12 +14,8 @@ local URL = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/cu
 
 local SYMBOLS = { ["$"] = "usd", ["€"] = "eur", ["£"] = "gbp", ["¥"] = "jpy", ["₹"] = "inr", ["₿"] = "btc" }
 
--- Three countries whose code is not their first two letters, and the cryptocurrencies that have
--- a sign instead of a flag.
+-- Cryptocurrencies have a sign instead of a flag.
 local FLAGS = {
-    eur = "eu",
-    gbp = "gb",
-    usd = "us",
     btc = "₿",
     eth = "Ξ",
     ltc = "Ł",
@@ -32,7 +28,7 @@ local FLAGS = {
     usdc = "₵",
 }
 
--- `(?:to|in|->|=>|=)`. Matched against a lowercased query, so the word forms need no case class.
+-- Matched against a lowercased query, so the word forms need no case class.
 -- The earliest match wins.
 local SEPARATORS = { "%s+to%s*", "%s+in%s*", "%s*%->%s*", "%s*=>%s*", "%s*=%s*" }
 
@@ -42,9 +38,8 @@ local function currency(token)
 end
 
 -- Every separator position, earliest first, until the tail reads as a currency. `in` also matches
--- inside `inr`, and the lazy group in the QML regex this ports backtracked for exactly that reason.
--- Stopping at the first match would split `100 inr to usd` into `100` and `r to usd`. An empty tail
--- passes because a trailing separator names no target and falls through to the default.
+-- inside `inr`, so stopping at the first match would split `100 inr to usd` into `100` and
+-- `r to usd`. An empty tail passes because a trailing separator names no target and falls through to the default.
 ---@return string|nil source, string|nil target
 local function split(text)
     for at = 1, #text do
@@ -103,7 +98,7 @@ local function updated_text(at, now)
     return ", updated " .. util.stamp(at, now)
 end
 
--- One request in flight. A reload kills a live one, and its `exit_cb(nil)` clears this guard.
+-- One request in flight. A reload kills a live one, and its `on_exit(nil)` clears this guard.
 local requesting = state("currency_fetching", false)
 -- A failure leaves `currency_updated_at` stale, so without a deadline the tick would curl every
 -- second for as long as the endpoint is down. `nil` is a reload's kill or a failed spawn: retry soon.

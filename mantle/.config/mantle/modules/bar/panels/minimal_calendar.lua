@@ -64,8 +64,7 @@ for column, name in ipairs(DAY_NAMES) do
 end
 
 -- A popup surface's size is explicit, so height follows row count: a five-week month is one
--- `DAY_SIDE` shorter than a six-week one. 1.2 is `renderer::text::shaping::LINE_HEIGHT_RATIO`, which
--- a fixed surface is the one place a config has to know.
+-- `DAY_SIDE` shorter than a six-week one. 1.2 is `text`'s default `line_height`.
 local function line_of(font_size)
     return math.ceil(font_size * 1.2)
 end

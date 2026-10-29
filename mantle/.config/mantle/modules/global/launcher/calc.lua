@@ -1,4 +1,4 @@
--- An arithmetic query becomes one row whose Enter copies the result, with JavaScript's arithmetic.
+-- An arithmetic query becomes one row whose Enter copies the result, in floating point.
 --
 -- `load` is guarded twice: the allowlist admits no identifier, and the empty `_ENV` leaves nothing
 -- to reach. `--` and `//` pass the allowlist but Lua reads them as a comment and floor division, so
@@ -9,7 +9,6 @@ local util = require("lib.util")
 
 local M = {}
 
--- `/^[\d\s+\-*/().,%^]+$/`, in the order that pattern lists them.
 local ALLOWED = "^[%d%s%+%-%*/%(%)%.,%%%^]+$"
 
 ---@param input string Already trimmed by the launcher.

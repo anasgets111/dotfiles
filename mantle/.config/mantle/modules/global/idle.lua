@@ -6,7 +6,6 @@
 local idle = require("lib.idle")
 local store = require("lib.store")
 local compositor = require("lib.compositor")
-local notification_state = require("lib.notification_state")
 
 -- Display power and keyboard backlight move together: a lit keyboard under a dark screen means
 -- blanking stopped halfway.
@@ -20,7 +19,6 @@ local function set_displays_powered(powered)
         return
     end
     idle.blanked:set(not powered)
-    notification_state.sync_notification_quiet()
     mantle.keyboard:set_backlight(powered and 100 or 0)
 end
 

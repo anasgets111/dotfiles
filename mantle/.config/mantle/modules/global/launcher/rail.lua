@@ -7,7 +7,7 @@ local util = require("lib.util")
 
 local M = {}
 
--- The Quickshell reference's timing. 31 steps keep each keyframe a whole 20 ms.
+-- 31 steps keep each keyframe a whole 20 ms.
 M.MS = 620
 local STEPS = 31
 

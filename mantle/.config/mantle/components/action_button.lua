@@ -24,7 +24,7 @@ local GROUND = {
 ---@param label string|Bound
 ---@param on_activate? fun() Absent on a `submits_secure` button, whose click is the field's Enter.
 ---@param slot string A `hover` slot unique to this button; two buttons sharing one light up together.
----@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, spinning?: Signal, submits_secure?: boolean }
+---@param opts? { icon?: string, glyph?: string|Bound, tone?: "accent"|"quiet"|"subtle"|"solid"|"danger", width?: integer|"fill", height?: integer, max_lines?: integer, visible?: boolean|Bound, disabled?: Signal, spinning?: boolean|Signal, submits_secure?: boolean }
 return function(label, on_activate, slot, opts)
     opts = opts or {}
     local ground = GROUND[opts.tone or "accent"]

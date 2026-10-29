@@ -34,6 +34,7 @@ local function sync(on)
     if not on then
         if child then
             child:kill()
+            child = nil
         end
         cava.levels:set(ZERO)
         return
@@ -41,7 +42,8 @@ local function sync(on)
     if child then
         return
     end
-    child = process.run("cava", { "-p", mantle.config_dir .. "/config/cava" }, function(line, stream)
+    local handle
+    handle = process.run("cava", { "-p", mantle.config_dir .. "/config/cava" }, function(line, stream)
         if stream == "stderr" then
             log.warn("cava:", line)
             return
@@ -57,6 +59,10 @@ local function sync(on)
             cava.levels:set(frame)
         end
     end, function(code)
+        -- A killed child exits after `sync` cleared or replaced it.
+        if child ~= handle then
+            return
+        end
         child = nil
         cava.levels:set(ZERO)
         -- `nil` is a kill or a failed spawn, which the engine logs; a nonzero exit retries.
@@ -65,6 +71,7 @@ local function sync(on)
             timer(RETRY_MS, function() sync(playing(mantle.mpris:get())) end)
         end
     end)
+    child = handle
 end
 
 mantle.mpris:on_change(function(mpris) sync(playing(mpris)) end)

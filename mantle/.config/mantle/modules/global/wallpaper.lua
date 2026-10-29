@@ -4,7 +4,7 @@
 local wallpaper = require("lib.wallpaper")
 local theme = require("config.theme")
 
--- Sigma for the overview's backdrop, close to the old Quickshell `MultiEffect` (0.6 of 64, x2).
+-- Sigma for the overview's backdrop, 0.6 of 64, x2.
 local OVERVIEW_BLUR = 32
 
 -- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it.

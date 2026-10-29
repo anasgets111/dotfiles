@@ -40,7 +40,7 @@ function pill.new(opts)
     --- One cell. `circle` fills it, so a cell narrowing to zero narrows its circle too.
     --- `shown` marks the circle the collapsed pill keeps.
     ---@param circle table
-    ---@param shown Signal<boolean>
+    ---@param shown boolean|Signal<boolean>
     function self.cell(circle, shown)
         circle.width = "fill"
         circle.height = "fill"

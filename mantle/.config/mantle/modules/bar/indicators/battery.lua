@@ -115,7 +115,7 @@ local battery_module = rect {
     border_color = theme.GLASS_BORDER,
     hover = hover(SLOT),
     -- A desktop's UPower `DisplayDevice` answers `present = false`, and a percentage pill reporting
-    -- no percentage is worse than none. `the map holds false until the first snapshot.
+    -- no percentage is worse than none. The map holds false until the first snapshot.
     visible = mantle.battery:map(function(battery)
         return battery.present
     end, false),

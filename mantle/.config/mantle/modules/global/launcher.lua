@@ -5,8 +5,7 @@
 -- and falls back to the first. Mouse and arrows move the same selection.
 --
 -- Search mode shows every app while the query is empty, then one row of app tiles above the first
--- provider to claim the query: currency, calculator, then web. Apps mode is the whole grid. Providers return plain tables because a
--- `computed` cannot carry a closure.
+-- provider to claim the query: currency, calculator, then web. Apps mode is the whole grid.
 -- Ranking, the web provider and the mode rail live in `launcher/`.
 local theme = require("config.theme")
 local icons = require("config.icons")
@@ -43,7 +42,6 @@ local PROMPTS = { search = "Search", apps = "Search apps", calc = "Enter an expr
 -- Special-row id in `selected_id`, not a desktop-file id; desktop-file ids never start with a space.
 local SPECIAL = " special"
 
--- The Quickshell reference's timings.
 local WEB_MS = 340
 local PANEL_MS = 210
 

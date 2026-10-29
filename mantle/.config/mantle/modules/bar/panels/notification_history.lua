@@ -132,7 +132,7 @@ local body = {
         subtitle = "Popups and sounds pause while an app captures the screen",
         trailing = toggle(store.notifications_dnd_while_sharing, function(on)
             return on ~= false
-        end, ui.set_dnd_while_sharing, "notifications-dnd-sharing"),
+        end, function(on) store:set("notifications_dnd_while_sharing", on) end, "notifications-dnd-sharing"),
     },
     list {
         width = "fill",

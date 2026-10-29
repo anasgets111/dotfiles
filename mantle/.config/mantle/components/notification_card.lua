@@ -332,12 +332,7 @@ return function(group, ui, opts)
             moving = ui.groups_animating,
         })
     else
-        stack = column {
-            width = "fill",
-            spacing = 0,
-            animate = { spacing = theme.animation_ms },
-            children = members,
-        }
+        stack = members[1]
     end
     children[#children + 1] = stack
 

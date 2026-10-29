@@ -1,5 +1,5 @@
--- Desktop entries ranked for a query, field by field as the Quickshell reference does. Joining
--- fields lets a query borrow letters from a long comment and return unrelated apps.
+-- Desktop entries ranked for a query, field by field: joining fields would let a query borrow
+-- letters from a long comment and return unrelated apps.
 local util = require("lib.util")
 
 local M = {}

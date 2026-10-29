@@ -39,9 +39,9 @@ function osd.show(kind, entry)
 end
 
 -- An off state greys the tile, so "Caps lock off" and "Caps lock on" differ before the words.
-local function toggle(kind, on, glyph_on, glyph_off, what)
+local function toggle(kind, on, what, glyph_on, glyph_off)
     osd.show(kind, {
-        glyph = on and glyph_on or glyph_off,
+        glyph = not on and glyph_off or glyph_on,
         text = what .. (on and " on" or " off"),
         color = not on and theme.DIM or nil,
     })
@@ -85,19 +85,19 @@ end)
 
 mantle.network:on_change(function(network, previous)
     if previous and network.networking_enabled ~= previous.networking_enabled then
-        toggle("networking", network.networking_enabled, icons.lan, icons.lan_off, "Networking")
+        toggle("networking", network.networking_enabled, "Networking", icons.lan, icons.lan_off)
     end
 end)
 
 mantle.bluetooth:on_change(function(bluetooth, previous)
     if previous and bluetooth.enabled ~= previous.enabled then
-        toggle("bluetooth", bluetooth.enabled, icons.bt_on, icons.bt_off, "Bluetooth")
+        toggle("bluetooth", bluetooth.enabled, "Bluetooth", icons.bt_on, icons.bt_off)
     end
 end)
 
 mantle.notifications:on_change(function(notifications, previous)
     if previous and notifications.dnd ~= previous.dnd then
-        toggle("dnd", notifications.dnd, icons.bell_off, icons.bell, "Do not disturb")
+        toggle("dnd", notifications.dnd, "Do not disturb", icons.bell_off, icons.bell)
     end
 end)
 
@@ -109,13 +109,13 @@ mantle.keyboard:on_change(function(keyboard, previous)
         osd.show("layout", { glyph = icons.keyboard, text = keyboard.active_layout })
     end
     if keyboard.caps_lock ~= previous.caps_lock then
-        toggle("locks", keyboard.caps_lock, icons.caps_lock, icons.caps_lock, "Caps lock")
+        toggle("locks", keyboard.caps_lock, "Caps lock", icons.caps_lock)
     end
     if keyboard.num_lock ~= previous.num_lock then
-        toggle("locks", keyboard.num_lock, icons.num_lock, icons.num_lock, "Num lock")
+        toggle("locks", keyboard.num_lock, "Num lock", icons.num_lock)
     end
     if keyboard.scroll_lock ~= previous.scroll_lock then
-        toggle("locks", keyboard.scroll_lock, icons.keyboard, icons.keyboard, "Scroll lock")
+        toggle("locks", keyboard.scroll_lock, "Scroll lock", icons.keyboard)
     end
     if keyboard.backlight_percent and keyboard.backlight_percent ~= previous.backlight_percent then
         percent_level("backlight", icons.keyboard, keyboard.backlight_percent)

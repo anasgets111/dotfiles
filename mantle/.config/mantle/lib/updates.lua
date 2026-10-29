@@ -127,10 +127,8 @@ local function toast(urgency, title, body, action)
         "-i", "system-software-update",
         "--replace-id", NOTIFICATION_ID,
     }
-    if not action then
-        return process.detach("notify-send", util.concat(args, { title, body }))
-    end
-    process.detach("notify-send", util.concat(args, { "-A", "run-updates=" .. action, title, body }))
+    local tail = action and { "-A", "run-updates=" .. action, title, body } or { title, body }
+    process.detach("notify-send", util.concat(args, tail))
 end
 
 -- ponytail: unbounded, unlike the Supervisor's 200-line tail. Cap it if a run ever prints thousands.

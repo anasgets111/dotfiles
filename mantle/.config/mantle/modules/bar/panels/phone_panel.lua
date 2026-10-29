@@ -24,11 +24,6 @@ local android = mantle.android_connect
 if not android then
     return { kind = "phone", typing = state("phone_command_adding", false) }
 end
--- `spinner` shows while its signal is true; every waiting row's spinner shares this always-on one.
-local SPINNING = android:map(function()
-    return true
-end, true)
-
 -- The pressed action's key (`"<id>:ring"`, `"search"`) while its feedback shows, one at a time.
 local flash = state("phone_flash", "")
 local flash_timer
@@ -237,7 +232,7 @@ local function actions_row(item)
     if device.mounted then
         files = button("unmount", "Unmount", icons.eject, function() android:unmount(id) end)
     elseif is("browse") then
-        files = button("browse", "Opening", nil, nil, SPINNING)
+        files = button("browse", "Opening", nil, nil, true)
     else
         files = button("browse", "Files", icons.folder_open, function()
             flash_for(id .. ":browse", 15000)
@@ -424,7 +419,7 @@ local function device_row(item)
         trailing[#trailing + 1] = glyph(item.open and icons.chevron_down or icons.chevron_right,
             theme.DIM, theme.icon.sm, { align_v = "center" })
         if device.reconnecting then
-            table.insert(trailing, 1, spinner(SPINNING, theme.icon.sm))
+            table.insert(trailing, 1, spinner(true, theme.icon.sm))
         end
         subtitle = device.reconnecting and "Reconnecting to apply the change"
             or device.browse_error and "Files: " .. device.browse_error
@@ -443,7 +438,7 @@ local function device_row(item)
     elseif device.pairing_sent then
         -- `unpair` withdraws the request; the daemon reports no rejection, so the engine lapses it at 30 s.
         subtitle = "Accept on the device"
-        trailing[#trailing + 1] = spinner(SPINNING, theme.icon.md)
+        trailing[#trailing + 1] = spinner(true, theme.icon.md)
         trailing[#trailing + 1] = panel_action_icon(icons.close, function()
             android:unpair(device.id)
         end, { slot = "phone-cancel-" .. device.id, tint = theme.RED })

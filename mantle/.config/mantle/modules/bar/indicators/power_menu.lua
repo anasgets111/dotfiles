@@ -179,10 +179,7 @@ local function slot(index)
                 end
             end
         end,
-    }, pill.expanded:map(function()
-        -- The collapsed index is the last slot: power off is the one circle at rest.
-        return index == SLOT_COUNT
-    end))
+    }, index == SLOT_COUNT) -- Power off, the last slot, is the one circle at rest.
 end
 
 local slots = {}

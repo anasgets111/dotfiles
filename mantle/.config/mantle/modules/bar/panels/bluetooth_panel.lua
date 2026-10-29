@@ -50,7 +50,8 @@ local function battery_badge(device)
         return nil
     end
     return info_badge(string.format("%d%%", level),
-        level <= 10 and theme.RED or level <= 20 and theme.YELLOW or theme.ACCENT,
+        level <= util.battery_thresholds.critical and theme.RED
+        or level <= util.battery_thresholds.low and theme.YELLOW or theme.ACCENT,
         { opacity = theme.opacity.strong })
 end
 
@@ -115,11 +116,6 @@ local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bl
     return out
 end, {})
 
--- `spinner` shows while its signal is true; every busy row's spinner shares this always-on one.
-local SPINNING = mantle.bluetooth:map(function()
-    return true
-end, true)
-
 -- One codec under its device; picking another switches to it and closes the list.
 local function codec_row(item)
     local option = item.option
@@ -160,7 +156,7 @@ local function device_row(item)
             leading = leading,
             title = display_name(device),
             subtitle = device.busy .. "…",
-            trailing = spinner(SPINNING, theme.icon.md),
+            trailing = spinner(true, theme.icon.md),
         }
     end
     local connected = item.status == "connected"

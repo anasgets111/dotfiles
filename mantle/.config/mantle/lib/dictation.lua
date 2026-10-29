@@ -54,9 +54,7 @@ local function sync_meter(on)
             frame[#frame + 1] = tonumber(digits) / 100
         end
         dictation.levels:set(frame)
-    end, function()
-        meter = nil
-    end)
+    end, function() end) -- `kill` after exit is a no-op, so `meter` needs no clearing.
 end
 
 dictation.phase:on_change(function(phase, previous)
