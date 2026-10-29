@@ -206,7 +206,4 @@ require("mason-lspconfig").setup({
     ensure_installed = lsp_server_names,
     automatic_enable = lsp_server_names,
 })
-local ok, sudo_write = pcall(require, "sudo_write")
-if ok and sudo_write and sudo_write.setup then
-    sudo_write.setup()
-end
+require("sudo_write").setup()
