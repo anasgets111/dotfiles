@@ -59,10 +59,13 @@ EXCLUDES=(
 
     # Cache directories
     '.cache'
+    '.debug'
     '.local/share/Trash'
     '.npm'
     '.nv'
+    '.bun/install/cache'
     '.local/share/cargo/registry'
+    '.local/share/cargo/git'
     '_cacache'
 
     # More cache patterns (within apps - keeps sessions/logins/settings)
@@ -90,8 +93,12 @@ EXCLUDES=(
     # Re-downloadable toolchains/runtimes (large, low-risk to exclude)
     '.local/share/containers/storage'
     '.local/share/zed/external_agents'
+    '.local/share/zed/languages'
     '.local/share/opencode/snapshot'
     '.gemini/tmp'
+
+    # Backups directory
+    'backups'
 
     # User content folders: keep the dir skeleton, skip contents (excluded by request)
     '/Desktop/**'
