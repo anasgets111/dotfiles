@@ -151,14 +151,15 @@ return panel {
     -- click there takes the keyboard and other windows give it back.
     keyboard_interactivity = computed(
         { network_join.credential_step, ui_state.panel_showing("notifications"), ui_state.panel_showing("phone"),
-            phone_panel.typing },
-        function(step, showing_notifications, showing_phone, typing)
+            phone_panel.typing, ui_state.panel_showing("audio") },
+        function(step, showing_notifications, showing_phone, typing, showing_audio)
             -- The sheet stays `exclusive`: this panel's click raised it and the catcher ends it. So does
             -- the phone's add-command form, whose name field takes keys as it opens.
             if step ~= "" or showing_phone and typing then
                 return "exclusive"
             end
-            return showing_notifications and "on_demand" or "none"
+            -- The audio sliders step on arrow keys once a click focuses one.
+            return (showing_notifications or showing_audio) and "on_demand" or "none"
         end
     ),
     -- Input follows drawn nodes, so a closed panel leaves only the bar and its corners clickable.

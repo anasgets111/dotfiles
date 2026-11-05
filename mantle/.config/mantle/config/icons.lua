@@ -37,6 +37,8 @@ icons.lan             = "\u{F0317}"
 icons.lan_off         = "\u{F0318}"
 icons.speaker         = "\u{F04C3}"
 icons.check           = "\u{F012C}"
+icons.auto            = "\u{F006A}" -- nf-md-autorenew, an app that follows the default device
+icons.make_default    = "\u{F043D}" -- nf-md-radiobox_blank, a device row's "make default"
 icons.mixer           = "\u{F04E1}"
 icons.music_note      = "\u{F075A}"
 -- The bar's media visualizers, for the panel button that switches to one.
@@ -55,6 +57,9 @@ icons.vol_zero        = "\u{F0581}"
 icons.vol_low         = "\u{F057F}"
 icons.vol_mid         = "\u{F0580}"
 icons.vol_high        = "\u{F057E}"
+-- The audio panel's microphone, Material like the volume glyphs beside it.
+icons.mic             = "\u{F036C}"
+icons.mic_muted       = "\u{F036D}"
 
 -- `wifi` runs 1..4, weakest to strongest.
 icons.wifi            = { "\u{F091F}", "\u{F0922}", "\u{F0925}", "\u{F0928}" }

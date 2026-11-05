@@ -21,7 +21,8 @@ end
 -- The microphone shows while active or muted, so a muted one stays reachable to unmute. Muted is
 -- peach with a struck-through glyph, live is red with the plain one.
 local mic_muted = mantle.audio:map(function(audio)
-    return audio.source_muted
+    local source = util.active_device(audio.sources)
+    return source ~= nil and source.muted
 end, false)
 local mic_shown = computed({ mantle.privacy, mic_muted }, function(privacy, muted)
     return users_of("microphone_users")(privacy) or muted
@@ -53,7 +54,10 @@ local indicator = row {
     children = {
         alert(icons.camera, "camera_users", "privacy_camera"),
         icon_button(util.choose(mic_muted, icons.mic_off, icons.mic_on), function()
-            mantle.audio:toggle_source_mute()
+            local source = util.active_device((mantle.audio:get() or {}).sources)
+            if source then
+                mantle.audio:toggle_mute(source.id)
+            end
         end, {
             slot = "privacy_microphone",
             background = util.choose(mic_muted, theme.PEACH, theme.RED),

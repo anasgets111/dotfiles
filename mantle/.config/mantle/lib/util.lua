@@ -1,6 +1,7 @@
 -- Shared helpers without UI nodes.
 local icons = require("config.icons")
 local theme = require("config.theme")
+local audio_config = require("config.audio")
 local util = {}
 
 local function try(read, value)
@@ -39,6 +40,16 @@ function util.find(items, predicate)
             return item
         end
     end
+end
+
+function util.filter(items, predicate)
+    local kept = {}
+    for _, item in ipairs(items or {}) do
+        if predicate(item) then
+            kept[#kept + 1] = item
+        end
+    end
+    return kept
 end
 
 function util.chunk(items, size)
@@ -140,10 +151,36 @@ local function noon(time)
 end
 util.today = mantle.clock:map(function(system) return noon(system.time) end, noon())
 
--- Strip redundant ALSA description words.
+-- An analog jack's name by port type, for outputs and inputs.
+local ANALOG_PORTS = {
+    output = { speaker = "Speakers", headphones = "Headphones", headset = "Headset", line = "Line out" },
+    input = { mic = "Built-in mic", headset = "Headset mic", line = "Line in" },
+}
+
+-- What a person calls an `AudioDevice`: the `config/audio.lua` label, a Bluetooth device's own
+-- name, "TV / Monitor" for HDMI, "Speakers" or "Headphones" for an analog jack, else its name
+-- without redundant ALSA words.
+-- ponytail: HDMI never names its display. PipeWire's routes here carry only `port.type`, the
+-- availability group and an icon name, and the engine passes no route info on. A monitor name from
+-- the ELD in `mantle.audio` is the upgrade.
 function util.device_name(device)
     if device == nil then
         return nil
+    end
+    local node = device.node_name or ""
+    local label = audio_config.names[node]
+    if label then
+        return label
+    elseif device.bus == "bluetooth" then
+        return device.name
+    elseif device.port == "hdmi" or device.port == "displayport" or node:find("%.hdmi%-") then
+        local extra = node:match("%-extra(%d+)$")
+        return "TV / Monitor" .. (extra and " " .. (tonumber(extra) + 1) or "")
+    end
+    local jack = node:find("analog") and device.port
+        and ANALOG_PORTS[node:match("^alsa_input") and "input" or "output"][device.port]
+    if jack then
+        return jack
     end
     local name = device.name or ""
     name = name:gsub("%s*[Hh]igh [Dd]efinition [Aa]udio [Cc]ontroller", ""):gsub("%s*H?D? ?[Aa]udio [Cc]ontroller", "")
@@ -153,8 +190,26 @@ function util.device_name(device)
     return name ~= "" and name or device.name
 end
 
+-- "Used by A", "Used by A and B" or "Used by A +2" for `PrivacyUser`s, `nil` for none.
+function util.used_by(users)
+    local count = #(users or {})
+    if count == 0 then
+        return nil
+    elseif count == 1 then
+        return "Used by " .. users[1].app_name
+    elseif count == 2 then
+        return string.format("Used by %s and %s", users[1].app_name, users[2].app_name)
+    end
+    return string.format("Used by %s +%d", users[1].app_name, count - 1)
+end
+
 function util.active_device(devices)
     return util.find(devices, function(device) return device.active end)
+end
+
+-- The default output, off a raw `AudioState` or `nil`.
+function util.default_sink(audio)
+    return util.active_device(audio and audio.sinks)
 end
 
 -- `util.audio_device_glyph`'s hints, strongest first: `{ field, pattern, glyph, input glyph? }`.
@@ -182,15 +237,16 @@ function util.audio_device_glyph(device, is_input)
     end
 end
 
--- Takes the raw audio payload, not a signal; callers choose when to read it.
--- Font glyphs let the OSD tint the volume icon.
+-- The default output's glyph. Takes the raw audio payload, not a signal; callers choose when to
+-- read it. Font glyphs let the OSD tint the volume icon.
 function util.volume_glyph(audio)
-    if audio == nil or audio.volume == nil then
+    local sink = util.default_sink(audio)
+    if sink == nil or sink.volume == nil then
         return "--"
-    elseif audio.muted then
+    elseif sink.muted then
         return icons.vol_muted
     end
-    local percent = audio.volume
+    local percent = sink.volume
     if percent < 1 then
         return icons.vol_zero
     elseif percent < 33 then

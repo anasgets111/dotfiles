@@ -17,8 +17,13 @@ local expanded = computed({ hovered, dragging }, function(is_hovered, is_draggin
     return is_hovered or is_dragging
 end)
 
+-- The default output, or an empty table before one exists.
+local function sink(audio)
+    return util.default_sink(audio) or {}
+end
+
 local function volume(audio)
-    return audio and audio.volume
+    return sink(audio).volume
 end
 
 -- Muted uses the content ground to say "this is off" without changing glyph colour.
@@ -26,26 +31,27 @@ local ground = computed({ mantle.audio, hovered }, function(audio, is_hovered)
     if is_hovered then
         return theme.GLASS_CONTROL_HOVER
     end
-    return audio.muted and theme.GLASS_CONTENT or theme.GLASS_CONTROL
+    return sink(audio).muted and theme.GLASS_CONTENT or theme.GLASS_CONTROL
 end, theme.GLASS_CONTROL)
 
 -- Muted makes the fill inactive, so 60% reads as a grey bar, not purple "loud".
 local fill = mantle.audio:map(function(audio)
-    return audio.muted and theme.INACTIVE or theme.ACCENT
+    return sink(audio).muted and theme.INACTIVE or theme.ACCENT
 end, theme.ACCENT)
 local headroom = mantle.audio:map(function(audio)
-    return audio.muted and theme.INACTIVE or theme.RED
+    return sink(audio).muted and theme.INACTIVE or theme.RED
 end, theme.RED)
 
 local width = util.choose(expanded, theme.volume_expanded_width, theme.item_width)
 local volume_glyph = mantle.audio:map(util.volume_glyph, util.volume_glyph())
 local readout = computed({ mantle.audio, held }, function(audio, pending)
-    if audio.volume == nil then
+    local output = sink(audio)
+    if output.volume == nil then
         return "--"
-    elseif audio.muted then
+    elseif output.muted then
         return "Muted"
     end
-    return string.format("%d%%", math.floor((pending >= 0 and pending or audio.volume) + 0.5))
+    return string.format("%d%%", math.floor((pending >= 0 and pending or output.volume) + 0.5))
 end, "--")
 
 local track = geometry("bar-volume")
@@ -60,9 +66,12 @@ return {
         signal = mantle.audio,
         read = volume,
         on_commit = function(value)
-            mantle.audio:set_volume(value)
-            -- After the level, so an unmute is never heard at the old one.
-            mantle.audio:set_muted(false)
+            local output = util.default_sink(mantle.audio:get())
+            if output then
+                mantle.audio:set_volume(output.id, value)
+                -- After the level, so an unmute is never heard at the old one.
+                mantle.audio:set_muted(output.id, false)
+            end
         end,
         max = util.MAX_VOLUME,
         steps = util.MAX_VOLUME / 5,
@@ -87,8 +96,9 @@ return {
             return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
         end),
         on_click = function(rect, mouse_button)
-            if mouse_button == "middle" then
-                mantle.audio:toggle_mute()
+            local output = util.default_sink(mantle.audio:get())
+            if mouse_button == "middle" and output then
+                mantle.audio:toggle_mute(output.id)
             elseif mouse_button == "right" then
                 ui_state.toggle_panel("audio", rect)
             end

@@ -1,4 +1,4 @@
--- A connected audio device's codecs come from `mantle.audio`'s `bluetooth`, joined by MAC.
+-- A connected audio device's codecs are its `mantle.audio` card's profiles, joined by MAC.
 -- Discovery runs while the panel shows (`lib/ui_state.lua`).
 local section_list = require("components.section_list")
 local theme = require("config.theme")
@@ -61,13 +61,18 @@ local function pair_button(device)
     end, "bluetooth-pair-" .. tostring(device.mac), { tone = "subtle", height = theme.control.sm })
 end
 
--- The `mantle.audio` entry for `mac`, or `nil` when PipeWire has no codec to offer for it.
+-- A card's profiles that name a codec and can be picked now.
+local function codecs(card)
+    return util.filter(card.profiles, function(profile) return profile.codec and profile.available end)
+end
+
+-- The `mantle.audio` card for `mac`, or `nil` when PipeWire has no codec to offer for it.
 local function codec_card(audio, mac)
-    return util.find(audio.bluetooth, function(card) return card.mac == mac and #card.codecs > 0 end)
+    return util.find(audio.cards, function(card) return card.mac == mac and #codecs(card) > 0 end)
 end
 
 local function active_codec(card)
-    local option = util.find(card and card.codecs, function(option) return option.index == card.active end)
+    local option = util.find(card and card.profiles, function(option) return option.index == card.active end)
     return option and option.codec
 end
 
@@ -98,7 +103,7 @@ local rows = computed({ mantle.bluetooth, mantle.audio, codec_for }, function(bl
                 key = "device-" .. tostring(device.mac)
             }
             if card and open_for == device.mac then
-                for _, option in ipairs(card.codecs) do
+                for _, option in ipairs(codecs(card)) do
                     out[#out + 1] = {
                         kind = "codec",
                         device = device,
@@ -128,7 +133,7 @@ local function codec_row(item)
         color = active and theme.ACCENT or nil,
         trailing = active and glyph(icons.check, theme.ACCENT, theme.icon.sm) or nil,
         on_activate = not active and function()
-            mantle.audio:set_bluetooth_profile(item.card.device, option.index)
+            mantle.audio:set_card_profile(item.card.device, option.index)
             codec_for:set("")
         end or nil,
     }

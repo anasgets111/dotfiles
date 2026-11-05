@@ -57,18 +57,18 @@ mantle.audio:on_change(function(audio, previous)
     if previous == nil then
         return
     end
-    local percent = audio.volume and math.floor(audio.volume + 0.5)
-    local was = previous.volume and math.floor(previous.volume + 0.5)
-    if percent and was and (audio.muted ~= previous.muted or percent ~= was) then
+    local sink, previous_sink = util.default_sink(audio), util.default_sink(previous)
+    local percent = sink and sink.volume and math.floor(sink.volume + 0.5)
+    local was = previous_sink and previous_sink.volume and math.floor(previous_sink.volume + 0.5)
+    if percent and was and (sink.muted ~= previous_sink.muted or percent ~= was) then
         -- Muted keeps the level and greys it: the volume is still set, only silenced.
         osd.show("volume", {
             glyph = util.volume_glyph(audio),
-            text = audio.muted and "Muted" or string.format("%d%%", percent),
+            text = sink.muted and "Muted" or string.format("%d%%", percent),
             level = percent / util.MAX_VOLUME * 100,
-            color = audio.muted and theme.DIM or theme.ACCENT,
+            color = sink.muted and theme.DIM or theme.ACCENT,
         })
     end
-    local sink, previous_sink = util.active_device(audio.sinks), util.active_device(previous.sinks)
     if sink and sink.name ~= (previous_sink and previous_sink.name) then
         osd.show("audio_device", {
             glyph = util.audio_device_glyph(sink, false) or icons.speaker,

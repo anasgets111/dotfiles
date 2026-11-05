@@ -16,6 +16,7 @@ local theme = require("config.theme")
 ---@field max? number The full track's value. Default `1`.
 ---@field steps? number How many positions the track has across `0` to `max`. A drag lands on the nearest one and a wheel notch moves one. Default `20 * max`, 5% steps; `0` is continuous.
 ---@field split_at? number The value past which the fill takes `headroom_color`. Default `max`.
+---@field origin? number Bipolar: the fill runs from this value to the current one, so the origin reads as neutral, and `marker` sits here. Ignores `split_at` and `headroom_color`.
 ---@field headroom_color? Color|Bound The fill past `split_at`. Default `theme.RED`.
 ---@field marker? boolean A 1px line at `split_at`.
 ---@field color? Color|Bound The fill. Default accent.
@@ -34,6 +35,7 @@ local theme = require("config.theme")
 ---@field dragging? StateSignal<boolean> True while a drag is held. Default `state(name .. "_dragging")`.
 ---@field visible? boolean|Bound
 ---@field on_click? fun(rect: Rect, button: "left"|"right"|"middle") The left click still lands after the drag ends.
+---@field accessible_name? string Makes the track keyboard focusable under this spoken name; Left and Down step down, Right and Up step up, as one wheel notch each.
 ---@field label? fun(ground: Color|Bound): Node Built on the track and again inside each bar, which clips its copy, so ink contrasts with the ground under each pixel. Give it `width = "fill"`; each copy fills a control-wide box.
 
 local function clamp(value, max)
@@ -54,6 +56,8 @@ local function value_of(read, payload, max)
         return clamp(value, max)
     end
 end
+
+local KEY_STEPS = { Left = -1, Down = -1, Right = 1, Up = 1 }
 
 -- Per name, since `list` rebuilds rows: `on_change` registers once, `timer` and wheel `rest` persist.
 local per_name = {}
@@ -108,6 +112,20 @@ return function(opts)
         end)
     end
 
+    -- `whole` positions up or down from the held or reported value.
+    local function step(whole)
+        local current = value_of(opts.read, opts.signal:get(), max)
+        if whole == 0 or current == nil then
+            return
+        end
+        local held = pending:get()
+        current = held >= 0 and held or current
+        -- Snap first: a 79% value from another mixer steps to 80% then 85%, not 84%.
+        local next_value = quantize(quantize(current, steps, max) + whole * max / steps, steps, max)
+        hold(next_value)
+        opts.on_commit(next_value)
+    end
+
     local fill = computed({ opts.signal, pending }, function(payload, held)
         if held >= 0 then
             return held
@@ -147,9 +165,19 @@ return function(opts)
             },
         }
     end
-    local split = opts.split_at or max
+    local split = opts.origin or opts.split_at or max
     local track = opts.background or theme.SURFACE
-    local children = {
+    local children = opts.origin and {
+        -- A gap from the left edge to the nearer end, then the fill out to the farther one.
+        row {
+            width = "fill",
+            height = "fill",
+            children = {
+                rect { width = fill:map(function(value) return percent(math.min(value, split)) end) },
+                bar(fill:map(function(value) return percent(math.abs(value - split)) end), opts.color or theme.ACCENT),
+            },
+        },
+    } or {
         -- Headroom under the fill, drawn only past `split`: the fill's rounded end caps it.
         bar(fill:map(function(value)
             return percent(value > split and value or 0)
@@ -157,15 +185,17 @@ return function(opts)
         bar(fill:map(function(value)
             return percent(math.min(value, split))
         end), opts.color or theme.ACCENT),
-        opts.marker and row {
+    }
+    if opts.marker then
+        children[#children + 1] = row {
             width = "fill",
             height = "fill",
             children = {
                 rect { width = percent(split) },
                 rect { width = 1, height = "fill", background = theme.with_opacity(theme.FG, theme.opacity.medium) },
             },
-        } or nil,
-    }
+        }
+    end
     -- Under the bars, which cover it with their own copies.
     if opts.label then
         table.insert(children, 1, opts.label(track))
@@ -202,24 +232,24 @@ return function(opts)
             opts.on_commit(value)
         end,
         on_wheel = function(_, notches)
-            local current = value_of(opts.read, opts.signal:get(), max)
-            if steps <= 0 or current == nil then
+            if steps <= 0 or value_of(opts.read, opts.signal:get(), max) == nil then
                 return
             end
             -- Touchpad fractions accumulate, reset on reversal; 1e-4 rounds f32 0.9999... up.
             local total = (entry.rest * notches < 0 and 0 or entry.rest) + notches
             local whole = math.modf(total + (total < 0 and -1e-4 or 1e-4))
             entry.rest = total - whole
-            if whole == 0 then
-                return
-            end
-            local held = pending:get()
-            current = held >= 0 and held or current
-            -- Snap first: a 79% value from another mixer steps to 80% then 85%, not 84%.
-            local next_value = quantize(quantize(current, steps, max) + whole * max / steps, steps, max)
-            hold(next_value)
-            opts.on_commit(next_value)
+            step(whole)
         end,
+        accessible_name = opts.accessible_name,
+        on_key = opts.accessible_name and function(key)
+            local direction = KEY_STEPS[key.name]
+            if direction == nil or steps <= 0 then
+                return false
+            end
+            step(direction)
+            return true
+        end or nil,
         children = children,
     }
 end

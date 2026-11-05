@@ -31,6 +31,9 @@ local bluetooth_pairing = require("modules.global.bluetooth_pairing")
 require("modules.global.power_events")
 require("modules.global.idle")
 require("lib.app_colours")
+-- Declared on every load, so a list emptied in `config/audio.lua` removes its devices.
+local audio_config = require("config.audio")
+mantle.audio:set_virtual_devices(audio_config.virtual_devices)
 
 local surfaces = {
     wallpaper.desktop,
