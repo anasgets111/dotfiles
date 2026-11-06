@@ -13,6 +13,7 @@ local slider = require("components.slider")
 local tooltip = require("components.tooltip")
 local rows = require("modules.bar.panels.audio.rows")
 local advanced = require("modules.bar.panels.audio.advanced")
+local ui_state = require("lib.ui_state")
 
 -- A profile switch makes its device a moment later; the device it makes becomes the default once.
 -- One pending switch at a time, dropped when its device arrives or after 5 s, so a device that
@@ -61,6 +62,9 @@ end
 ---@field headroom? boolean Up to `util.MAX_VOLUME`, the boost colour past a tick at 100%.
 ---@field chip? Node Before the readout.
 ---@field note? Bound A third line under the device name, hidden while `""`.
+
+-- The live peak bar under each slider: linear percent of full scale, independent of the volume.
+local METER_HEIGHT = 3
 
 ---@param opts AudioControlOpts
 local function audio_control(opts)
@@ -164,7 +168,8 @@ local function audio_control(opts)
     }
 
     local track = column {
-    width = "fill",
+        width = "fill",
+        spacing = theme.spacing.xs,
         margin = rows.TRACK_MARGIN,
         opacity = util.choose(is_muted, theme.opacity.muted, 1),
         animate = { opacity = theme.animation_ms },
@@ -189,6 +194,22 @@ local function audio_control(opts)
             headroom_color = util.choose(is_muted, theme.INACTIVE, theme.RED),
             height = theme.audio_slider_height,
             color = util.choose(is_muted, theme.INACTIVE, theme.ACCENT),
+        }, rect {
+            width = "fill",
+            height = METER_HEIGHT,
+            radius = METER_HEIGHT / 2,
+            background = theme.SURFACE,
+            children = { rect {
+                width = computed({ mantle.audio_levels, mantle.audio }, function(levels, audio)
+                    local id = active(audio).id
+                    local level = levels and util.find(levels.levels, function(found) return found.id == id end)
+                    return string.format("%d%%", math.floor((level and level.peak or 0) + 0.5))
+                end, "0%"),
+                height = "fill",
+                radius = METER_HEIGHT / 2,
+                background = util.choose(is_muted, theme.INACTIVE, theme.ACCENT),
+                animate = { width = 66 },
+            } },
         } },
     }
     -- The list opens under the slider, so the slider never moves.
@@ -242,6 +263,26 @@ local input, input_tooltip = audio_control {
         return util.used_by(privacy.microphone_users) or ""
     end, ""),
 }
+
+-- Meters run only while the audio panel is open, on the default output and input. The key changes
+-- when either default does; a reload keeps the old list, so it is sent once at load too.
+local metered = computed({ ui_state.panel_open, ui_state.panel_kind, mantle.audio }, function(open, kind, audio)
+    local ids = {}
+    for _, direction in ipairs(open and kind == "audio" and audio_lib.DIRECTIONS or {}) do
+        local device = util.active_device(audio[direction.devices])
+        ids[#ids + 1] = device and device.id or nil
+    end
+    return table.concat(ids, ",")
+end, "")
+local function meter(key)
+    local ids = {}
+    for id in key:gmatch("%d+") do
+        ids[#ids + 1] = tonumber(id)
+    end
+    mantle.audio:set_level_meters(ids)
+end
+metered:on_change(meter)
+meter(metered:get())
 
 return {
     output = output,
