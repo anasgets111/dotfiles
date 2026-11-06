@@ -2,6 +2,8 @@
 -- `levels.frame` counts frames so a shader can move with the music and stop with it.
 local cava = {}
 
+local idle = require("lib.idle")
+
 -- `config/cava` sets the same count; both `shaders/cava_*.frag` pack it four to a `vec4`.
 cava.BARS = 256
 local RETRY_MS = 3000
@@ -26,6 +28,11 @@ local function playing(mpris)
     return false
 end
 cava.playing = mantle.mpris:map(playing, false)
+
+-- Nothing shows the spectrum behind the lock or a blanked screen.
+local active = computed({ mantle.mpris, idle.blanked, mantle.lock }, function(mpris, blanked, lock)
+    return playing(mpris) and not blanked and not (lock ~= nil and lock.active)
+end, false)
 
 local child
 local frames = 0
@@ -68,13 +75,13 @@ local function sync(on)
         -- `nil` is a kill or a failed spawn, which the engine logs; a nonzero exit retries.
         if code ~= nil then
             log.warn("cava exited with", code)
-            timer(RETRY_MS, function() sync(playing(mantle.mpris:get())) end)
+            timer(RETRY_MS, function() sync(active:get()) end)
         end
     end)
     child = handle
 end
 
-mantle.mpris:on_change(function(mpris) sync(playing(mpris)) end)
-sync(playing(mantle.mpris:get()))
+active:on_change(sync)
+sync(active:get())
 
 return cava
