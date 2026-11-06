@@ -35,7 +35,7 @@ mantle.audio:on_change(function(audio)
     end
     local device = util.find(audio[want.devices], function(device)
         return device.card == want.card
-            and (want.suffix == nil or (device.node_name or ""):sub(-#want.suffix - 1) == "." .. want.suffix)
+            and (want.suffix == nil or (device.node_name or ""):sub(- #want.suffix - 1) == "." .. want.suffix)
     end)
     if device == nil then
         return
@@ -61,7 +61,7 @@ end
 ---@field title string
 ---@field headroom? boolean Up to `util.MAX_VOLUME`, the boost colour past a tick at 100%.
 ---@field chip? Node Before the readout.
----@field note? Bound A third line under the device name, hidden while `""`.
+---@field note? Signal<string> A third line under the device name, hidden while `""`.
 
 -- The live peak bar under each slider: linear percent of full scale, independent of the volume.
 local METER_HEIGHT = 3

@@ -6,8 +6,8 @@ local util = require("lib.util")
 local audio = {}
 
 audio.DIRECTIONS = {
-    { port = "output", devices = "sinks", part = "output", others = "Other outputs", is_input = false },
-    { port = "input", devices = "sources", part = "input", others = "Other inputs", is_input = true },
+    { port = "output", devices = "sinks",   part = "output", others = "Other outputs", is_input = false },
+    { port = "input",  devices = "sources", part = "input",  others = "Other inputs",  is_input = true },
 }
 
 -- The `output:` or `input:` part of a profile name, e.g. `hdmi-stereo-extra1`.
@@ -48,7 +48,7 @@ function audio.profile_label(profile)
         end
     end
     local cleaned = profile.description:gsub("%s*%+.*$", ""):gsub("%s+Output$", "")
-    return util.device_name({ name = cleaned })
+    return util.device_name({ name = cleaned }) or cleaned
 end
 
 -- What the output picker calls a profile, matching `util.device_name` on the sink it makes.

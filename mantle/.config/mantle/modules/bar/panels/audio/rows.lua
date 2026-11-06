@@ -16,17 +16,17 @@ local rows = {}
 -- and the row inset again. Sliders run between the two insets.
 local SPACE = theme.spacing.sm
 rows.GRID = {
-    pad = SPACE, -- card padding, as `panel_card` takes it
+    pad = SPACE,   -- card padding, as `panel_card` takes it
     inset = SPACE, -- a row's own left and right padding, `panel_row`'s
-    gap = SPACE, -- between columns, `panel_row`'s spacing
+    gap = SPACE,   -- between columns, `panel_row`'s spacing
     -- Puts the title on the panel header's title edge: tile `control.lg`, then `gap`.
     icon_column = theme.control.lg - 2 * SPACE,
-    icon = theme.icon.lg, -- glyphs and app icons alike, drawn from the column's left edge
-    option_icon = theme.icon.md, -- a picker option's lighter glyph, in the same column
+    icon = theme.icon.lg,          -- glyphs and app icons alike, drawn from the column's left edge
+    option_icon = theme.icon.md,   -- a picker option's lighter glyph, in the same column
     row_height = theme.control.md, -- every row's title block, cards' headers included
-    track_gap = theme.spacing.xs, -- from a row's title block down to its slider
+    track_gap = theme.spacing.xs,  -- from a row's title block down to its slider
     percent = theme.control.lg,
-    mute = theme.control.md, -- `panel_action_icon` at size `"md"`
+    mute = theme.control.md,       -- `panel_action_icon` at size `"md"`
     mute_icon = theme.icon.md,
     -- Optical sizes. The Mono face draws every glyph 0.6 em wide, but Material's microphone inks
     -- 0.82 em tall against the speaker's 0.59 em, with 1.3x the area (measured at 240 px).
@@ -103,7 +103,7 @@ end
 
 -- The subtitle that opens list `key` below its slider: "<name> ›", accent on hover. With one
 -- choice (`choosable` false) it is plain text that takes no click.
----@param opts { slot: string, key: string, label: string|Bound, choosable: boolean|Bound }
+---@param opts { slot: string, key: string, label: string|Bound, choosable: boolean|Signal<boolean> }
 function rows.picker_button(opts)
     local hovered = hover(opts.slot)
     local choosable = opts.choosable
@@ -119,6 +119,7 @@ function rows.picker_button(opts)
         on_click = function(_, mouse_button)
             local on = choosable
             if type(on) == "userdata" then
+                ---@cast on Signal<boolean>
                 on = on:get()
             end
             if mouse_button == "left" and on then
