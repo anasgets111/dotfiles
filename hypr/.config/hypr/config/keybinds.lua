@@ -82,7 +82,10 @@ local keybinds = {
     { mod .. " + H",                                     hl.dsp.exec_cmd("uwsm app -- heroic", { workspace = "6" }) },
     { mod .. " + G",                                     hl.dsp.exec_cmd("uwsm app -- steam", { workspace = "6" }) },
     { mod .. " + n",                                     hl.dsp.exec_cmd("say --clipboard") },
-    { mod .. " + CTRL + S",                              hl.dsp.exec_cmd("voxtype record toggle") },
+    { mod .. " + CTRL + S",                              hl.dsp.exec_cmd("hex dictation toggle") },
+    -- Hold to dictate: Hex's own shortcuts need the GlobalShortcuts portal, which fails to bind here.
+    { "Scroll_Lock",                                     hl.dsp.exec_cmd("hex dictation start") },
+    { "Scroll_Lock",                                     hl.dsp.exec_cmd("hex dictation stop"),                          { release = true } },
     { mod .. " + M",                                     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
 
     -- System and lock

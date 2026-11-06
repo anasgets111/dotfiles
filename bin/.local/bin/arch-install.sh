@@ -90,7 +90,7 @@ COMMON_EXTRA_PACKAGES=(
     omarchy-keyring shellcheck-bin yay bibata-cursor-theme fish-autopair qt6ct-kde
     nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git
     vesktop slack-desktop rustdesk-bin
-    claude-code piper-tts-git voxtype-bin
+    claude-code piper-tts-git hex-bin
     zen-browser-bin subliminal-git
     ttf-material-icons-git ttf-material-symbols-variable-git ttf-ms-fonts
 )
@@ -597,7 +597,7 @@ bootstrap_user_environment() {
         log_warning "backup-home restore failed; continuing."
     fi
 
-    systemctl --global enable podman.socket podman-restart.service
+    systemctl --global enable podman.socket podman-restart.service hex.service
 
     run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'

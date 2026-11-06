@@ -270,7 +270,7 @@ binds {
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
     Mod+S repeat=false { spawn "niri-stash" "slack"; }
-    Mod+Ctrl+S { spawn "voxtype" "record" "toggle"; }
+    Mod+Ctrl+S { spawn "hex" "dictation" "toggle"; }
     Mod+N { spawn "say" "--clipboard"; }
     Mod+T repeat=false { spawn "niri-stash" "telegram"; }
     Mod+D repeat=false { spawn "niri-stash" "vesktop"; }
