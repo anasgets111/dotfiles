@@ -37,9 +37,7 @@ local mixer_rows = computed({ mantle.audio, rows.open_picker }, function(audio, 
             key = "app-" .. app.id,
             height = rows.LEVEL_HEIGHT,
         }
-        -- ponytail: an app linked to the default device reads as following it, since a pin to that
-        -- same device looks identical; `apps[].pinned_to` from the engine tells them apart.
-        local follows = target == nil or target == default
+        local follows = app.pinned_to == nil
         if open then
             out[#out + 1] = {
                 kind = "target",
@@ -58,7 +56,7 @@ local mixer_rows = computed({ mantle.audio, rows.open_picker }, function(audio, 
                     title = util.device_name(device) or "?",
                     icon = util.audio_device_glyph(device, app.recording)
                         or (app.recording and icons.mic or icons.speaker),
-                    active = not follows and device.id == app.target,
+                    active = device.id == app.pinned_to,
                     key = "target-" .. app.id .. "-" .. device.id,
                     height = rows.OPTION_HEIGHT,
                 }

@@ -107,21 +107,17 @@ function audio.profile_choices(card)
 end
 
 -- Plugged ports of one direction that work under the active profile, which `set_port` requires.
--- ponytail: the current one is matched by `port.type`, since a device names its port's type, not
--- its index; two plugged ports of one type mark neither. An `active` port index fixes it.
-function audio.port_choices(state, card, direction)
+function audio.port_choices(card, direction)
     local ports = util.filter(card.ports, function(port)
         return port.direction == direction.port and port.available
             and util.find(port.profiles, function(index) return index == card.active end) ~= nil
     end)
-    local device = util.find(state[direction.devices], function(found) return found.card == card.device end)
-    local matches = util.filter(ports, function(port) return device ~= nil and port.type == device.port end)
     local choices = {}
     for _, port in ipairs(ports) do
         choices[#choices + 1] = {
             index = port.index,
             label = port.description,
-            active = #matches == 1 and port == matches[1],
+            active = port.active,
             available = true,
             icon = util.audio_device_glyph({ port = port.type }, direction.is_input)
                 or (direction.is_input and icons.mic or icons.speaker),

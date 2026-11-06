@@ -43,7 +43,7 @@ local card_rows = computed({ mantle.audio, card_for }, function(audio, open_for)
         local profiles = audio_lib.profile_choices(card)
         local ports = {}
         for _, direction in ipairs(audio_lib.DIRECTIONS) do
-            local choices = audio_lib.port_choices(audio, card, direction)
+            local choices = audio_lib.port_choices(card, direction)
             if #choices > 1 then
                 ports[#ports + 1] = { title = PORT_TITLES[direction.port], key = direction.port, choices = choices }
             end
