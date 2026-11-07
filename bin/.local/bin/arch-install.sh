@@ -635,6 +635,9 @@ SCRIPT
     rm -f -- "$sudoers_tmp"
     trap - EXIT
 
+    if [[ $HOSTNAME == Mentalist ]]; then
+        "$DOTS_DIR/bin/.local/bin/setup-cpu-power-limit" || log_warning "Failed to install CPU power limit service; continuing."
+    fi
     "$DOTS_DIR/bin/.local/bin/setup-reboot-required" || log_warning "Failed to install reboot-required hook; continuing."
 }
 

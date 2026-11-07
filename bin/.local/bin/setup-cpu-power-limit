@@ -6,9 +6,17 @@ quiet=${1:-15}
 balanced=${2:-25}
 performance=${3:-35}
 
+rapl_dir=/sys/class/powercap/intel-rapl-mmio:0
+profile=/sys/firmware/acpi/platform_profile
+[[ -w $rapl_dir/constraint_0_power_limit_uw && -r $rapl_dir/constraint_0_max_power_uw && -r $profile ]] || {
+    echo "CPU power limit or platform profile unavailable" >&2
+    exit 1
+}
+max_watts=$(($(<"$rapl_dir/constraint_0_max_power_uw") / 1000000))
+
 for watts in "$quiet" "$balanced" "$performance"; do
-    [[ $watts =~ ^[1-9][0-9]*$ ]] || {
-        echo "usage: ${0##*/} [quiet_watts] [balanced_watts] [performance_watts]" >&2
+    [[ $watts =~ ^[1-9][0-9]*$ && $watts -le $max_watts ]] || {
+        echo "usage: ${0##*/} [quiet_watts] [balanced_watts] [performance_watts] (max ${max_watts}W)" >&2
         exit 1
     }
 done
