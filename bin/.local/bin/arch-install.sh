@@ -55,17 +55,17 @@ COMMON_PACKAGES=(
     # Firmware / hardware
     bluez bluez-utils gnome-firmware i2c-tools lshw plymouth wireless-regdb zram-generator
     # Audio
-    espeak-ng pipewire-alsa pipewire-jack pipewire-pulse speech-dispatcher wireplumber sound-theme-freedesktop
+    espeak-ng pipewire-alsa pipewire-jack pipewire-pulse playerctl speech-dispatcher wireplumber sound-theme-freedesktop
     # System
-    gnome-keyring ly mkcert mold nautilus pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype
+    gnome-keyring kvantum ly mkcert mold nautilus pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype
     xdg-desktop-portal-gnome xdg-user-dirs qt5-wayland showmethekey cloudflared sshfs unixodbc
     # Shell
     bash-completion bat btop dysk expac eza fastfetch fd fish fnm fzf kitty starship tealdeer zoxide xsel
     # CLI
-    7zip curl ffmpegthumbnailer git git-filter-repo git-lfs inotify-tools jq
+    7zip curl ffmpegthumbnailer git git-filter-repo git-lfs github-cli inotify-tools jq
     less neovim rate-mirrors rsync sassc shfmt stow stylua tokei tree-sitter-cli unzip unrar wget zip
     # Dev
-    just openai-codex opencode podman rustup sccache yaak
+    just mdbook pnpm podman podman-compose podman-docker rustup sccache uv yaak
     # Apps
     gnome-calculator gnome-disk-utility gnome-text-editor kdeconnect
     mission-center nautilus-image-converter papers qbittorrent simple-scan
@@ -75,7 +75,7 @@ COMMON_PACKAGES=(
     adw-gtk-theme breeze tela-circle-icon-theme-dracula
     adobe-source-code-pro-fonts gnu-free-fonts inter-font noto-fonts-emoji noto-fonts-extra opendesktop-fonts
     otf-font-awesome terminus-font ttf-bitstream-vera ttf-cascadia-code-nerd ttf-fira-code ttf-firacode-nerd ttf-liberation
-    ttf-roboto-mono-nerd ttf-scheherazade-new ttf-jetbrains-mono-nerd
+    ttf-roboto ttf-roboto-mono-nerd ttf-scheherazade-new ttf-jetbrains-mono-nerd
 )
 NVIDIA_PACKAGES=(nvidia-open nvidia-settings libva-nvidia-driver lib32-nvidia-utils)
 INTEL_GPU_PACKAGES=(intel-media-driver vulkan-intel)
@@ -85,12 +85,15 @@ HYPRLAND_PACKAGES=(hyprland hyprpicker hyprshot slurp uwsm xdg-desktop-portal-hy
 WOLVERINE_PACKAGES=(gamemode lib32-gamemode mangohud steam solaar openrgb)
 MENTALIST_PACKAGES=(acpi_call pipewire-libcamera pipewire-v4l2)
 
+# AUR only
+AUR_PACKAGES=(ttf-lucide-font mantle-bin)
+
 # Chaotic-AUR / Omarchy (post-chroot)
 COMMON_EXTRA_PACKAGES=(
     omarchy-keyring shellcheck-bin yay bibata-cursor-theme fish-autopair qt6ct-kde
     nautilus-code-git xdg-terminal-exec-git gpu-screen-recorder-git
-    vesktop slack-desktop rustdesk-bin
-    claude-code piper-tts-git hex-bin
+    vesktop rustdesk-bin
+    piper-tts-git hex-bin t3code-bin
     zen-browser-bin subliminal-git
     ttf-material-icons-git ttf-material-symbols-variable-git ttf-ms-fonts
 )
@@ -599,12 +602,15 @@ bootstrap_user_environment() {
 
     systemctl --global enable podman.socket podman-restart.service hex.service
 
-    run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv \
+    run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv containers zed \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
 		# Without a real ~/.local, stow folds the whole dir into the repo and apps write their data there.
 		mkdir -p "$HOME/.local"
-		for pkg in fish kitty mantle nvim mpv hypr niri xdg-desktop-portal; do
+		xdg-user-dirs-update --set DOWNLOAD /mnt/Work/Downloads
+		xdg-user-dirs-update --set PROJECTS "$HOME"
+		xdg-user-dirs-update
+		for pkg in fish kitty mantle nvim mpv containers zed hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done
@@ -620,14 +626,12 @@ bootstrap_user_environment() {
 		done
 SCRIPT
 
-    # The backup restores a cargo-built mantle; only a system without one needs the package.
-    local aur_packages=(antigravity-cli)
-    [[ -x "/home/$USERNAME/.local/share/cargo/bin/mantle" ]] || aur_packages+=(mantle-bin)
+    # AUR packages; a cargo-built mantle in ~/.local/share/cargo/bin wins on PATH over mantle-bin.
     local sudoers_tmp=/etc/sudoers.d/99-installer-temp
     printf '%s\n' "$USERNAME ALL=(ALL) NOPASSWD: ALL" >"$sudoers_tmp"
     chmod 440 "$sudoers_tmp"
     trap 'rm -f -- "$sudoers_tmp"' EXIT
-    run_as_user "${aur_packages[@]}" <<<'yay -S --needed --noconfirm --removemake --cleanafter "$@"'
+    run_as_user "${AUR_PACKAGES[@]}" <<<'yay -S --needed --noconfirm --removemake --cleanafter "$@"'
     rm -f -- "$sudoers_tmp"
     trap - EXIT
 

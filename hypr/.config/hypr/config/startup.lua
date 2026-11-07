@@ -10,7 +10,6 @@ local startup_commands = {
     "uwsm app -- thunderbird",
     "uwsm app -- Telegram",
     "uwsm app -- vesktop",
-    "uwsm app -- slack",
     "uwsm app -- yerdd",
 }
 

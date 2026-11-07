@@ -63,7 +63,6 @@ local keybinds = {
     { mod .. " + SHIFT + S",                             hl.dsp.window.move({ workspace = "special:terminal" }) },
     { mod .. " + D",                                     hl.dsp.workspace.toggle_special("vesktop") },
     { mod .. " + T",                                     hl.dsp.workspace.toggle_special("telegram") },
-    { mod .. " + S",                                     hl.dsp.workspace.toggle_special("slack") },
 
     -- Cycle workspaces
     { { mod .. " + Tab", mod .. " + mouse_down" },       hl.dsp.focus({ workspace = "e+1" }) },
@@ -76,8 +75,7 @@ local keybinds = {
     { mod .. " + space",                                 hl.dsp.exec_cmd(menu) },
     { mod .. " + SHIFT + W",                             hl.dsp.exec_cmd("mantle toggle modal wallpaper_picker") },
     { mod .. " + CTRL + P",                              hl.dsp.exec_cmd("mantle toggle modal idle_settings") },
-    { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- cursor") },
-    { mod .. " + A",                                     hl.dsp.exec_cmd("uwsm app -- antigravity.sh") },
+    { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- t3code") },
     { mod .. " + Z",                                     hl.dsp.exec_cmd("uwsm app -- env WAYLAND_DISPLAY='' zeditor") },
     { mod .. " + H",                                     hl.dsp.exec_cmd("uwsm app -- heroic", { workspace = "6" }) },
     { mod .. " + G",                                     hl.dsp.exec_cmd("uwsm app -- steam", { workspace = "6" }) },

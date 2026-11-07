@@ -3,10 +3,10 @@ set -euo pipefail
 
 case ${1:-} in
     term)     re='^(kitty|(com\.mitchellh\.)?ghostty|alacritty|org\.wezfurlong\.wezterm|foot)$'; cmd=xdg-terminal-exec ;;
-    slack)    re='^(com\.slack\.)?slack$'; cmd=slack ;;
+    t3code)   re='^com\.t3tools\.T3Code$'; cmd=t3code ;;
     telegram) re='^org\.telegram\.desktop$'; exclude='^Media viewer$'; cmd=Telegram ;;
     vesktop)  re='^vesktop$'; cmd=vesktop ;;
-    *)        printf 'Usage: %s {term|slack|telegram|vesktop}\n' "$0" >&2; exit 1 ;;
+    *)        printf 'Usage: %s {term|t3code|telegram|vesktop}\n' "$0" >&2; exit 1 ;;
 esac
 
 exec 9>"${XDG_RUNTIME_DIR:?}/niri-stash-$1.lock"

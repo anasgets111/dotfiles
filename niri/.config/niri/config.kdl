@@ -88,7 +88,6 @@ spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-sh-at-startup "PATH=$HOME/.local/share/cargo/bin:$PATH exec kdeconnect-service"
 spawn-at-startup "zeditor"
 spawn-sh-at-startup "sleep 1 && zen-browser"
-spawn-at-startup "slack"
 spawn-at-startup "Telegram"
 spawn-at-startup "vesktop"
 spawn-at-startup "thunderbird"
@@ -121,7 +120,7 @@ window-rule {
     open-focused false
 }
 window-rule {
-    match at-startup=true app-id=r#"^(Slack|slack|com\.slack\.Slack|org\.telegram\.desktop|vesktop|kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$"#
+    match at-startup=true app-id=r#"^(org\.telegram\.desktop|vesktop|kitty|(com\.mitchellh\.)?ghostty|Alacritty|org\.wezfurlong\.wezterm|foot)$"#
     exclude app-id=r#"^org\.telegram\.desktop$"# title="^Media viewer$"
     open-on-workspace "stash"
 }
@@ -265,11 +264,10 @@ binds {
     Mod+Return repeat=false { spawn "niri-stash" "term"; }
     Mod+KP_Enter repeat=false { spawn "niri-stash" "term"; }
     Mod+Z { spawn "zeditor"; }
-    Mod+C { spawn "code"; }
+    Mod+C repeat=false { spawn "niri-stash" "t3code"; }
     Mod+E { spawn "nautilus"; }
     Mod+H { spawn "heroic"; }
     Mod+B { spawn "zen-browser"; }
-    Mod+S repeat=false { spawn "niri-stash" "slack"; }
     Mod+Ctrl+S { spawn "hex" "dictation" "toggle"; }
     Mod+N { spawn "say" "--clipboard"; }
     Mod+T repeat=false { spawn "niri-stash" "telegram"; }

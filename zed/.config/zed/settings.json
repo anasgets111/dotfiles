@@ -1,0 +1,203 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+{
+  // Core & Window
+  "diff_view_style": "split",
+  "auto_update": false,
+  "on_last_window_closed": "quit_app",
+  "when_closing_with_no_tabs": "keep_window_open",
+  "default_open_behavior": "new_window",
+  "cli_default_open_behavior": "new_window",
+  "window_decorations": "client",
+  "redact_private_values": false,
+  "telemetry": {
+    "diagnostics": true,
+    "metrics": true,
+    "anthropic_retention": false,
+  },
+  "session": {
+    "trust_all_worktrees": true,
+  },
+  // Theme & Typography
+  "theme": {
+    "mode": "system",
+    "light": "Mantle",
+    "dark": "Mantle",
+  },
+  "icon_theme": {
+    "mode": "system",
+    "light": "Material Icon Theme",
+    "dark": "Material Icon Theme",
+  },
+  "ui_font_family": "CaskaydiaCove Nerd Font",
+  "buffer_font_size": 15,
+  // Editor Behavior
+  "formatter": "language_server",
+  "format_on_save": "on",
+  "autosave": {
+    "after_delay": {
+      "milliseconds": 2000,
+    },
+  },
+  "inlay_hints": {
+    "enabled": true,
+  },
+  "indent_guides": {
+    "active_line_width": 4,
+    "background_coloring": "indent_aware",
+    "coloring": "indent_aware",
+  },
+  "colorize_brackets": true,
+  "middle_click_paste": false,
+  // UI Panels & Tabs
+  "tab_bar": {
+    "show_tab_bar_buttons": false,
+    "show_nav_history_buttons": false,
+  },
+  "toolbar": {
+    "code_actions": false,
+    "agent_review": false,
+    "selections_menu": false,
+    "quick_actions": false,
+    "breadcrumbs": false,
+  },
+  "project_panel": {
+    "dock": "left",
+    "git_status_indicator": true,
+    "indent_size": 21.0,
+  },
+  "outline_panel": {
+    "dock": "left",
+    "indent_size": 20.0,
+  },
+  // Terminal
+  "terminal": {
+    "toolbar": {
+      "breadcrumbs": false,
+    },
+    "blinking": "on",
+    "cursor_shape": "bar",
+    "font_family": "CaskaydiaCove Nerd Font Mono",
+  },
+  // Version Control
+  "git": {
+    "gutter_debounce": 1,
+    "inline_blame": {
+      "show_commit_summary": true,
+    },
+  },
+  "git_panel": {
+    "group_by": "staging",
+    "commit_title_max_length": 0,
+    "dock": "left",
+    "tree_view": true,
+  },
+  // AI Assistants
+  "agent": {
+    "tool_permissions": {
+      "default": "allow",
+      "tools": {}
+    },
+    "sandbox_permissions": {
+      "allow_unsandboxed": true
+    },
+    "default_model": {
+      "provider": "openrouter",
+      "model": "stealth/ox-alpha",
+      "enable_thinking": true
+    },
+    "dock": "right",
+    "commit_message_model": {
+      "provider": "openrouter",
+      "model": "meta-llama/llama-3.1-8b-instruct:free",
+    },
+    "model_parameters": [],
+  },
+  "agent_servers": {
+    "cursor": {
+      "default_config_options": {
+        "mode": "agent",
+        "fast": false,
+        "model": "default",
+      },
+      "type": "registry",
+    },
+    "claude-acp": {
+      "default_config_options": {
+        "effort": "default",
+        "fast": false,
+        "model": "default",
+        "mode": "bypassPermissions",
+      },
+      "type": "registry",
+    },
+  },
+  // Extensions
+  "auto_install_extensions": {
+    "blade": true,
+    "catppuccin": true,
+    "dockerfile": true,
+    "fish": true,
+    "html": true,
+    "ini": true,
+    "kdl": true,
+    "material-icon-theme": true,
+    "mcp-server-context7": true,
+    "php": true,
+    "log": true,
+    "qml": true,
+    "toml": true,
+    "vue": true,
+    "xml": true,
+    "lua": true,
+    "color-highlight": true,
+  },
+  // File Type Mappings
+  "file_types": {
+    "env": [
+      ".env",
+      ".env.*"
+    ]
+  },
+  // Language Overrides
+  "languages": {
+    "Blade": {
+      "language_servers": [
+        "phpantom_lsp",
+        "!intelephense",
+        "!phpactor",
+        "!phptools",
+        "...",
+      ],
+      "formatter": {
+        "external": {
+          "command": "bash",
+          "arguments": [
+            "-c",
+            "[ -x ./vendor/bin/pint ] && ./vendor/bin/pint --quiet --stdin-filename=\"{buffer_path}\" || cat",
+          ],
+        },
+      },
+    },
+    "PHP": {
+      "language_servers": [
+        "phpantom_lsp",
+        "!intelephense",
+        "!phpactor",
+        "!phptools",
+        "...",
+      ],
+      "formatter": {
+        "external": {
+          "command": "bash",
+          "arguments": [
+            "-c",
+            "[ -x ./vendor/bin/pint ] && ./vendor/bin/pint --quiet --stdin-filename=\"{buffer_path}\" || cat",
+          ],
+        },
+      },
+    },
+  },
+}

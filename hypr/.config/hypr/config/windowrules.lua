@@ -16,7 +16,6 @@ local lazy_apps = {
     ["3"]                = "zeditor",
     ["special:vesktop"]  = "vesktop",
     ["special:telegram"] = "Telegram",
-    ["special:slack"]    = "slack",
     ["special:terminal"] = "xdg-terminal-exec",
 }
 hl.on("workspace.created", function(workspace)
@@ -38,7 +37,6 @@ for workspace, classes in pairs({
     ["7 silent"]                = { [[org\.mozilla\.Thunderbird]] },
     ["special:telegram silent"] = { [[org\.telegram\.desktop]] },
     ["special:vesktop silent"]  = { "vesktop" },
-    ["special:slack silent"]    = { "slack" },
 }) do
     for _, class in ipairs(classes) do
         hl.window_rule({ match = { class = class }, workspace = workspace })
