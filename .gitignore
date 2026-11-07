@@ -19,5 +19,6 @@ kitty/.config/kitty/mantle-colours.conf
 niri/.config/niri/wallpaper-colours.kdl
 fish/.config/fish/themes/mantle.theme
 zed/.config/zed/themes/mantle.json
+btop/.config/btop/themes/mantle.theme
 # Claude Code binary symlink, managed by its installer
 bin/.local/bin/claude

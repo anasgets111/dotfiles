@@ -602,7 +602,7 @@ bootstrap_user_environment() {
 
     systemctl --global enable podman.socket podman-restart.service hex.service
 
-    run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv containers zed skills \
+    run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal btop kitty mantle fish nvim mpv containers zed skills \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
 		# Without a real ~/.local, stow folds the whole dir into the repo and apps write their data there.
@@ -610,7 +610,7 @@ bootstrap_user_environment() {
 		xdg-user-dirs-update --set DOWNLOAD /mnt/Work/Downloads
 		xdg-user-dirs-update --set PROJECTS "$HOME"
 		xdg-user-dirs-update
-		for pkg in fish kitty mantle nvim mpv containers zed hypr niri xdg-desktop-portal; do
+		for pkg in btop fish kitty mantle nvim mpv containers zed hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done

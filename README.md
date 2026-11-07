@@ -60,7 +60,7 @@ stow -t "$HOME" mantle hypr niri home config xdg-desktop-portal bin
 3. **Stow optional packages.**
 
 ```bash
-stow -t "$HOME" fish nvim kitty mpv                     # shell, editor, terminal, player
+stow -t "$HOME" fish nvim kitty mpv btop                # shell, editor, terminal, player, monitor
 stow -t "$HOME" ghostty alacritty foot wezterm nushell   # alternative terminals and shells
 stow -t "$HOME" skills                                     # global Codex skills
 ```
@@ -104,6 +104,7 @@ Core shortcuts. Full mappings live in [`keybinds.lua`](hypr/.config/hypr/config/
 | `fish/`, `nushell/`, `nvim/` | Shells and editor |
 | `kitty/`, `ghostty/`, `alacritty/`, `foot/`, `wezterm/` | Terminals |
 | `mpv/` | mpv config and scripts |
+| `btop/` | Resource monitor config; Mantle generates its theme |
 | `bin/` | Install, backup, and screenshot scripts |
 | `NixConfig/` | Inactive NixOS flake for an NVIDIA/Hyprland and an Intel/Niri machine |
 
