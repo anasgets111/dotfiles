@@ -4,6 +4,7 @@
 // documentation: https://zed.dev/docs/configuring-zed
 {
   // Core & Window
+  "disable_ai": true,
   "diff_view_style": "split",
   "auto_update": false,
   "on_last_window_closed": "quit_app",
