@@ -89,6 +89,7 @@ Core shortcuts. Full mappings live in [`keybinds.lua`](hypr/.config/hypr/config/
 | Startup apps | [`startup.lua`](hypr/.config/hypr/config/startup.lua), or `spawn-at-startup` in [`config.kdl`](niri/.config/niri/config.kdl). Niri requires an absolute path to `mantle` |
 | Wallpaper folder | `wallpaper.FOLDER` in [`lib/wallpaper.lua`](mantle/.config/mantle/lib/wallpaper.lua) |
 | Colours, sizes, fonts | [`config/theme.lua`](mantle/.config/mantle/config/theme.lua), `fonts` table in [`shell.lua`](mantle/.config/mantle/shell.lua) |
+| T3 Code colours | Mantle generates both appearances in `~/.t3/userdata/themes/mantle.json`; select once with `t3 theme set mantle`. T3 reloads changes live |
 | Update-panel tools | [`config/dev_tools.lua`](mantle/.config/mantle/config/dev_tools.lua) |
 | Editor stubs | `workspace.library` in [`.luarc.json`](.luarc.json), pointing at the engine's `lua-meta` |
 | Weather location | Derived from system timezone |

@@ -29,7 +29,8 @@ local SCHEMES = HOME .. "/.local/share/color-schemes/"
 -- `out` gets the rendered template; `reload` is detached when its bytes changed, so the shell
 -- reload this run ends in cannot kill it. `gtk4` asks for libadwaita's refresh. `compositor` writes
 -- only under that compositor, so the other's config directory is never created; both reload
--- included files themselves. GTK3 and Qt have their own writers below.
+-- included files themselves. `encode` gets the text, the other mode's text and `dark`, and returns
+-- what to write. GTK3 and Qt have their own writers below.
 local TARGETS = {
     { template = "gtk4.css",         out = "~/.config/gtk-4.0/gtk.css",                   gtk4 = true },
     { template = "gtk4-colours.css", out = "~/.config/gtk-4.0/mantle-colours.css",        gtk4 = true },
@@ -44,9 +45,18 @@ local TARGETS = {
         out = "~/.local/share/gtksourceview-5/styles/mantle.xml",
         reload = { "gsettings", { "set", "org.gnome.TextEditor", "style-scheme", "mantle" } },
     },
-    { template = "vesktop.css",   out = "~/.config/vesktop/themes/mantle.css" },
+    { template = "vesktop.css", out = "~/.config/vesktop/themes/mantle.css" },
     -- Zed reloads its themes directory live; its settings name `Mantle` for both modes.
-    { template = "zed.json",      out = "~/.config/zed/themes/mantle.json" },
+    { template = "zed.json",    out = "~/.config/zed/themes/mantle.json" },
+    -- T3 Code takes both modes in one file.
+    {
+        template = "t3code.json",
+        out = "~/.t3/userdata/themes/mantle.json",
+        encode = function(text, other, dark)
+            return json.encode { version = 1, name = "Mantle", appearance = dark and "dark" or "light",
+                colors = json.decode(text), variants = { [dark and "light" or "dark"] = json.decode(other) } }
+        end,
+    },
     -- Starship and fish re-read at the next prompt; fish through `conf.d/mantle_theme.fish`.
     { template = "starship.toml", out = "~/.config/starship.toml" },
     { template = "fish.theme",    out = "~/.config/fish/themes/mantle.theme" },
@@ -87,7 +97,7 @@ local function gsettings(schema, key, value, after)
         if current and current:match("^'(.*)'") == value then
             return after()
         end
-        process.capture("gsettings", { "set", schema, key, value }, function() after() end)
+        process.capture("gsettings", { "set", schema, key, value }, after)
     end)
 end
 
@@ -113,18 +123,17 @@ end
 local function alternate(in_use, path_of, text, write, done)
     local current = in_use and in_use:match("Mantle%-[AB]")
     local other = current == "Mantle-A" and "Mantle-B" or "Mantle-A"
-    local function switch()
-        write(other, function(ok) done(ok and other or nil) end)
-    end
-    if not current then
-        return switch()
-    end
-    file.read(path_of(current), function(old)
+    local function switch(old)
         if old == text then
             return done(current)
         end
+        write(other, function(ok) done(ok and other or nil) end)
+    end
+    if current then
+        file.read(path_of(current), switch)
+    else
         switch()
-    end)
+    end
 end
 
 -- GTK3 re-reads a theme only when its name changes. Each copy imports adw-gtk3 and replaces its named
@@ -152,10 +161,7 @@ local function write_gtk_theme(template, colours, roles, done)
                 { dir .. "/gtk-3.0/gtk.css",      gtk3 },
             }, written)
         end, function(name)
-            if not name then
-                return done()
-            end
-            gsettings(INTERFACE, "gtk-theme", name, done)
+            if name then gsettings(INTERFACE, "gtk-theme", name, done) else done() end
         end)
     end)
 end
@@ -180,17 +186,12 @@ local function write_qt_scheme(text, done)
                     updated = updated .. "\n[Appearance]\n" .. path .. "\ncustom_palette=true\nstyle=Breeze\n"
                 end
                 write_files({ { SCHEMES .. name .. ".colors", text }, { QT6CT, updated } }, written)
-            end, function() done() end)
+            end, done)
     end)
 end
 
--- One run at a time, so an older run's writes never land after a newer one's. A change during a run
--- waits for it: the shell-file write reloads the shell, whose fresh `sync` sees it, or `finish` re-syncs.
-local running, rerun = false, false
-local sync
-
--- `record` is the Lua table `config/wallpaper_colours.lua` returns, so the shell rebuilds the same roles.
-local function apply(roles, dark, record, compositor)
+-- The templates' roles beyond Material's.
+local function derive(roles, dark)
     -- kitty's black and white swap on light so prompts stay readable.
     roles.ansi_black = dark and roles.surface_container_highest or roles.on_surface_variant
     roles.ansi_white = dark and roles.on_surface_variant or roles.surface_container_highest
@@ -217,25 +218,20 @@ local function apply(roles, dark, record, compositor)
     -- Discord's button text is white in both modes, so its fill sits at tone 40.
     local accent = palette.hct(roles.primary)
     roles.brand_fill = palette.from_hct { hue = accent.hue, chroma = accent.chroma, tone = 40 }
+    return roles
+end
+
+-- One run at a time; completion rechecks inputs unless the shell-file write reloads the shell.
+local running = false
+local sync
+
+-- `roles_for(dark)` gives either mode's Material roles. `record` is the Lua table
+-- `config/wallpaper_colours.lua` returns, so the shell rebuilds the same roles.
+local function apply(roles_for, dark, record, compositor)
+    local roles = derive(roles_for(dark), dark)
     running = true
     -- Plus the GTK theme and the Qt scheme.
     local pending, gtk4_changed = #TARGETS + 2, false
-    -- Last, since this write reloads the shell and drops every callback still pending.
-    local function finish()
-        file.write(mantle.config_dir .. "/config/wallpaper_colours.lua",
-            "-- Generated by lib/app_colours.lua.\nreturn " .. record .. "\n", nil,
-            function(changed)
-                -- Changed reloads the shell, whose fresh `sync` sees anything that moved meanwhile.
-                if changed then
-                    return
-                end
-                running = false
-                if rerun then
-                    rerun = false
-                    sync()
-                end
-            end)
-    end
     local function settle()
         pending = pending - 1
         if pending > 0 then
@@ -245,7 +241,14 @@ local function apply(roles, dark, record, compositor)
             if gtk4_changed then
                 process.detach("sh", { "-c", LIBADWAITA_REFRESH })
             end
-            finish()
+            file.write(mantle.config_dir .. "/config/wallpaper_colours.lua",
+                "-- Generated by lib/app_colours.lua.\nreturn " .. record .. "\n", nil,
+                function(changed)
+                    if not changed then
+                        running = false
+                        sync()
+                    end
+                end)
         end)
     end
     local function with_template(name, use)
@@ -262,11 +265,15 @@ local function apply(roles, dark, record, compositor)
     end)
     with_template("mantle.colors", function(template) write_qt_scheme(render(template, roles), settle) end)
     for _, target in ipairs(TARGETS) do
-        if target.compositor ~= nil and target.compositor ~= compositor then
+        if target.compositor and target.compositor ~= compositor then
             settle()
         else
             with_template(target.template, function(template)
-                file.write(target.out, render(template, roles), nil, function(written, write_error)
+                local text = render(template, roles)
+                if target.encode then
+                    text = target.encode(text, render(template, derive(roles_for(not dark), not dark)), dark)
+                end
+                file.write(target.out, text, nil, function(written, write_error)
                     if write_error then
                         log.warn("app colours:", write_error)
                     elseif written then
@@ -286,10 +293,16 @@ local function first_path(screens)
     return wallpaper.path_in(store.wallpapers:get(), screens[1].name, mantle.folders:get())
 end
 
+-- The colour source, its preset if it is one, and that preset's flavour for the current mode.
+local function current_source()
+    local source = store.colour_source:get() or "wallpaper"
+    local preset = presets[source]
+    return source, preset, preset and preset[store.colour_scheme:get() == "light" and "light" or "dark"]
+end
+
 local last, quantizing
 function sync()
     if running then
-        rerun = true
         return
     end
     local screens, workspaces = mantle.screens:get(), mantle.workspaces:get()
@@ -298,8 +311,7 @@ function sync()
     end
     local path, dark, variant = first_path(screens), store.colour_scheme:get() ~= "light", store.colour_style:get()
     local contrast = store.colour_contrast:get() or 0
-    local source = store.colour_source:get() or "wallpaper"
-    local preset = presets[source]
+    local source, preset, flavour = current_source()
     local chosen = (store[preset and "colour_preset_accents" or "colour_accents"]:get() or {})
         [preset and source or path]
     -- The compositor is part of the key: its border file waits until `workspaces` names it.
@@ -315,7 +327,6 @@ function sync()
         quantizing:cancel()
     end
     if preset then
-        local flavour = preset[dark and "dark" or "light"]
         local accent = flavour[chosen] and chosen or preset.default_accent
         -- A colour repeated across slots is one swatch.
         local candidates = {}
@@ -326,7 +337,7 @@ function sync()
         end
         app_colours.candidates:set(candidates)
         app_colours.seed:set(flavour[accent])
-        return apply(theme.preset_roles(source, dark, accent), dark,
+        return apply(function(mode) return theme.preset_roles(source, mode, accent) end, dark,
             string.format("{ preset = %q, accent = %q, dark = %s }", source, accent, dark), compositor)
     end
     local function start(candidates)
@@ -335,7 +346,7 @@ function sync()
         local style = palette.hct(seed).chroma < 5 and "monochrome" or variant
         app_colours.candidates:set(candidates)
         app_colours.seed:set(seed)
-        apply(theme.roles(seed, dark, style, contrast), dark,
+        apply(function(mode) return theme.roles(seed, mode, style, contrast) end, dark,
             string.format("{ seed = %q, dark = %s, variant = %q, contrast = %s }", seed, dark, style, contrast),
             compositor)
     end
@@ -370,10 +381,9 @@ end)
 ---The next run picks it up.
 ---@param seed string
 function app_colours.set_accent(seed)
-    local source, screens = store.colour_source:get() or "wallpaper", mantle.screens:get()
-    local preset = presets[source]
+    local source, preset, flavour = current_source()
+    local screens = mantle.screens:get()
     if preset then
-        local flavour = preset[store.colour_scheme:get() == "light" and "light" or "dark"]
         local name = util.find(PRESET_ACCENTS, function(accent) return flavour[accent] == seed end)
         if name then
             store:set("colour_preset_accents", util.with(store.colour_preset_accents:get() or {}, source, name))
