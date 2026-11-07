@@ -14,7 +14,7 @@ local pending = state("power_pending", "")
 local deadline = state("power_deadline", 0)
 
 local seconds_left = computed({ mantle.clock, deadline }, function(system, at)
-    return math.max(0, at - system.monotonic)
+    return math.max(0, at - ((system and system.monotonic) or 0))
 end, 0)
 
 -- In order. `logout` is the compositor's own exit, so it goes through `lib.compositor`; reboot

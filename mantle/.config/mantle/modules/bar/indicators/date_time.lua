@@ -20,6 +20,9 @@ local SLOT = "clock"
 -- weather reading leads once there is one; `weather.code` holds `-1` until then.
 local clock = cell(util.bold(computed({ mantle.clock, weather.code, weather.temperature },
     function(system, code, celsius)
+        if not system or not system.time then
+            return ""
+        end
         local shown = os.date("%a %d %b  %I:%M %p", system.time)
         if code >= 0 then
             shown = string.format("%d°C %s %s", celsius, weather.info(code).icon, shown)
@@ -56,7 +59,7 @@ local clock_tooltip = tooltip({
             }
         end), theme.TOOLTIP_FG, theme.font.sm, { width = "fill", align = "center" }),
         cell(computed({ weather.updated_at, mantle.clock }, function(at, system)
-            local ago = weather.time_ago(at, system.time)
+            local ago = system and system.time and weather.time_ago(at, system.time) or ""
             return ago ~= "" and ("Last updated " .. ago) or ""
         end, ""), theme.DIM, theme.font.xs, { width = "fill", align = "center" }),
         cell(util.label(mantle.clock, function(system)

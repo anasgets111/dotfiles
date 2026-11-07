@@ -61,7 +61,7 @@ return row {
         align_v = "center",
         hover = hover(MEDIA_SLOT),
         on_hover = function(is_hovered)
-            ui_state.set_media_hover("trigger", is_hovered)
+            media_panel.set_hover("trigger", is_hovered)
             if is_hovered and playback_available:get()
                 and (not ui_state.panel_open:get() or ui_state.panel_kind:get() == media_panel.kind) then
                 ui_state.open_panel(media_panel.kind, hover_rect(MEDIA_SLOT):get())

@@ -9,18 +9,17 @@ local network_panel = require("modules.bar.panels.network_panel")
 
 local SLOT = "network"
 local network_colour = mantle.network:map(function(network)
-    if not network.connected then
+    if not network or not network.connected then
         return theme.TEXT_OFF
     end
     return select(2, util.band_of(util.active_access_point(network)))
 end, theme.TEXT_OFF)
 local band = mantle.network:map(function(network)
-    return (util.band_of(util.active_access_point(network))) or ""
+    return (network and util.band_of(util.active_access_point(network))) or ""
 end, "")
 
 local function open(rect)
     ui_state.toggle_panel(network_panel.kind, rect)
-    network_panel.scan_while_open()
 end
 
 local network_module = icon_button(mantle.network:map(util.network_glyph, util.network_glyph()), nil, {
@@ -34,8 +33,8 @@ local network_module = icon_button(mantle.network:map(util.network_glyph, util.n
     badge_translate = band:map(function(label)
         return { x = label == "2.4" and -2 * theme.spacing.xs or -theme.spacing.xs, y = -theme.spacing.xs }
     end),
-    visible = mantle.network:map(function()
-        return true
+    visible = mantle.network:map(function(network)
+        return network ~= nil
     end, false),
 })
 

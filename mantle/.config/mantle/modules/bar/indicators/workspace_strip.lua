@@ -50,7 +50,6 @@ local function workspaces_of(workspaces)
     return padded
 end
 
--- The glyph a circle without an app icon shows.
 local function glyph_of(workspace)
     return workspace.number and tostring(workspace.number) or (workspace.name or ""):sub(1, 2)
 end

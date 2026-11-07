@@ -13,6 +13,8 @@ local store = require("lib.store")
 local timeline_section = require("modules.global.idle_settings.timeline")
 local util = require("lib.util")
 
+local KIND = "idle_settings"
+
 local settings = idle.settings
 local running = computed({ settings, idle.inhibited }, function(resolved, held)
     return resolved.enabled and not held
@@ -47,7 +49,7 @@ local header = panel_header {
     subtitle_size = theme.font.sm,
     active = running,
     on_close = function()
-        ui_state.close_modal("idle_settings")
+        ui_state.close_modal(KIND)
     end,
 }
 
@@ -57,7 +59,7 @@ local PROFILES = { "ac", "battery" }
 local picked = state("idle_profile_picked", "")
 local dragging = state("idle_stage_drag", {})
 local stage_bounds = geometry("idle-settings-stages")
-ui_state.on_modal_close("idle_settings", function()
+ui_state.on_modal_close(KIND, function()
     picked:set("")
     dragging:set({})
 end)
@@ -180,7 +182,7 @@ local function stage_row(item)
         if phase == "end" then
             dragging:set({})
             local y = rect.y + pointer.y
-            if ui_state.active_modal:get() == "idle_settings" and pointer.x >= 0 and pointer.x < rect.width
+            if ui_state.active_modal:get() == KIND and pointer.x >= 0 and pointer.x < rect.width
                 and y >= bounds.y and y < bounds.y + bounds.height then
                 idle.move(item.key, target - drag.index)
             end
@@ -284,7 +286,7 @@ body.scroll = body_scroll
 body.animate = { scroll = theme.scroll_ease }
 
 return modal({
-    kind = "idle_settings",
+    kind = KIND,
     reset_on_close = { body_scroll },
     card = panel_card({ header, body }, {
         width = theme.idle_modal_width,

@@ -18,12 +18,16 @@ local panel_toggle_card = require("components.panel_toggle_card")
 local segmented = require("components.segmented")
 local disclosure = require("lib.disclosure")
 local input = require("components.input")
+local ui_state = require("lib.ui_state")
 
+local KIND = "phone"
 local android = mantle.android_connect
--- A binary older than `android_connect`: `panel_host` still lists the kind and reads `typing`.
-if not android then
-    return { kind = "phone", typing = state("phone_command_adding", false) }
-end
+
+ui_state.panel_showing(KIND):on_change(function(showing)
+    if showing then
+        android:broadcast()
+    end
+end)
 -- The pressed action's key (`"<id>:ring"`, `"search"`) while its feedback shows, one at a time.
 local flash = state("phone_flash", "")
 local flash_timer
@@ -558,4 +562,10 @@ android:on_change(function(state, previous)
     end
 end)
 
-return { kind = "phone", body = body, linked = linked, typing = adding }
+return {
+    kind = KIND,
+    body = body,
+    linked = linked,
+    -- Exclusive while the add-command form shows: its name field takes keys as it opens.
+    keyboard = adding:map(function(typing) return typing and "exclusive" or "none" end),
+}

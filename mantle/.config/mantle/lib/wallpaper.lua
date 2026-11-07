@@ -17,7 +17,7 @@ wallpaper.FITS = {
 wallpaper.SHADER_FOLDER = mantle.config_dir .. "/shaders"
 -- Only `wallpaper_<name>.frag` is a transition; the folder also holds the launcher's shader.
 local SHADER_PREFIX = "wallpaper_"
-wallpaper.NO_SHADER = "fade"
+local NO_SHADER = "fade"
 
 local function random_center()
     return { center_x = math.random(), center_y = math.random(), softness = 0.1 }
@@ -40,18 +40,18 @@ local RANDOM_PARAMS = {
 
 -- Built-in transition first, followed by discovered wallpaper shaders.
 wallpaper.effects = mantle.folders:map(function(files)
-    local names = { wallpaper.NO_SHADER }
+    local names = { NO_SHADER }
     ---@type Folder?
-    local folder = files.watched[wallpaper.SHADER_FOLDER]
+    local folder = files and files.watched and files.watched[wallpaper.SHADER_FOLDER]
     for _, entry in ipairs(folder and folder.entries or {}) do
         names[#names + 1] = entry.name:match("^" .. SHADER_PREFIX .. "(.+)%.frag$")
     end
     return names
-end, { wallpaper.NO_SHADER })
+end, { NO_SHADER })
 
 -- The stored effect if the folder still holds it, else the built-in.
 wallpaper.effect = computed({ store.wallpaper_transition, wallpaper.effects }, function(stored, names)
-    return util.find(names, function(name) return name == stored end) or wallpaper.NO_SHADER
+    return util.find(names, function(name) return name == stored end) or NO_SHADER
 end)
 
 function wallpaper.set_effect(name)
@@ -66,7 +66,7 @@ function wallpaper.transition()
     return computed({ wallpaper.effect, store.wallpapers }, function(effect)
         -- Not `in_out_cubic`: 99.6% done at t=0.9, so its last 150ms stalls.
         local spec = { duration = 1500, easing = "in_out_sine" }
-        if effect ~= wallpaper.NO_SHADER then
+        if effect ~= NO_SHADER then
             local params = RANDOM_PARAMS[effect]
             spec.shader = wallpaper.SHADER_FOLDER .. "/" .. SHADER_PREFIX .. effect .. ".frag"
             spec.params = params and params() or nil

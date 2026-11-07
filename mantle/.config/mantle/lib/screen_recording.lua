@@ -58,9 +58,11 @@ end)
 
 -- The default output: only the focused monitor carries `focused_workspace`.
 local monitor = mantle.workspaces:map(function(workspaces)
-    for _, out in ipairs(workspaces.outputs) do
-        if out.focused_workspace ~= nil then
-            return out.name
+    if workspaces and workspaces.outputs then
+        for _, out in ipairs(workspaces.outputs) do
+            if out.focused_workspace ~= nil then
+                return out.name
+            end
         end
     end
     return ""
@@ -131,7 +133,8 @@ end
 local elapsed_text = computed(
     { mantle.clock, began_at, paused_total, paused_at, recording },
     function(system, began, banked, open_since, up)
-        return up and format_elapsed(elapsed_of(system.monotonic, began, banked, open_since)) or ""
+        return up and system and system.monotonic and
+            format_elapsed(elapsed_of(system.monotonic, began, banked, open_since)) or ""
     end,
     ""
 )

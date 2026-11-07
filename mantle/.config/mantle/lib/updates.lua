@@ -43,7 +43,7 @@ end
 -- A finished run's result is on screen. Tools after an install are part of its run.
 local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
     function(updates, is_dismissed, tool, dev)
-        return not is_dismissed and tool == "" and not updates.installing and
+        return not is_dismissed and tool == "" and updates ~= nil and not updates.installing and
             (install_ended(updates) or dev.finished_at ~= nil)
     end, false)
 
@@ -54,7 +54,7 @@ end
 
 -- With `aur = true`, installs run through the helper when one exists.
 local function manager(updates)
-    return updates.aur_helper or "pacman"
+    return (updates and updates.aur_helper) or "pacman"
 end
 
 -- A manager killed by a signal publishes no exit code, which is a failure.
@@ -66,6 +66,9 @@ end
 -- after an install are `running` too, since the manager has exited but the run has not. A failed
 -- check with a stale list is `pending`: the list still shows.
 local phase = computed({ mantle.updates, result_showing, dev_running }, function(updates, showing, tool)
+    if updates == nil then
+        return "loading"
+    end
     if updates.installing or tool ~= "" then
         return "running"
     elseif showing then

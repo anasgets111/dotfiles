@@ -11,6 +11,7 @@ local GROUND = {
 
 -- Dialogs use shader lighting; `glass = true` enables it without dialog padding or compositor blur.
 return function(children, opts)
+    opts = opts or {}
     local tone = opts.tone or "standard"
     local dialog = tone == "dialog" or nil
     local glass = opts.glass or dialog

@@ -1,18 +1,21 @@
 -- Output and Microphone cards, each with one device picker, then app streams and a collapsed
 -- Advanced section. The sections live in `modules/bar/panels/audio/`.
-local util = require("lib.util")
+local theme = require("config.theme")
+local audio_lib = require("lib.audio")
 local panel_header = require("components.panel_header")
 local panel_empty_state = require("components.panel_empty_state")
 local picker = require("modules.bar.panels.audio.picker")
 local mixer = require("modules.bar.panels.audio.mixer")
 local advanced = require("modules.bar.panels.audio.advanced")
 
+local KIND = "audio"
+
 local body = {
     panel_header {
         title = "Audio",
-        icon = mantle.audio:map(util.volume_glyph, util.volume_glyph()),
+        icon = mantle.audio:map(audio_lib.volume_glyph, audio_lib.volume_glyph()),
         active = mantle.audio:map(function(audio)
-            local sink = util.default_sink(audio)
+            local sink = audio_lib.default_sink(audio)
             return sink ~= nil and sink.volume ~= nil and not sink.muted
         end, false),
         -- The cards below name the device and level; the header says only what plays.
@@ -30,8 +33,9 @@ local body = {
 }
 
 return {
-    kind = "audio",
+    kind = KIND,
+    width = theme.audio_panel_width,
+    keyboard = "on_demand",
     body = body,
-    output_tooltip = picker.tooltips[1],
-    input_tooltip = picker.tooltips[2],
+    tooltips = picker.tooltips,
 }

@@ -2,6 +2,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
+local audio_lib = require("lib.audio")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
 local panel_action_icon = require("components.panel_action_icon")
@@ -69,7 +70,6 @@ function rows.glyph(content, color, size)
     return glyph(content, color or theme.FG, scaled(size or G.icon, content), { align = "start", align_v = "center" })
 end
 
--- The struck glyph while muted, on outputs and inputs alike.
 function rows.mute_glyph(muted, is_input)
     if is_input then
         return muted and icons.mic_muted or icons.mic
@@ -177,7 +177,7 @@ end
 ---@field set_volume fun(value: number)
 ---@field set_muted fun(muted: boolean)
 ---@field is_input? boolean Microphone mute glyphs.
----@field headroom? boolean Up to `util.MAX_VOLUME`, the boost colour past a tick at 100%.
+---@field headroom? boolean Up to `audio_lib.MAX_VOLUME`, the boost colour past a tick at 100%.
 ---@field badge? Node Before the readout.
 
 -- A stream or device: its row, then its track. Muted dims both.
@@ -186,7 +186,7 @@ function rows.level_row(opts)
     local level = opts.level
     local tint = level.muted and theme.DIM or theme.FG
     local held = state("audio_pending_" .. opts.key, -1)
-    local max = opts.headroom and util.MAX_VOLUME or 100
+    local max = opts.headroom and audio_lib.MAX_VOLUME or 100
     local dimmed = (level.muted or level.volume == nil) and theme.opacity.muted or nil
     local picker = opts.picker
     return column {

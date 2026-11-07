@@ -15,7 +15,6 @@ local STAGGER         = 90
 -- Keep the lock until the card's exit finishes, plus scheduling slack.
 local LEAVE_SLACK     = 60
 mantle.lock:set_unlock_animation(theme.animation_slow_ms + LEAVE_SLACK)
-
 util.auto_english_layout(mantle.lock)
 
 -- The subtree survives unlock; both entry and exit need an explicit target.

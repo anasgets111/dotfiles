@@ -21,7 +21,7 @@ local idle = {}
 idle.TICK = 1
 
 -- Default stage order. `options` is in seconds.
-idle.STAGES = {
+local STAGES = {
     {
         key = "dpms",
         title = "Turn off displays",
@@ -60,7 +60,7 @@ idle.STAGES = {
 --- @param key string
 --- @return table?
 function idle.stage(key)
-    return util.find(idle.STAGES, function(stage) return stage.key == key end)
+    return util.find(STAGES, function(stage) return stage.key == key end)
 end
 
 -- Profile fallbacks; `idle.read` spells out the shared keys' own. `lib/store.lua` seeds `idle = {}`,
@@ -82,7 +82,7 @@ local function resolve_order(stored)
             out[#out + 1] = key
         end
     end
-    for _, stage in ipairs(idle.STAGES) do
+    for _, stage in ipairs(STAGES) do
         if not seen[stage.key] then
             out[#out + 1] = stage.key
         end
@@ -183,7 +183,7 @@ idle.manual = state("idle_manual", false)
 
 --- Whether a logind inhibitor is out in our name. Not derived from [`idle.reasons`]: the calls are
 --- counted, and a wrong count leaks one.
-idle.holding = state("idle_holding", false)
+local holding = state("idle_holding", false)
 
 --- `"ac"` or `"battery"` for a `mantle.power` payload.
 function idle.profile_of(power)
@@ -207,7 +207,7 @@ local PRIVACY_REASONS = { { "camera_users", "camera" }, { "microphone_users", "m
 --- @param settings table the result of [`idle.read`]
 --- @param manual boolean
 --- @return string[]
-function idle.own_reasons(privacy, settings, manual)
+local function own_reasons(privacy, settings, manual)
     local reasons = {}
     if manual then
         reasons[#reasons + 1] = "manual"
@@ -227,14 +227,14 @@ end
 
 --- The compositor's last hold has not been confirmed since input resumed.
 idle.stale = mantle.idle:map(function(foreign)
-    return foreign.compositor_hold_stale == true
+    return foreign ~= nil and foreign.compositor_hold_stale == true
 end, false)
 
 --- Everything currently named as holding the session awake, ours and foreign.
 idle.reasons = computed({ mantle.privacy, idle.settings, idle.manual, mantle.idle },
     function(privacy, settings, manual, foreign)
-        local reasons = idle.own_reasons(privacy, settings, manual)
-        for _, inhibitor in ipairs(foreign.inhibitors or {}) do
+        local reasons = own_reasons(privacy, settings, manual)
+        for _, inhibitor in ipairs((foreign and foreign.inhibitors) or {}) do
             -- `who` is empty through xdg-desktop-portal, so `why` ("Playing video") is the only label.
             reasons[#reasons + 1] = inhibitor.who ~= "" and inhibitor.who
                 or inhibitor.why ~= "" and inhibitor.why
@@ -268,7 +268,7 @@ end
 --- Anything holding the session awake, unnamed holders included: `inhibited` is the authoritative
 --- `BlockInhibited` gate, so an unreadable `who` still stops the countdown.
 idle.inhibited = computed({ idle.reasons, mantle.idle }, function(reasons, foreign)
-    return #reasons > 0 or foreign.inhibited == true
+    return #reasons > 0 or (foreign ~= nil and foreign.inhibited == true)
 end, false)
 
 --- Make the logind hold match the reasons. One writer, called by everything that can change the
@@ -276,12 +276,12 @@ end, false)
 function idle.sync_inhibit()
     -- Our hold is excluded from `mantle.idle.inhibitors`, so readback cannot mistake it for a foreign
     -- one and skip acquiring.
-    local reasons = idle.own_reasons(mantle.privacy:get(), idle.read(store.idle:get()), idle.manual:get())
+    local reasons = own_reasons(mantle.privacy:get(), idle.read(store.idle:get()), idle.manual:get())
     local want = #reasons > 0
-    if want == idle.holding:get() then
+    if want == holding:get() then
         return
     end
-    idle.holding:set(want)
+    holding:set(want)
     if want then
         mantle.idle:inhibit(table.concat(reasons, " + "))
     else
@@ -316,7 +316,7 @@ function idle.plan(settings, profile)
     return { list = list, total = from }
 end
 
---- Currently armed stage from `plan`, or `nil`: the first one not yet [`done`](idle.STAGES). A stage
+--- Currently armed stage from `plan`, or `nil`: the first one not yet `done`. A stage
 --- without `done` ends the chain. Recomputed every tick, so an unlock disarms the rest by itself.
 --- @param plan table the result of [`idle.plan`]
 --- @return table? one entry of `plan.list`
@@ -357,8 +357,9 @@ idle.schedule = computed({ idle.settings, idle.active_profile }, idle.plan)
 --- Armed stage and elapsed time from the stamp `modules/global/idle.lua` writes. No stage is
 --- `{ key = "", elapsed = 0 }`.
 idle.arming = computed({ mantle.clock, idle.armed_at }, function(system, stamps)
+    local now = (system and system.monotonic) or 0
     for key, at in pairs(stamps or {}) do
-        return { key = key, elapsed = math.max(0, system.monotonic - at) }
+        return { key = key, elapsed = math.max(0, now - at) }
     end
     return { key = "", elapsed = 0 }
 end, { key = "", elapsed = 0 })
@@ -368,7 +369,8 @@ idle.elapsed = computed({ mantle.clock, idle.since }, function(system, since)
     if since == 0 then
         return 0
     end
-    return math.max(0, system.monotonic - since)
+    local now = (system and system.monotonic) or 0
+    return math.max(0, now - since)
 end, 0)
 
 return idle

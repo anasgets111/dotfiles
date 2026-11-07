@@ -308,7 +308,7 @@ return function(group, ui, opts)
         local notification = items[index]
         local age = in_history and notifications.absolute_time(notification.timestamp)
             or mantle.clock:map(function(system)
-                return notifications.age(system.time, notification.timestamp)
+                return system and system.time and notifications.age(system.time, notification.timestamp) or ""
             end, "")
         members[#members + 1] = message(notification, ui, {
             scope = scope,

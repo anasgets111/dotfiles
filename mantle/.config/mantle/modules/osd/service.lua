@@ -4,7 +4,7 @@
 -- keeps the charger edge's brightness step from replacing "charger connected".
 local theme = require("config.theme")
 local icons = require("config.icons")
-local util = require("lib.util")
+local audio_lib = require("lib.audio")
 
 local osd = {}
 
@@ -57,22 +57,22 @@ mantle.audio:on_change(function(audio, previous)
     if previous == nil then
         return
     end
-    local sink, previous_sink = util.default_sink(audio), util.default_sink(previous)
+    local sink, previous_sink = audio_lib.default_sink(audio), audio_lib.default_sink(previous)
     local percent = sink and sink.volume and math.floor(sink.volume + 0.5)
     local was = previous_sink and previous_sink.volume and math.floor(previous_sink.volume + 0.5)
     if percent and was and (sink.muted ~= previous_sink.muted or percent ~= was) then
         -- Muted keeps the level and greys it: the volume is still set, only silenced.
         osd.show("volume", {
-            glyph = util.volume_glyph(audio),
+            glyph = audio_lib.volume_glyph(audio),
             text = sink.muted and "Muted" or string.format("%d%%", percent),
-            level = percent / util.MAX_VOLUME * 100,
+            level = percent / audio_lib.MAX_VOLUME * 100,
             color = sink.muted and theme.DIM or theme.ACCENT,
         })
     end
     if sink and sink.name ~= (previous_sink and previous_sink.name) then
         osd.show("audio_device", {
-            glyph = util.audio_device_glyph(sink, false) or icons.speaker,
-            text = util.device_name(sink),
+            glyph = audio_lib.audio_device_glyph(sink, false) or icons.speaker,
+            text = audio_lib.device_name(sink),
         })
     end
 end)

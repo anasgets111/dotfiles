@@ -1,7 +1,6 @@
 -- Shared helpers without UI nodes.
 local icons = require("config.icons")
 local theme = require("config.theme")
-local audio_config = require("config.audio")
 local util = {}
 
 local function try(read, value)
@@ -141,121 +140,12 @@ function util.app_icon(entry)
     end, "")
 end
 
--- The engine's `set_volume` clamp, in percent.
-util.MAX_VOLUME = 150
-
 -- Noon today: it changes once a day, so a reader re-resolves at midnight, not on each clock tick.
 local function noon(time)
     local now = os.date("*t", time)
     return os.time({ year = now.year, month = now.month, day = now.day, hour = 12 })
 end
 util.today = mantle.clock:map(function(system) return noon(system.time) end, noon())
-
--- An analog jack's name by port type, for outputs and inputs.
-local ANALOG_PORTS = {
-    output = { speaker = "Speakers", headphones = "Headphones", headset = "Headset", line = "Line out" },
-    input = { mic = "Built-in mic", headset = "Headset mic", line = "Line in" },
-}
-
--- What a person calls an `AudioDevice`: the `config/audio.lua` label, a Bluetooth device's own
--- name, "TV / Monitor" for HDMI, "Speakers" or "Headphones" for an analog jack, else its name
--- without redundant ALSA words.
--- ponytail: HDMI never names its display. PipeWire's routes here carry only `port.type`, the
--- availability group and an icon name, and the engine passes no route info on. A monitor name from
--- the ELD in `mantle.audio` is the upgrade.
-function util.device_name(device)
-    if device == nil then
-        return nil
-    end
-    local node = device.node_name or ""
-    local label = audio_config.names[node]
-    if label then
-        return label
-    elseif device.bus == "bluetooth" then
-        return device.name
-    elseif device.port == "hdmi" or device.port == "displayport" or node:find("%.hdmi%-") then
-        local extra = node:match("%-extra(%d+)$")
-        return "TV / Monitor" .. (extra and " " .. (tonumber(extra) + 1) or "")
-    end
-    local jack = node:find("analog") and device.port
-        and ANALOG_PORTS[node:match("^alsa_input") and "input" or "output"][device.port]
-    if jack then
-        return jack
-    end
-    local name = device.name or ""
-    name = name:gsub("%s*[Hh]igh [Dd]efinition [Aa]udio [Cc]ontroller", ""):gsub("%s*H?D? ?[Aa]udio [Cc]ontroller", "")
-    name = name:gsub("%s*[Dd]igital [Ss]tereo", ""):gsub("%s*[Aa]nalog [Ss]tereo", "")
-    name = name:gsub("%s*%(HDMI%)", " HDMI"):gsub("%s*%(S/PDIF%)", " S/PDIF"):gsub("%s*%(IEC958%)", " S/PDIF")
-    name = name:gsub("%s+", " "):match("^%s*(.-)%s*$")
-    return name ~= "" and name or device.name
-end
-
--- "Used by A", "Used by A and B" or "Used by A +2" for `PrivacyUser`s, `nil` for none.
-function util.used_by(users)
-    local count = #(users or {})
-    if count == 0 then
-        return nil
-    elseif count == 1 then
-        return "Used by " .. users[1].app_name
-    elseif count == 2 then
-        return string.format("Used by %s and %s", users[1].app_name, users[2].app_name)
-    end
-    return string.format("Used by %s +%d", users[1].app_name, count - 1)
-end
-
-function util.active_device(devices)
-    return util.find(devices, function(device) return device.active end)
-end
-
--- The default output, off a raw `AudioState` or `nil`.
-function util.default_sink(audio)
-    return util.active_device(audio and audio.sinks)
-end
-
--- `util.audio_device_glyph`'s hints, strongest first: `{ field, pattern, glyph, input glyph? }`.
-local AUDIO_DEVICE_HINTS = {
-    { "port",        "headset",     "headset" },
-    { "port",        "headphones",  "headphones" },
-    { "port",        "hdmi",        "television" },
-    { "port",        "displayport", "television" },
-    { "form_factor", "headset",     "headset" },
-    { "form_factor", "hands%-free", "headset" },
-    { "form_factor", "headphone",   "headphones", "headset" },
-    { "form_factor", "tv",          "television" },
-    { "form_factor", "webcam",      "webcam" },
-    { "form_factor", "handset",     "phone" },
-    { "bus",         "usb",         "usb" },
-}
-
--- Glyph for an `AudioDevice`, or `nil` when nothing names one; callers supply the fallback.
-function util.audio_device_glyph(device, is_input)
-    for _, hint in ipairs(AUDIO_DEVICE_HINTS) do
-        local value = device and device[hint[1]]
-        if value and value:find(hint[2]) then
-            return icons[is_input and hint[4] or hint[3]]
-        end
-    end
-end
-
--- The default output's glyph. Takes the raw audio payload, not a signal; callers choose when to
--- read it. Font glyphs let the OSD tint the volume icon.
-function util.volume_glyph(audio)
-    local sink = util.default_sink(audio)
-    if sink == nil or sink.volume == nil then
-        return "--"
-    elseif sink.muted then
-        return icons.vol_muted
-    end
-    local percent = sink.volume
-    if percent < 1 then
-        return icons.vol_zero
-    elseif percent < 33 then
-        return icons.vol_low
-    elseif percent < 66 then
-        return icons.vol_mid
-    end
-    return icons.vol_high
-end
 
 function util.network_glyph(network)
     if network == nil then
@@ -316,7 +206,8 @@ end
 ---@param network NetworkState?
 ---@return AccessPointInfo? # The associated access point, or `nil`.
 function util.active_access_point(network)
-    return util.active_device(util.primary_wifi(network).available_networks)
+    local wifi = util.primary_wifi(network)
+    return util.find(wifi.available_networks or {}, function(ap) return ap.active end)
 end
 
 -- Shared tooltip ownership: leaving one button must not clear another button's hover.

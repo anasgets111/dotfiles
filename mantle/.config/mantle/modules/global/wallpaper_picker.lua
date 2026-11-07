@@ -22,6 +22,7 @@ local store = require("lib.store")
 local app_colours = require("lib.app_colours")
 local presets = require("config.colour_presets")
 
+local KIND = "wallpaper_picker"
 local SCROLL = scroll("wallpaper_grid")
 local COLUMNS = theme.wallpaper_columns
 -- `"all"` is the "All displays" option; no connector has that name.
@@ -159,7 +160,7 @@ local function reset_selection(applied)
 end
 
 local function close()
-    ui_state.close_modal("wallpaper_picker")
+    ui_state.close_modal(KIND)
 end
 
 local function apply(path)
@@ -490,7 +491,7 @@ local body = row {
 }
 
 return modal({
-    kind = "wallpaper_picker",
+    kind = KIND,
     reset_on_close = { SCROLL },
     card = panel_card({ search, body }, {
         width = theme.wallpaper_picker_width,

@@ -5,12 +5,12 @@ local util = require("lib.util")
 local ui_state = require("lib.ui_state")
 local scrim = require("components.scrim")
 
-local modals = {
-    require("modules.global.launcher"),
-    require("modules.global.wallpaper_picker"),
-    require("modules.global.idle_settings"),
-    (require("modules.global.rescue_details")),
-}
+local launcher = require("modules.global.launcher")
+local wallpaper_picker = require("modules.global.wallpaper_picker")
+local idle_settings = require("modules.global.idle_settings")
+local rescue_details = require("modules.global.rescue_details")
+
+local modals = { launcher, wallpaper_picker, idle_settings, rescue_details }
 
 local any_modal = ui_state.active_modal:map(function(kind)
     return kind ~= ""

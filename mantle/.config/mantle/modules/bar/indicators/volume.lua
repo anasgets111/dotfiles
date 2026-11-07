@@ -3,6 +3,8 @@
 -- appears at once, because `visible` is not a property a tween carries.
 local theme = require("config.theme")
 local util = require("lib.util")
+local audio_lib = require("lib.audio")
+local audio_panel = require("modules.bar.panels.audio_panel")
 local ui_state = require("lib.ui_state")
 local cell = require("components.cell")
 local glyph = require("components.glyph")
@@ -19,7 +21,7 @@ end)
 
 -- The default output, or an empty table before one exists.
 local function sink(audio)
-    return util.default_sink(audio) or {}
+    return audio_lib.default_sink(audio) or {}
 end
 
 local function volume(audio)
@@ -43,7 +45,7 @@ local headroom = mantle.audio:map(function(audio)
 end, theme.RED)
 
 local width = util.choose(expanded, theme.volume_expanded_width, theme.item_width)
-local volume_glyph = mantle.audio:map(util.volume_glyph, util.volume_glyph())
+local volume_glyph = mantle.audio:map(audio_lib.volume_glyph, audio_lib.volume_glyph())
 local readout = computed({ mantle.audio, held }, function(audio, pending)
     local output = sink(audio)
     if output.volume == nil then
@@ -66,15 +68,15 @@ return {
         signal = mantle.audio,
         read = volume,
         on_commit = function(value)
-            local output = util.default_sink(mantle.audio:get())
+            local output = audio_lib.default_sink(mantle.audio:get())
             if output then
                 mantle.audio:set_volume(output.id, value)
                 -- After the level, so an unmute is never heard at the old one.
                 mantle.audio:set_muted(output.id, false)
             end
         end,
-        max = util.MAX_VOLUME,
-        steps = util.MAX_VOLUME / 5,
+        max = audio_lib.MAX_VOLUME,
+        steps = audio_lib.MAX_VOLUME / 5,
         split_at = 100,
         pending = held,
         headroom_color = headroom,
@@ -89,18 +91,18 @@ return {
         fill_visible = expanded,
         animate = { width = theme.animation_ms, background = theme.animation_ms, border_color = theme.animation_ms },
         border_width = theme.border_width,
-        border_color = computed({ hovered, ui_state.panel_showing("audio") }, function(is_hovered, open)
+        border_color = computed({ hovered, ui_state.panel_showing(audio_panel.kind) }, function(is_hovered, open)
             if open then
                 return theme.ACCENT
             end
             return is_hovered and theme.GLASS_BORDER_HOVER or theme.GLASS_BORDER
         end),
         on_click = function(rect, mouse_button)
-            local output = util.default_sink(mantle.audio:get())
+            local output = audio_lib.default_sink(mantle.audio:get())
             if mouse_button == "middle" and output then
                 mantle.audio:toggle_mute(output.id)
             elseif mouse_button == "right" then
-                ui_state.toggle_panel("audio", rect)
+                ui_state.toggle_panel(audio_panel.kind, rect)
             end
         end,
         label = function(under)

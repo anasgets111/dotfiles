@@ -32,6 +32,7 @@ local web_provider = require("modules.global.launcher.web")
 ---@field subtitle string
 ---@field payload string
 
+local KIND = "launcher"
 local MODES = {
     { id = "apps",       label = "Apps",       icon = icons.launcher },
     { id = "wallpapers", label = "Wallpapers", icon = icons.wallpaper },
@@ -188,13 +189,13 @@ local function move(key)
 end
 
 -- The query and selection reset themselves: `autofocus` re-arms the field empty on the next open.
-ui_state.on_modal_close("launcher", function()
+ui_state.on_modal_close(KIND, function()
     mode:set("search")
     rail:set(false)
 end)
 
 local function close()
-    ui_state.close_modal("launcher")
+    ui_state.close_modal(KIND)
 end
 
 local function choose_mode(target)
@@ -563,7 +564,7 @@ for _, node in ipairs(mode_rail.buttons({
 end
 
 return modal({
-    kind = "launcher",
+    kind = KIND,
     reset_on_close = { SCROLL },
     card = column {
         width = theme.launcher_width,

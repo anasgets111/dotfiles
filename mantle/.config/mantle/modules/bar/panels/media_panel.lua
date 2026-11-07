@@ -13,6 +13,7 @@ local slider = require("components.slider")
 local panel_header = require("components.panel_header")
 local panel_action_icon = require("components.panel_action_icon")
 local panel_empty_state = require("components.panel_empty_state")
+local ui_state = require("lib.ui_state")
 local panel_row = require("components.panel_row")
 local icon_button = require("components.icon_button")
 local disclosure = require("lib.disclosure")
@@ -128,7 +129,8 @@ end, 0)
 
 -- Steps to the next player in `players` order, wrapping.
 local function next_player()
-    local players = mantle.mpris:get().players
+    local mpris = mantle.mpris:get()
+    local players = (mpris and mpris.players) or {}
     local current = selected:get()
     for index, player in ipairs(players) do
         if current and player.id == current.id then
@@ -201,7 +203,8 @@ local body = {
             if count < 2 then
                 return state
             end
-            local players = mantle.mpris:get().players
+            local mpris = mantle.mpris:get()
+            local players = (mpris and mpris.players) or {}
             for index, other in ipairs(players) do
                 if other.id == player.id then
                     return string.format("%s · %d of %d players", state, index, count)
@@ -481,4 +484,36 @@ local body = {
     end), { icon = icons.media }),
 }
 
-return { kind = "media", body = body, spacing = theme.spacing.sm }
+local KIND = "media"
+
+local media_hover = state("media_hover", { trigger = false, panel = false })
+local media_close_timer
+
+local function set_hover(region, inside)
+    media_hover:set(util.with(media_hover:get(), region, inside == true))
+    local media_open = ui_state.panel_is(KIND)
+    if media_close_timer and (inside or media_open) then
+        media_close_timer:cancel()
+        media_close_timer = nil
+    end
+    if inside or not media_open then
+        return
+    end
+    media_close_timer = timer(theme.animation_slow_ms, function()
+        media_close_timer = nil
+        local hovered = media_hover:get()
+        if not hovered.trigger and not hovered.panel and ui_state.panel_is(KIND) then
+            ui_state.close_panel()
+        end
+    end)
+end
+
+return {
+    kind = KIND,
+    width = theme.media_panel_width,
+    hover = hover("media_panel"),
+    on_hover = function(is_hovered) set_hover("panel", is_hovered) end,
+    set_hover = set_hover,
+    body = body,
+    spacing = theme.spacing.sm,
+}

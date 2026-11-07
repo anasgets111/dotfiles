@@ -1,6 +1,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
+local audio_lib = require("lib.audio")
 local icon_button = require("components.icon_button")
 local tooltip = require("components.tooltip")
 
@@ -21,7 +22,7 @@ end
 -- The microphone shows while active or muted, so a muted one stays reachable to unmute. Muted is
 -- peach with a struck-through glyph, live is red with the plain one.
 local mic_muted = mantle.audio:map(function(audio)
-    local source = util.active_device(audio.sources)
+    local source = audio_lib.active_device(audio.sources)
     return source ~= nil and source.muted
 end, false)
 local mic_shown = computed({ mantle.privacy, mic_muted }, function(privacy, muted)
@@ -54,7 +55,7 @@ local indicator = row {
     children = {
         alert(icons.camera, "camera_users", "privacy_camera"),
         icon_button(util.choose(mic_muted, icons.mic_off, icons.mic_on), function()
-            local source = util.active_device((mantle.audio:get() or {}).sources)
+            local source = audio_lib.active_device((mantle.audio:get() or {}).sources)
             if source then
                 mantle.audio:toggle_mute(source.id)
             end

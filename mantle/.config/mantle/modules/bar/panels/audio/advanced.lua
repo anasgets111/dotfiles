@@ -54,7 +54,7 @@ local card_rows = computed({ mantle.audio, card_for }, function(audio, open_for)
             out[#out + 1] = {
                 kind = "card",
                 card = card.device,
-                title = util.device_name({ name = card.name }),
+                title = audio_lib.device_name({ name = card.name }),
                 value = active and audio_lib.profile_label(active) or "--",
                 icon = card.mac and icons.bt_on or icons.speaker,
                 open = expanded,
@@ -94,8 +94,8 @@ local function device_row(device, is_input)
     local key = devices .. "_" .. tostring(device.id)
     return rows.level_row {
         key = key,
-        leading = rows.glyph(util.audio_device_glyph(device, is_input) or (is_input and icons.mic or icons.speaker)),
-        title = util.device_name(device) or "?",
+        leading = rows.glyph(audio_lib.audio_device_glyph(device, is_input) or (is_input and icons.mic or icons.speaker)),
+        title = audio_lib.device_name(device) or "?",
         level = device,
         is_input = is_input,
         headroom = not is_input,
@@ -150,11 +150,11 @@ local function card_row(item)
 end
 
 local has_balance = mantle.audio:map(function(audio)
-    return (util.default_sink(audio) or {}).balance ~= nil
+    return (audio_lib.default_sink(audio) or {}).balance ~= nil
 end, false)
 
 local function balance_of(audio)
-    return (util.default_sink(audio) or {}).balance
+    return (audio_lib.default_sink(audio) or {}).balance
 end
 
 -- "Centre", or the louder side and how far: "L 20%".
@@ -192,7 +192,7 @@ local balance_row = column {
                     return balance and balance + 1
                 end,
                 on_commit = function(value)
-                    local sink = util.default_sink(mantle.audio:get())
+                    local sink = audio_lib.default_sink(mantle.audio:get())
                     if sink then
                         mantle.audio:set_balance(sink.id, value - 1)
                     end

@@ -168,4 +168,4 @@ local function open(item, anchor)
     ui_state.open_panel(KIND, anchor)
 end
 
-return { kind = KIND, body = body, open = open, spacing = theme.spacing.xs }
+return { kind = KIND, width = theme.tray_menu_width, body = body, open = open, spacing = theme.spacing.xs }

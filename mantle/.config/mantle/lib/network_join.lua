@@ -10,6 +10,9 @@ M.hidden_ssid = state("network_hidden_ssid", "")
 -- another join may have left an error behind.
 -- Completion is read, not latched: reaching the submitted SSID ends the sheet without a write.
 M.credential_step = computed({ hidden_prompt, M.hidden_ssid, mantle.network }, function(active, name, network)
+    if not network then
+        return ""
+    end
     if network.password_ssid ~= nil then
         return "password"
     end

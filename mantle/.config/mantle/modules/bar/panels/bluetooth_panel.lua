@@ -16,6 +16,17 @@ local info_badge = require("components.info_badge")
 local panel_empty_state = require("components.panel_empty_state")
 local spinner = require("components.spinner")
 local disclosure = require("lib.disclosure")
+local ui_state = require("lib.ui_state")
+
+local KIND = "bluetooth"
+
+ui_state.panel_showing(KIND):on_change(function(showing)
+    if showing then
+        mantle.bluetooth:start_discovery()
+    else
+        mantle.bluetooth:stop_discovery()
+    end
+end)
 
 local function device_icon(device)
     return icons.device[device.category or "generic"] or icons.device.generic
@@ -286,4 +297,4 @@ local body = {
     ),
 }
 
-return { kind = "bluetooth", body = body }
+return { kind = KIND, body = body }

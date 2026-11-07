@@ -13,7 +13,6 @@ local scrim = require("components.scrim")
 local active = mantle.polkit:map(function(polkit)
     return polkit.active
 end, false)
-
 util.auto_english_layout(mantle.polkit)
 
 local function cancel()

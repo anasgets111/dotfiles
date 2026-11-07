@@ -13,8 +13,7 @@ local panel_row = require("components.panel_row")
 
 -- This is the only module reading `sysinfo`, so its pollers run only while the notifications panel
 -- shows: CPU every 2s, RAM and temperature every 5s, GPU every 2s, disks every 30s, network every 1s.
-local function sync_polling()
-    local on = ui_state.panel_is("notifications")
+local function sync_polling(on)
     local function every(seconds) return on and seconds or 0 end
     mantle.sysinfo:configure({
         cpu_interval = every(2),
@@ -25,9 +24,9 @@ local function sync_polling()
         net_interval = every(1),
     })
 end
-ui_state.panel_open:on_change(sync_polling)
-ui_state.panel_kind:on_change(sync_polling)
-sync_polling()
+local notifications_showing = ui_state.panel_showing("notifications")
+notifications_showing:on_change(sync_polling)
+sync_polling(notifications_showing:get())
 
 local disks = mantle.sysinfo:map(function(sysinfo)
     return sysinfo.disks
@@ -213,7 +212,7 @@ local details = panel_card({
             group({
                 cell(util.bold("Uptime"), theme.FG, theme.font.sm, { width = "fill" }),
                 cell(computed({ mantle.clock, boot }, function(system, info)
-                    return info and info.started > 0 and
+                    return system and system.time and info and info.started > 0 and
                         uptime(system.time - info.started) or "--"
                 end, "--"), theme.ACCENT, theme.font.sm, { width = "fill" }),
                 cell(boot:map(function(info)

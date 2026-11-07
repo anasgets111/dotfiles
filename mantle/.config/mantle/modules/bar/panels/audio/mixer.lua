@@ -3,6 +3,7 @@
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
+local audio_lib = require("lib.audio")
 local glyph = require("components.glyph")
 local panel_row = require("components.panel_row")
 local panel_card = require("components.panel_card")
@@ -16,14 +17,17 @@ local mixer_open = disclosure.state("audio_mixer_open", false)
 
 -- speech-dispatcher's `sd_*` output modules hold idle streams open forever, so they stay out.
 local function shown(audio)
-    return util.filter(audio.apps, function(app) return not (app.binary or ""):match("^sd_") end)
+    return util.filter((audio and audio.apps) or {}, function(app) return not (app.binary or ""):match("^sd_") end)
 end
 
 local mixer_rows = computed({ mantle.audio, rows.open_picker }, function(audio, open_key)
+    if not audio or not audio.apps then
+        return {}
+    end
     local out = {}
     for _, app in ipairs(shown(audio)) do
         local devices = app.recording and audio.sources or audio.sinks
-        local default = util.active_device(devices)
+        local default = audio_lib.active_device(devices)
         local target = util.find(devices, function(device) return device.id == app.target end)
         local open = open_key == "app-" .. app.id
         out[#out + 1] = {
@@ -31,7 +35,7 @@ local mixer_rows = computed({ mantle.audio, rows.open_picker }, function(audio, 
             app = app,
             open = open,
             -- Where it plays: its linked device, else the default it will reach.
-            device = util.device_name(target or default) or "No device",
+            device = audio_lib.device_name(target or default) or "No device",
             -- Default counts as a choice, so any device makes two.
             choosable = #devices > 0,
             key = "app-" .. app.id,
@@ -53,8 +57,8 @@ local mixer_rows = computed({ mantle.audio, rows.open_picker }, function(audio, 
                     kind = "target",
                     app = app.id,
                     device = device.id,
-                    title = util.device_name(device) or "?",
-                    icon = util.audio_device_glyph(device, app.recording)
+                    title = audio_lib.device_name(device) or "?",
+                    icon = audio_lib.audio_device_glyph(device, app.recording)
                         or (app.recording and icons.mic or icons.speaker),
                     active = device.id == app.pinned_to,
                     key = "target-" .. app.id .. "-" .. device.id,

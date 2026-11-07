@@ -11,10 +11,9 @@ local action_button = require("components.action_button")
 local card_motion = require("components.card_motion")
 
 local request = mantle.bluetooth:map(function(bluetooth)
-    return bluetooth.pairing_request
+    return bluetooth and bluetooth.pairing_request
 end)
 
--- A signal of `predicate(request)`, false while nothing is asked.
 local function when(predicate)
     return request:map(function(asked)
         return asked ~= nil and predicate(asked)
@@ -24,7 +23,6 @@ end
 -- The last request, so the card keeps its words while it fades out after the answer.
 local held = util.hold(request, false)
 
--- A signal of `read(request)`, empty before anything was asked.
 local function text(read)
     return held:map(function(asked)
         return asked and read(asked) or ""
@@ -65,8 +63,8 @@ local not_display = when(function(asked)
     return asked.kind ~= "display"
 end)
 
-local showing = when(function()
-    return true
+local showing = request:map(function(asked)
+    return asked ~= nil
 end)
 
 return panel {

@@ -1,7 +1,6 @@
 local theme = require("config.theme")
 local center = require("modules.bar.center_side")
 local workspaces = require("modules.bar.indicators.workspace_strip")
-local audio_panel = require("modules.bar.panels.audio_panel")
 
 local LEFT = {
     "rescue", "power_menu", "updates", "idle_inhibitor", "keyboard_layout", "battery",
@@ -35,7 +34,5 @@ local indicator = row {
     padding = { left = theme.spacing.md, right = theme.spacing.md },
     children = { side(LEFT, "left", "start"), center, side(RIGHT, "right", "end") },
 }
-tooltips[#tooltips + 1] = audio_panel.output_tooltip
-tooltips[#tooltips + 1] = audio_panel.input_tooltip
 
 return { indicator = indicator, tooltips = tooltips, drag_ghost = workspaces.drag_ghost }

@@ -22,11 +22,9 @@ local SCALE = math.max(0.75, math.min(1.4, 0.9 + ((MAIN_HEIGHT - 1080) / 360) * 
 
 -- `min` is a small-screen floor, not a default. A 10px label at 0.75 is 8px and legible, and an 8px
 -- icon becomes an illegible 6px smudge.
-function theme.s(base, min)
+local function s(base, min)
     return math.max(min or 0, math.floor(base * SCALE + 0.5))
 end
-
-local s = theme.s
 
 -- Colour helpers speak the engine's `#RRGGBB`/`#RRGGBBAA` strings, so results feed `background`.
 -- `channels` gives red, green and blue bytes plus alpha as a fraction; missing alpha means opaque.
@@ -189,7 +187,7 @@ roles                          = valid and roles or theme.preset_roles("catppucc
 
 -- The swatches everything else derives from.
 theme.BG                       = roles.surface
-theme.MANTLE                   = roles[dark and "surface_container_lowest" or "surface_container"]
+local mantle_tone              = roles[dark and "surface_container_lowest" or "surface_container"]
 theme.CRUST                    = roles[dark and "shadow" or "surface_container_highest"]
 theme.SURFACE                  = roles[dark and "surface_container_highest" or "surface_dim"]
 theme.FG                       = roles.on_surface
@@ -209,7 +207,7 @@ theme.CLEAR                    = "#00000000"
 -- Derived steps from the swatches, so a scheme swap edits only those.
 -- Lightening a light ground changes nothing, so light mode steps down Material's containers instead.
 theme.ELEVATED                 = dark and lighten(theme.BG, 0.12) or roles.surface_container_high
-theme.ELEVATED_HOVER           = dark and lighten(theme.BG, 0.18) or roles.surface_container_highest
+local elevated_hover           = dark and lighten(theme.BG, 0.18) or roles.surface_container_highest
 -- Dimmer than DIM, for a bar indicator with nothing connected. Half, not a third: on glass over a
 -- bright wallpaper a third vanished.
 theme.TEXT_OFF                 = theme.with_opacity(theme.DIM, theme.opacity.disabled)
@@ -217,12 +215,12 @@ theme.TEXT_OFF                 = theme.with_opacity(theme.DIM, theme.opacity.dis
 theme.TEXT_MUTED               = theme.with_opacity(theme.DIM, theme.opacity.muted)
 theme.BORDER_SUBTLE            = theme.with_opacity(theme.SURFACE, 0.35)
 -- The shared card ground, so a card reads as a sheet above the bar rather than the same tone.
-theme.GLASS                    = theme.with_opacity(theme.MANTLE, 0.88)
+theme.GLASS                    = theme.with_opacity(mantle_tone, 0.88)
 theme.GLASS_CONTENT            = theme.with_opacity(theme.ELEVATED, 0.46)
 -- A text field sits on the base tone, not the elevated one, so a search box reads as a well cut into
 -- its card rather than a second card.
 theme.GLASS_INPUT              = theme.with_opacity(theme.BG, 0.62)
-theme.GLASS_HOVER              = theme.with_opacity(theme.ELEVATED_HOVER, 0.62)
+theme.GLASS_HOVER              = theme.with_opacity(elevated_hover, 0.62)
 theme.ACCENT_SUBTLE            = theme.with_opacity(theme.ACCENT, theme.opacity.subtle)
 theme.ACCENT_LIGHT             = theme.with_opacity(theme.ACCENT, theme.opacity.light)
 theme.ACCENT_MEDIUM            = theme.with_opacity(theme.ACCENT, theme.opacity.medium)
@@ -382,7 +380,6 @@ theme.audio_panel_width        = s(380, 300)
 theme.tray_menu_width          = s(300, 240)
 -- A guard against runaway menus, not a list budget: an ordinary menu never scrolls its Quit away.
 theme.tray_menu_height         = s(560, 420)
--- The idle modal's labels and duration bars.
 theme.idle_modal_width         = s(820, 640)
 -- Leave room for the masthead, card padding and an outer margin below the bar.
 theme.idle_body_height         = math.min(s(480, 360), MAIN_HEIGHT - theme.bar_height - theme.control.lg

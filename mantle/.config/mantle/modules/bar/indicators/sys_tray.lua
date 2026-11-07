@@ -19,7 +19,7 @@ end
 -- The hovered item's two lines. `said` is the sender's own `ToolTip`, kept only when it adds to the
 -- label. Some repeat the name ("Vesktop"), others carry live state ("DL speed: 0 B/s").
 local hovered = computed({ util.hold(hovered_id), mantle.tray, mantle.applications }, function(id, tray, applications)
-    local found = util.find(tray.items, function(item)
+    local found = tray and tray.items and util.find(tray.items, function(item)
         return item.id == id
     end)
     local label = found and item_label(found, applications) or (id ~= "" and id or "Tray item")

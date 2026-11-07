@@ -7,7 +7,6 @@ local theme = require("config.theme")
 local util = require("lib.util")
 local panel_card = require("components.panel_card")
 local ui_state = require("lib.ui_state")
-local network_join = require("lib.network_join")
 local bar_mod = require("modules.bar")
 local bar = bar_mod.indicator
 local drag_ghost = bar_mod.drag_ghost
@@ -25,45 +24,45 @@ local phone_panel = require("modules.bar.panels.phone_panel")
 local panels = { network_panel, bluetooth_panel, notification_history, update_panel, audio_panel,
     media_panel, tray_menu, screen_recorder_panel, phone_panel }
 
--- Only the matching `kind` is a child: a hidden sibling would be frozen, not dropped. `geometry`
--- keeps a gone section's last rect, so a reveal knows its height; one never shown reads zero.
--- `id` stops a switch reusing the last panel's nodes by position, which tweened their colours over.
+local by_kind = {}
+local tooltips = {}
+table.move(bar_mod.tooltips, 1, #bar_mod.tooltips, 1, tooltips)
 local sections = {}
 local section_rects = {}
-for _, panel in ipairs(panels) do
-    local rect = geometry("panel-section-" .. panel.kind)
-    local panel_hover = panel.kind == media_panel.kind and hover("media_panel") or nil
+local dynamic_kinds = {}
+local dynamic_keyboards = {}
+
+for _, panel_item in ipairs(panels) do
+    by_kind[panel_item.kind] = panel_item
+    for _, tip in ipairs(panel_item.tooltips or {}) do
+        tooltips[#tooltips + 1] = tip
+    end
+    if type(panel_item.keyboard) ~= "string" and panel_item.keyboard ~= nil then
+        dynamic_kinds[#dynamic_kinds + 1] = panel_item.kind
+        dynamic_keyboards[#dynamic_keyboards + 1] = panel_item.keyboard
+    end
+    local rect = geometry("panel-section-" .. panel_item.kind)
     table.insert(section_rects, rect)
-    sections[panel.kind] = column {
-        id = panel.kind,
+    sections[panel_item.kind] = column {
+        id = panel_item.kind,
         width = "fill",
-        spacing = panel.spacing or theme.spacing.md,
+        spacing = panel_item.spacing or theme.spacing.md,
         geometry = rect,
-        hover = panel_hover,
-        on_hover = panel_hover and function(is_hovered)
-            ui_state.set_media_hover("panel", is_hovered)
-        end or nil,
-        children = panel.body,
+        hover = panel_item.hover,
+        on_hover = panel_item.on_hover,
+        children = panel_item.body,
     }
 end
+
 local shown_section = ui_state.panel_kind:map(function(kind)
     return { sections[kind] }
 end)
 
--- Shared width except where content dictates: a list, two version columns, slider length, artwork.
-local PANEL_WIDTHS = {
-    [notification_history.kind] = theme.notification_panel_width,
-    [update_panel.kind] = theme.update_panel_width,
-    [audio_panel.kind] = theme.audio_panel_width,
-    [media_panel.kind] = theme.media_panel_width,
-    [tray_menu.kind] = theme.tray_menu_width,
-}
-
 local card_width = ui_state.panel_kind:map(function(kind)
-    return PANEL_WIDTHS[kind] or theme.panel_width
+    local panel = by_kind[kind]
+    return (panel and panel.width) or theme.panel_width
 end)
 
--- The inverted corners joining the card to the bar.
 local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 
 -- `popup_anchor` is the indicator's rect in this surface's coordinates, so centring needs no
@@ -72,7 +71,7 @@ local CORNER = math.min(theme.radius.md * 3, theme.bar_height)
 -- the signal so a resolution change moves the clamp; an empty list clamps only at zero.
 local card_x = computed({ ui_state.popup_anchor, mantle.screens, card_width }, function(anchor, screens, width)
     local x = ((anchor and anchor.x) or 0) + ((anchor and anchor.width) or 0) / 2 - width / 2
-    local screen = screens[1]
+    local screen = screens and screens[1]
     if screen and screen.width then
         x = math.min(x, screen.width - width - theme.spacing.sm - CORNER)
         x = math.max(x, theme.spacing.sm + CORNER)
@@ -134,7 +133,7 @@ local card_animate = computed({ hidden_top, shown }, function(hidden, visible)
     return visible and { margin = { duration = theme.animation_ms, easing = "out_quad", from = { top = hidden } } } or {}
 end)
 
-return panel {
+local host = panel {
     id = "bar",
     -- Under `overlay`, so notifications and OSD still draw and click over an open panel.
     layer = "top",
@@ -149,17 +148,21 @@ return panel {
     -- `"exclusive"` because either field must be typable without a click, the engine arming the
     -- scope's sole field on compositor focus. History's reply field needs only `"on_demand"`, since a
     -- click there takes the keyboard and other windows give it back.
+    -- The audio sliders step on arrow keys once a click focuses one.
+    -- While closed, `none` keeps focus on the active workspace.
     keyboard_interactivity = computed(
-        { network_join.credential_step, ui_state.panel_showing("notifications"), ui_state.panel_showing("phone"),
-            phone_panel.typing, ui_state.panel_showing("audio") },
-        function(step, showing_notifications, showing_phone, typing, showing_audio)
-            -- The sheet stays `exclusive`: this panel's click raised it and the catcher ends it. So does
-            -- the phone's add-command form, whose name field takes keys as it opens.
-            if step ~= "" or showing_phone and typing then
-                return "exclusive"
+        { ui_state.panel_open, ui_state.panel_kind, table.unpack(dynamic_keyboards) },
+        function(open, kind, ...)
+            if not open then
+                return "none"
             end
-            -- The audio sliders step on arrow keys once a click focuses one.
-            return (showing_notifications or showing_audio) and "on_demand" or "none"
+            for i, dyn_kind in ipairs(dynamic_kinds) do
+                if kind == dyn_kind then
+                    return select(i, ...)
+                end
+            end
+            local panel = by_kind[kind]
+            return (panel and panel.keyboard) or "none"
         end
     ),
     -- Input follows drawn nodes, so a closed panel leaves only the bar and its corners clickable.
@@ -244,4 +247,9 @@ return panel {
             drag_ghost,
         },
     },
+}
+
+return {
+    host = host,
+    tooltips = tooltips,
 }

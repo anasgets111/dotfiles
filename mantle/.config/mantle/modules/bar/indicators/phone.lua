@@ -16,7 +16,7 @@ local SLOT = "phone"
 local android = mantle.android_connect
 
 local function requested(state)
-    return util.find(state.devices, function(device) return device.pairing_requested end) ~= nil
+    return state ~= nil and util.find(state.devices or {}, function(device) return device.pairing_requested end) ~= nil
 end
 
 local function open(rect)
@@ -40,7 +40,7 @@ end, icons.phone_link_off), nil, {
     end, ""),
     badge_size = theme.battery_badge_font_size,
     visible = android:map(function(state)
-        return state.available
+        return state ~= nil and state.available
     end, false),
 })
 

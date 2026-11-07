@@ -10,10 +10,12 @@ local modal = require("components.modal")
 local ui_state = require("lib.ui_state")
 local error_log = require("lib.rescue")
 
+local KIND = "rescue"
+
 -- The error is fixed once a reload applies, so the card has nothing left to show.
 mantle.rescue:on_change(function(rescue)
     if not (rescue and rescue.error_log ~= "") then
-        ui_state.close_modal("rescue")
+        ui_state.close_modal(KIND)
     end
 end)
 
@@ -31,7 +33,7 @@ local header = panel_header {
         end, { slot = "rescue-copy" }),
     },
     on_close = function()
-        ui_state.close_modal("rescue")
+        ui_state.close_modal(KIND)
     end,
 }
 
@@ -56,7 +58,7 @@ local log = list {
 }
 
 return modal({
-    kind = "rescue",
+    kind = KIND,
     reset_on_close = { log_scroll },
     card = panel_card({
         header,

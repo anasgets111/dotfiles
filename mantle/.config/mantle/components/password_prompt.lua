@@ -43,14 +43,15 @@ local ERROR_TEXT = {
 return function(opts)
     local source = mantle[opts.capability]
     local busy = source:map(function(state)
-        return state.authenticating or state.unlocking == true
+        return state ~= nil and (state.authenticating or state.unlocking == true)
     end, false)
     local failed = source:map(function(state)
-        return state.active and not state.authenticating and not state.unlocking and (state.error or "") ~= ""
+        return state ~= nil and state.active and not state.authenticating and not state.unlocking and
+            (state.error or "") ~= ""
     end, false)
     -- Each failure ends an attempt, so the falling edge of `authenticating` replays the shake.
     local shaking = computed({ pulse(source:map(function(state)
-        return state.authenticating
+        return state ~= nil and state.authenticating
     end, false), SHAKE.duration * #SHAKE.keyframes), failed }, function(fresh, error_shown)
         return fresh and error_shown
     end)
@@ -69,7 +70,7 @@ return function(opts)
 
     local caps = info_badge("Caps lock", theme.YELLOW, {
         visible = mantle.keyboard:map(function(keyboard)
-            return keyboard.caps_lock == true
+            return keyboard ~= nil and keyboard.caps_lock == true
         end, false),
     })
     local message = cell(feedback, util.choose(failed, theme.RED, theme.DIM), font_size, {

@@ -52,14 +52,14 @@ mantle.audio:on_change(function(audio)
 end)
 
 local function device_icon(device, is_input)
-    return util.audio_device_glyph(device, is_input) or (is_input and icons.mic or icons.speaker)
+    return audio_lib.audio_device_glyph(device, is_input) or (is_input and icons.mic or icons.speaker)
 end
 
 ---@class AudioControlOpts
 ---@field direction table An `audio_lib.DIRECTIONS` entry.
 ---@field name string State and slot prefix.
 ---@field title string
----@field headroom? boolean Up to `util.MAX_VOLUME`, the boost colour past a tick at 100%.
+---@field headroom? boolean Up to `audio_lib.MAX_VOLUME`, the boost colour past a tick at 100%.
 ---@field chip? Node Before the readout.
 ---@field note? Signal<string> A third line under the device name, hidden while `""`.
 
@@ -72,11 +72,11 @@ local function audio_control(opts)
     local picker = rows.open_picker:map(function(key) return key == opts.name end)
     -- The default device, or an empty table before one exists.
     local function active(audio)
-        return util.active_device(audio[direction.devices]) or {}
+        return audio_lib.active_device(audio[direction.devices]) or {}
     end
     -- Handlers act on the default at click time, not the one the card was built with.
     local function current()
-        return util.active_device((mantle.audio:get() or {})[direction.devices])
+        return audio_lib.active_device((mantle.audio:get() or {})[direction.devices])
     end
 
     local options = mantle.audio:map(function(audio)
@@ -85,7 +85,7 @@ local function audio_control(opts)
             out[#out + 1] = {
                 kind = "device",
                 id = device.id,
-                title = util.device_name(device) or "?",
+                title = audio_lib.device_name(device) or "?",
                 icon = device_icon(device, is_input),
                 active = device.active,
                 key = opts.name .. "-device-" .. device.id,
@@ -122,10 +122,10 @@ local function audio_control(opts)
     local mute_glyph = is_muted:map(function(muted) return rows.mute_glyph(muted, is_input) end)
     local tint = util.choose(is_muted, theme.DIM, theme.FG)
     local leading_glyph = computed({ mantle.audio, mute_glyph }, function(audio, fallback)
-        return not active(audio).muted and util.audio_device_glyph(active(audio), is_input) or fallback
+        return not active(audio).muted and audio_lib.audio_device_glyph(active(audio), is_input) or fallback
     end, rows.mute_glyph(false, is_input))
     local held = state("audio_pending_" .. opts.name, -1)
-    local max = opts.headroom and util.MAX_VOLUME or 100
+    local max = opts.headroom and audio_lib.MAX_VOLUME or 100
     local mute_tooltip = tooltip({
         id = "audio_mute_" .. opts.name .. "_tooltip",
         in_panel = true,
@@ -137,7 +137,7 @@ local function audio_control(opts)
     local lines = { rows.picker_button {
         slot = "audio-picker-" .. opts.name,
         label = util.label(mantle.audio, function(audio)
-            return util.device_name(util.active_device(audio[direction.devices])) or "No device"
+            return audio_lib.device_name(audio_lib.active_device(audio[direction.devices])) or "No device"
         end),
         key = opts.name,
         choosable = options:map(function(items) return #items > 1 end),
@@ -232,7 +232,7 @@ local chip_hover = hover("audio-balance-chip")
 local balance_chip = rect {
     hover = chip_hover,
     visible = mantle.audio:map(function(audio)
-        return math.abs((util.default_sink(audio) or {}).balance or 0) > 0.01
+        return math.abs((audio_lib.default_sink(audio) or {}).balance or 0) > 0.01
     end, false),
     on_click = function(_, mouse_button)
         if mouse_button == "left" then
@@ -260,16 +260,16 @@ local input, input_tooltip = audio_control {
     name = "input",
     title = "Microphone",
     note = mantle.privacy:map(function(privacy)
-        return util.used_by(privacy.microphone_users) or ""
+        return audio_lib.used_by(privacy.microphone_users) or ""
     end, ""),
 }
 
 -- Meters run only while the audio panel is open, on the default output and input. The key changes
 -- when either default does; a reload keeps the old list, so it is sent once at load too.
-local metered = computed({ ui_state.panel_open, ui_state.panel_kind, mantle.audio }, function(open, kind, audio)
+local metered = computed({ ui_state.panel_showing("audio"), mantle.audio }, function(open, audio)
     local ids = {}
-    for _, direction in ipairs(open and kind == "audio" and audio_lib.DIRECTIONS or {}) do
-        local device = util.active_device(audio[direction.devices])
+    for _, direction in ipairs(open and audio and audio_lib.DIRECTIONS or {}) do
+        local device = audio_lib.active_device(audio[direction.devices])
         ids[#ids + 1] = device and device.id or nil
     end
     return table.concat(ids, ",")

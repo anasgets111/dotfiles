@@ -18,6 +18,7 @@ local disclosure = require("lib.disclosure")
 local service = require("lib.updates")
 local dev_tools = require("config.dev_tools")
 
+local KIND = "updates"
 local LOG_SCROLL = scroll("update_log")
 
 local log_open = service.log_open
@@ -35,7 +36,7 @@ end
 local status_color = computed({ phase, mantle.updates, service.dev_result }, function(current, updates, dev)
     if current == "failed" or current == "check_failed" then
         return theme.RED
-    elseif updates.check_error ~= nil or updates.aur_error ~= nil or
+    elseif (updates and (updates.check_error ~= nil or updates.aur_error ~= nil)) or
         (current == "done" and #(dev.failures or {}) > 0) then
         return theme.PEACH
     end
@@ -191,7 +192,7 @@ local package_height = sorted_packages:map(function(packages)
 end)
 
 local log_lines = computed({ mantle.updates, service.dev_log }, function(updates, lines)
-    return util.concat(updates.install_log, lines)
+    return util.concat((updates and updates.install_log) or {}, lines)
 end, {})
 
 -- Strongest first, so red failures are findable in two hundred lines of pacman output.
@@ -286,7 +287,7 @@ local settings_summary = computed({ store.updates_aur, store.updates_dev_tools, 
     end)
 
 local busy = computed({ mantle.updates, service.dev_running }, function(updates, tool)
-    return updates.checking or updates.installing or tool ~= ""
+    return (updates and (updates.checking or updates.installing)) or tool ~= ""
 end, true)
 
 -- Percent through this run's packages, then its tools; `false` while there is no count to show.
@@ -295,8 +296,8 @@ local progress = computed({ mantle.updates, service.dev_running }, function(upda
         local step, total = service.tool_step(tool)
         return total > 0 and 100 * step / total or false
     end
-    local total = (updates.installing and updates.install_total_steps) or 0
-    return total > 0 and 100 * (updates.install_current_step or 0) / total or false
+    local total = (updates and updates.installing and updates.install_total_steps) or 0
+    return total > 0 and 100 * ((updates and updates.install_current_step) or 0) / total or false
 end, false)
 
 -- `.pacnew` and `.pacsave` files from this run, each wanting a manual merge.
@@ -362,7 +363,7 @@ local body = {
                         return "Updating…"
                     elseif current == "failed" then
                         return "Retry update"
-                    elseif #updates.packages == 0 then
+                    elseif not updates or #updates.packages == 0 then
                         return "Update developer tools"
                     end
                     return "Update all"
@@ -408,7 +409,7 @@ local body = {
                     cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result, service.started_at }, detail_line, ""),
                         status_color, theme.font.xs, { width = "fill", wrap = "word" }),
                     cell(computed({ mantle.updates, mantle.clock }, function(updates, clock)
-                        return last_check_line(updates, clock.time)
+                        return last_check_line(updates, clock and clock.time)
                     end, "Never checked"), theme.TEXT_MUTED, theme.font.xs, {
                         align = "end",
                         visible = phase:map(function(current)
@@ -578,4 +579,4 @@ local body = {
     },
 }
 
-return { kind = "updates", body = body }
+return { kind = KIND, width = theme.update_panel_width, body = body }

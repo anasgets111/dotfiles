@@ -8,6 +8,7 @@ local media = {}
 local chosen = state("media_player_id", "")
 
 local function pick(players, id)
+    players = players or {}
     return util.find(players, function(player) return player.id == id end)
         or util.find(players, function(player) return player.play_state == "playing" end)
         or players[1]
@@ -15,7 +16,7 @@ local function pick(players, id)
 end
 
 media.selected = computed({ mantle.mpris, chosen }, function(mpris, id)
-    return pick(mpris.players, id)
+    return pick(mpris and mpris.players, id)
 end, false)
 
 function media.select(id)
@@ -40,7 +41,7 @@ end)
 -- A player's own process owns its streams. Name matching is the fallback: Chromium plays from a
 -- utility process, and a sandboxed app's streams report a pid from inside its sandbox.
 media.streams = computed({ media.selected, mantle.audio }, function(player, audio)
-    if not player then
+    if not player or not audio or not audio.apps then
         return {}
     end
     local names = {}

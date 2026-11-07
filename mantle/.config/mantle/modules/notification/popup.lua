@@ -8,14 +8,6 @@ local navigation = require("lib.ui_state")
 local util = require("lib.util")
 local notification_card = require("components.notification_card")
 
--- The Supervisor is silent until a tier is set.
-local SOUNDS = "/usr/share/sounds/freedesktop/stereo/"
-mantle.notifications:set_sound("low", SOUNDS .. "message.oga")
-mantle.notifications:set_sound("normal", SOUNDS .. "message.oga")
-mantle.notifications:set_sound("critical", SOUNDS .. "bell.oga")
--- Discord plays its own message sound; ours on top doubles it.
-mantle.notifications:set_app_muted("vesktop", true)
-
 -- The feed carries twenty, too many for a screen; the rest belong one click away in history. The
 -- count is the only bound: a height cap would clip the last card mid-way.
 local MAX_CARDS = 4

@@ -28,7 +28,7 @@ local KIND = "network"
 -- `nil` without Wi-Fi hardware, where the flat actions report it.
 local picked = state("network_device", "")
 local device = computed({ mantle.network, picked }, function(network, id)
-    local devices = network.wifi_devices
+    local devices = (network and network.wifi_devices) or {}
     return util.find(devices, function(candidate)
         return candidate.id == id
     end) or devices[1]
@@ -151,7 +151,7 @@ local function before(left, right)
 end
 
 local rows = computed({ mantle.network, device }, function(network, target)
-    local connecting = network.connecting_ssid
+    local connecting = network and network.connecting_ssid
     local sections = { connected = {}, saved = {}, available = {} }
     for _, ap in ipairs(access_points(target)) do
         local group = ap.active and sections.connected or ap.saved and sections.saved or sections.available
@@ -248,7 +248,7 @@ end
 
 -- A failure keeps the sheet up here, rather than returning the error to the row it came from.
 local sheet_title = util.bold(computed({ step, join.hidden_ssid, mantle.network }, function(current, name, network)
-    local target = network.password_ssid or name
+    local target = (network and network.password_ssid) or name
     if current == "name" then
         return "Hidden network"
     elseif current == "waiting" then
@@ -296,6 +296,18 @@ local function scan_while_open()
     rescan = interval(10000, tick)
     tick()
 end
+
+ui.panel_showing(KIND):on_change(function(showing)
+    if showing then
+        scan_while_open()
+    else
+        join.clear_network_prompts()
+        if rescan ~= nil then
+            rescan:cancel()
+            rescan = nil
+        end
+    end
+end)
 
 local body = {
     panel_header {
@@ -369,7 +381,7 @@ local body = {
     callout(icons.warning, error_message, {
         visible = computed({ mantle.network, step, error_dismissed }, function(network, current, dismissed)
             return current == "" and not dismissed
-                and network.connect_error ~= nil and network.connecting_ssid == nil
+                and network ~= nil and network.connect_error ~= nil and network.connecting_ssid == nil
         end, false),
         trailing = panel_action_icon(icons.close, function()
             error_dismissed:set(true)
@@ -423,7 +435,7 @@ local body = {
             callout(icons.warning, error_message, {
                 visible = computed({ step, mantle.network }, function(current, network)
                     return current == "failed"
-                        or (current == "password" and network.connect_error ~= nil)
+                        or (current == "password" and network ~= nil and network.connect_error ~= nil)
                 end, false),
             }),
             row {
@@ -488,4 +500,9 @@ local body = {
     ),
 }
 
-return { kind = KIND, body = body, scan_while_open = scan_while_open }
+return {
+    kind = KIND,
+    width = theme.panel_width,
+    keyboard = join.credential_step:map(function(step) return step ~= "" and "exclusive" or "none" end),
+    body = body,
+}

@@ -8,6 +8,14 @@ local idle = require("lib.idle")
 local disclosure = require("lib.disclosure")
 local theme = require("config.theme")
 
+-- The Supervisor is silent until a tier is set.
+local SOUNDS = "/usr/share/sounds/freedesktop/stereo/"
+mantle.notifications:set_sound("low", SOUNDS .. "message.oga")
+mantle.notifications:set_sound("normal", SOUNDS .. "message.oga")
+mantle.notifications:set_sound("critical", SOUNDS .. "bell.oga")
+-- Discord plays its own message sound; ours on top doubles it.
+mantle.notifications:set_app_muted("vesktop", true)
+
 -- Key by id + timestamp so replaced content pops again. Dismiss also removes history.
 M.popup_seen = state("notification_popup_seen", {})
 
@@ -109,7 +117,8 @@ end
 
 -- Keep keyboard focus while a live notification has a draft, even after the pointer leaves.
 M.reply_pending = computed({ M.reply_active_id, mantle.notifications }, function(id, inbox)
-    return id ~= 0 and util.find(inbox.feed, function(notification) return notification.id == id end) ~= nil
+    return id ~= 0 and inbox ~= nil and inbox.feed ~= nil
+        and util.find(inbox.feed, function(notification) return notification.id == id end) ~= nil
 end, false)
 
 -- Blank is a no-op: `reply` removes the notification either way.

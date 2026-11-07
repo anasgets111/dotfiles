@@ -16,6 +16,17 @@ local info_badge = require("components.info_badge")
 local identity = require("lib.identity")
 local system_info = require("modules.bar.indicators.system_info")
 local weather_widget = require("modules.bar.indicators.weather")
+local ui_state = require("lib.ui_state")
+
+local KIND = "notifications"
+
+ui_state.panel_showing(KIND):on_change(function(showing)
+    if showing then
+        ui.open_history()
+    else
+        ui.mark_popups_seen()
+    end
+end)
 
 local function feed(payload)
     return (payload and payload.feed) or {}
@@ -172,4 +183,9 @@ local body = {
     ),
 }
 
-return { kind = "notifications", body = body }
+return {
+    kind = KIND,
+    width = theme.notification_panel_width,
+    keyboard = "on_demand",
+    body = body,
+}
