@@ -11,7 +11,7 @@
   "when_closing_with_no_tabs": "keep_window_open",
   "default_open_behavior": "new_window",
   "cli_default_open_behavior": "new_window",
-  "window_decorations": "client",
+  "window_decorations": "server",
   "redact_private_values": false,
   "telemetry": {
     "diagnostics": true,
@@ -84,7 +84,6 @@
   },
   // Version Control
   "git": {
-    "gutter_debounce": 1,
     "inline_blame": {
       "show_commit_summary": true,
     },
@@ -94,46 +93,6 @@
     "commit_title_max_length": 0,
     "dock": "left",
     "tree_view": true,
-  },
-  // AI Assistants
-  "agent": {
-    "tool_permissions": {
-      "default": "allow",
-      "tools": {}
-    },
-    "sandbox_permissions": {
-      "allow_unsandboxed": true
-    },
-    "default_model": {
-      "provider": "openrouter",
-      "model": "stealth/ox-alpha",
-      "enable_thinking": true
-    },
-    "dock": "right",
-    "commit_message_model": {
-      "provider": "openrouter",
-      "model": "meta-llama/llama-3.1-8b-instruct:free",
-    },
-    "model_parameters": [],
-  },
-  "agent_servers": {
-    "cursor": {
-      "default_config_options": {
-        "mode": "agent",
-        "fast": false,
-        "model": "default",
-      },
-      "type": "registry",
-    },
-    "claude-acp": {
-      "default_config_options": {
-        "effort": "default",
-        "fast": false,
-        "model": "default",
-        "mode": "bypassPermissions",
-      },
-      "type": "registry",
-    },
   },
   // Extensions
   "auto_install_extensions": {
