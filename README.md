@@ -62,6 +62,7 @@ stow -t "$HOME" mantle hypr niri home config xdg-desktop-portal bin
 ```bash
 stow -t "$HOME" fish nvim kitty mpv                     # shell, editor, terminal, player
 stow -t "$HOME" ghostty alacritty foot wezterm nushell   # alternative terminals and shells
+stow -t "$HOME" skills                                     # global Codex skills
 ```
 
 Unstow packages with `stow -D -t "$HOME" <package>`. The `home` package provides `~/.stowrc` pointing at this repository, allowing `stow` and `stow -D` to run from any directory without `-t`. [`arch-install.sh`](bin/.local/bin/arch-install.sh) automates the full Arch install and stow setup for my machines.

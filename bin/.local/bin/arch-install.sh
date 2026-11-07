@@ -602,7 +602,7 @@ bootstrap_user_environment() {
 
     systemctl --global enable podman.socket podman-restart.service hex.service
 
-    run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv containers zed \
+    run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal kitty mantle fish nvim mpv containers zed skills \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
 		# Without a real ~/.local, stow folds the whole dir into the repo and apps write their data there.
