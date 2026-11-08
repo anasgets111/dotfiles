@@ -9,7 +9,7 @@
   "auto_update": false,
   "on_last_window_closed": "quit_app",
   "when_closing_with_no_tabs": "keep_window_open",
-  "default_open_behavior": "new_window",
+  "default_open_behavior": "existing_window",
   "cli_default_open_behavior": "new_window",
   "window_decorations": "server",
   "redact_private_values": false,
