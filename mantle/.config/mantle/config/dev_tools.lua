@@ -4,7 +4,7 @@
 -- cannot see hides its row. Everything runs as the user, because `composer global update` under
 -- `pkexec` would leave `~/.config/composer` owned by root.
 return {
-    { name = "composer",       requires = "composer",             run = { { "composer", "global", "update" } } },
+    { name = "composer",     requires = "composer", run = { { "composer", "global", "update" } } },
     {
         name = "node",
         requires = "fnm",
@@ -20,6 +20,15 @@ return {
             },
         },
     },
+    { name = "pnpm globals", requires = "pnpm",     run = { { "pnpm", "update", "-g" } } },
+    {
+        name = "playwright",
+        requires = "playwright-cli",
+        run = { { "playwright-cli", "install-browser", "chromium" } },
+    },
+    { name = "bun globals",    requires = "bun",                  run = { { "bun", "update", "-g" } } },
+    { name = "uv tools",       requires = "uv",                   run = { { "uv", "tool", "upgrade", "--all" } } },
+    { name = "tldr pages",     requires = "tldr",                 run = { { "tldr", "--update" } } },
     { name = "rust binaries",  requires = "cargo-install-update", run = { { "cargo", "install-update", "-a" } } },
     { name = "rust toolchain", requires = "rustup",               run = { { "rustup", "update" } } },
 }
