@@ -5,7 +5,7 @@ local wallpaper = require("lib.wallpaper")
 local theme = require("config.theme")
 
 -- Built twice: Niri's `place-within-backdrop` moves a surface rather than copying it.
-local function wallpaper_panel(id, visible, blur)
+local function wallpaper_panel(id, transition, visible, blur)
     -- `"ignore"` (layer-shell `-1`) covers the output; `false` would yield to the bar's reservation.
     return panel {
         id = id,
@@ -25,8 +25,8 @@ local function wallpaper_panel(id, visible, blur)
                 source = wallpaper.path_of(output),
                 fit = wallpaper.fit_of(output),
                 async = true,
-                -- Implies `retain`; the shader is a `.frag` from `wallpaper.SHADER_FOLDER`.
-                transition = wallpaper.transition(),
+                retain = true,
+                transition = transition,
                 width = "fill",
                 height = "fill",
                 effect = blur and { blur = blur },
@@ -43,6 +43,6 @@ local in_overview = mantle.workspaces:map(function(workspaces)
 end, false)
 
 return {
-    desktop = wallpaper_panel("wallpaper"),
-    overview = wallpaper_panel("overview_wallpaper", in_overview, theme.blur.overview),
+    desktop = wallpaper_panel("wallpaper", wallpaper.transition()),
+    overview = wallpaper_panel("overview_wallpaper", nil, in_overview, theme.blur.overview),
 }
