@@ -34,15 +34,6 @@ family = "CaskaydiaCove Nerd Font Mono"
 style = "Bold Italic"
 
 
-########################################
-# Window Dimensions & Layout
-########################################
-[window]
-dimensions = { columns = 133, lines = 35 } # Ghostty: window-width/height
-padding = { x = 11, y = 7 }                # Ghostty: window-padding-x/y
-decorations = "Full"                       # Ghostty: window-decoration = server
-# title = ""   # (Optional) set a static title; Ghostty sets font only
-
 # Background opacity (Ghostty had commented out example 0.95)
 # opacity = 0.95
 ###################################
