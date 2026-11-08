@@ -8,15 +8,21 @@ return {
     {
         name = "node",
         requires = "fnm",
-        -- Install the LTS, default to it, then prune every other version.
+        -- Install the LTS and default to it, bring every installed major to its latest release for the
+        -- projects pinned to it, then prune the older releases within each major.
+        -- ponytail: a major stays until `fnm uninstall`, so a past LTS lingers once nothing pins it.
         run = {
             { "fnm", "install", "--use",     "lts-latest" },
             { "fnm", "default", "lts-latest" },
             {
                 "bash",
                 "-c",
-                'fnm ls | awk -v current="$(fnm current)" \'$2 != "system" && $2 != current { print $2 }\''
-                .. " | xargs -r -n1 fnm uninstall",
+                "fnm ls | awk '$2 ~ /^v/ { sub(/\\..*/, \"\", $2); print $2 }' | sort -u | xargs -r -n1 fnm install",
+            },
+            {
+                "bash",
+                "-c",
+                "fnm ls | awk '$2 ~ /^v/ { print $2 }' | sort -Vr | awk -F. 'seen[$1]++' | xargs -r -n1 fnm uninstall",
             },
         },
     },
