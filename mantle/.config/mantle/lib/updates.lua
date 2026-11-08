@@ -17,8 +17,8 @@ local dismissed = state("updates_result_dismissed", false)
 -- The capability publishes only the finish; the click is the only known start.
 local started_at = state("updates_install_started_at", 0)
 
--- Which `requires` binaries are on `PATH`, probed on the first push. Named state keeps the answer
--- across reloads.
+-- Which `requires` binaries are on `PATH`, probed on every evaluation. Named state keeps the last
+-- answer while a reload re-probes.
 local tools_present = state("updates_tools_present", {})
 
 -- The running `config/dev_tools.lua` entry and its output, shown after `install_log`.
@@ -334,21 +334,22 @@ local function announce_check(updates, previous)
     toast("normal", "Updates available", body, "Run updates")
 end
 
-mantle.updates:on_change(function(updates, previous)
-    if previous == nil then
-        -- One shell for every tool.
-        local names = {}
-        for _, tool in ipairs(dev_tools) do
-            names[#names + 1] = tool.requires
-        end
-        local found = {}
-        process.run("sh", { "-c", 'for n; do command -v "$n" >/dev/null && echo "$n"; done', "sh", table.unpack(names) },
-            function(line)
-                found[line] = true
-            end, function()
-                tools_present:set(found)
-            end)
+do
+    -- One shell for every tool.
+    local names = {}
+    for _, tool in ipairs(dev_tools) do
+        names[#names + 1] = tool.requires
     end
+    local found = {}
+    process.run("sh", { "-c", 'for n; do command -v "$n" >/dev/null && echo "$n"; done', "sh", table.unpack(names) },
+        function(line)
+            found[line] = true
+        end, function()
+            tools_present:set(found)
+        end)
+end
+
+mantle.updates:on_change(function(updates, previous)
     if updates == nil then
         return
     end
