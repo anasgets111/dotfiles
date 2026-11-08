@@ -605,12 +605,12 @@ bootstrap_user_environment() {
     run_as_user "$DOTS_DIR" home config bin xdg-desktop-portal btop kitty mantle fish nvim mpv containers zed skills \
         "${STOW_PACKAGES[@]}" <<'SCRIPT'
 		rm -f "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.bash_logout"
-		# Without a real ~/.local, stow folds the whole dir into the repo and apps write their data there.
-		mkdir -p "$HOME/.local"
+		# Without a real ~/.local or ~/.config/containers, stow folds the whole dir into the repo and apps write their data there.
+		mkdir -p "$HOME/.local" "$HOME/.config/containers/containers.conf.d"
 		xdg-user-dirs-update --set DOWNLOAD /mnt/Work/Downloads
 		xdg-user-dirs-update --set PROJECTS "$HOME"
 		xdg-user-dirs-update
-		for pkg in btop fish kitty mantle nvim mpv containers zed hypr niri xdg-desktop-portal; do
+		for pkg in btop fish kitty mantle nvim mpv zed hypr niri xdg-desktop-portal; do
 			target="$HOME/.config/$pkg"
 			[[ -e "$target" && ! -L "$target" ]] && rm -rf "$target"
 		done
