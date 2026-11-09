@@ -1,12 +1,12 @@
--- Developer tooling that `lib/updates.lua` updates after the package manager.
--- Each entry has a name, the binary that must exist, and argv commands run in order until the first
+-- Developer tools that `lib/updates.lua` updates after the package manager.
+-- Each entry has a name (shown as written, and its key in `updates_dev_tools`), the binary that must exist, and argv commands run in order until the first
 -- non-zero exit. Commands resolve against the `PATH` the shell started with, and a tool the session
 -- cannot see hides its row. Everything runs as the user, because `composer global update` under
 -- `pkexec` would leave `~/.config/composer` owned by root.
 return {
-    { name = "composer",     requires = "composer", run = { { "composer", "global", "update" } } },
+    { name = "Composer",     requires = "composer", run = { { "composer", "global", "update" } } },
     {
-        name = "node",
+        name = "Node.js",
         requires = "fnm",
         -- Install the LTS and default to it, bring every installed major to its latest release for the
         -- projects pinned to it, then prune the older releases within each major.
@@ -28,13 +28,13 @@ return {
     },
     { name = "pnpm globals", requires = "pnpm",     run = { { "pnpm", "update", "-g" } } },
     {
-        name = "playwright",
+        name = "Playwright",
         requires = "playwright-cli",
         run = { { "playwright-cli", "install-browser", "chromium" } },
     },
-    { name = "bun globals",    requires = "bun",                  run = { { "bun", "update", "-g" } } },
+    { name = "Bun globals",    requires = "bun",                  run = { { "bun", "update", "-g" } } },
     { name = "uv tools",       requires = "uv",                   run = { { "uv", "tool", "upgrade", "--all" } } },
     { name = "tldr pages",     requires = "tldr",                 run = { { "tldr", "--update" } } },
-    { name = "rust binaries",  requires = "cargo-install-update", run = { { "cargo", "install-update", "-a" } } },
-    { name = "rust toolchain", requires = "rustup",               run = { { "rustup", "update" } } },
+    { name = "Rust binaries",  requires = "cargo-install-update", run = { { "cargo", "install-update", "-a" } } },
+    { name = "Rust toolchain", requires = "rustup",               run = { { "rustup", "update" } } },
 }

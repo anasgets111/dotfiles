@@ -1,275 +1,265 @@
--- The update service around `mantle.updates`: persistence, toasts, the install run and the developer
--- tooling that follows it. `modules/bar/panels/update_panel.lua` owns the wording on screen and
--- `modules/bar/indicators/updates.lua` the bar glyph; neither runs the update pipeline.
+-- The update service around `mantle.updates`: the run record and its effects, toasts and persistence.
+-- `lib/update_model.lua` holds the rules; the panel and the bar glyph draw `view` and `look`.
 local util = require("lib.util")
 local store = require("lib.store")
+local ui = require("lib.ui_state")
 local disclosure = require("lib.disclosure")
+local theme = require("config.theme")
+local icons = require("config.icons")
 local dev_tools = require("config.dev_tools")
+local model = require("lib.update_model")
 
-local log_open = disclosure.state("updates_log_open", false)
-
--- Hourly, since each check is a real `-Sy` against a mirror. Twice this is stale.
+local KIND = "updates"
+local APP = "System Updates"
+-- Hourly, since each check is a real `-Sy` against a mirror.
 local CHECK_INTERVAL = 3600
+-- As many as the Supervisor's `install_log` tail.
+local LOG_LINES = 200
+local TONE = { dim = theme.DIM, accent = theme.ACCENT, green = theme.GREEN, peach = theme.PEACH, red = theme.RED }
+local CHECK_FAILED = "Couldn't check for updates"
 
--- The user has read the result. Close sets it, the next install clears it.
-local dismissed = state("updates_result_dismissed", false)
+local panel_showing = ui.panel_showing(KIND)
 
--- The capability publishes only the finish; the click is the only known start.
-local started_at = state("updates_install_started_at", 0)
-
--- Which `requires` binaries are on `PATH`, probed on every evaluation. Named state keeps the last
--- answer while a reload re-probes.
+-- The current or last run; see `lib/update_model.lua`.
+local run = state("updates_run", {})
+-- The developer tools' output, apart from `run` so a line does not rerun every map of it.
+local tool_log = state("updates_tool_log", {})
+-- `.pacnew` and `.pacsave` files waiting for a merge, found on disk: they outlive the run that made them.
+local pacnew = state("updates_pacnew", {})
+-- Which `requires` binaries are on `PATH`; named state keeps the last answer while a reload re-probes.
 local tools_present = state("updates_tools_present", {})
+local restart_asked = disclosure.state("updates_restart_asked", false)
 
--- The running `config/dev_tools.lua` entry and its output, shown after `install_log`.
-local dev_running = state("updates_dev_tool", "")
-local dev_log = state("updates_dev_log", {})
--- `{ finished_at, failures }` once this run's tools finish. A table seed: named state keeps its type.
-local dev_result = state("updates_dev_result", {})
+local minute = mantle.clock:map(function(clock) return clock.time // 60 end, os.time() // 60)
+local polkit = mantle.polkit:map(function(agent) return agent.active end, false)
 
-local function packages(updates)
-    return (updates and updates.packages) or {}
+local function look_of(phase, updates, current, at, files, agent)
+    local look = model.look(phase, updates, current,
+        { now = at * 60, pacnew = #files, polkit = agent, bytes = util.bytes })
+    look.icon, look.color = icons[look.glyph], TONE[look.tone]
+    return look
 end
 
-local function plural(count, word)
-    return string.format("%d %s%s", count, word, count == 1 and "" or "s")
+local phase = computed({ mantle.updates, run }, model.phase, "loading")
+local look = computed({ phase, mantle.updates, run, minute, pacnew, polkit }, look_of,
+    look_of("loading", nil, {}, 0, {}, false))
+
+local function is_busy(updates, current)
+    return updates.checking or model.phase(updates, current) == "running"
 end
+local busy = computed({ mantle.updates, run }, is_busy, true)
 
--- A spawn failure publishes only `install_error`, never `install_finished_at`.
-local function install_ended(updates)
-    return updates ~= nil and (updates.install_finished_at ~= nil or updates.install_error ~= nil)
-end
-
--- A finished run's result is on screen. Tools after an install are part of its run.
-local result_showing = computed({ mantle.updates, dismissed, dev_running, dev_result },
-    function(updates, is_dismissed, tool, dev)
-        return not is_dismissed and tool == "" and updates ~= nil and not updates.installing and
-            (install_ended(updates) or dev.finished_at ~= nil)
-    end, false)
-
--- Whether this run included packages. A tools-only run leaves the last install's count and log.
-local function ran_packages(updates)
-    return updates ~= nil and (updates.install_finished_at or 0) >= started_at:get()
-end
-
--- With `aur = true`, installs run through the helper when one exists.
-local function manager(updates)
-    return (updates and updates.aur_helper) or "pacman"
-end
-
--- A manager killed by a signal publishes no exit code, which is a failure.
-local function install_failed(updates)
-    return install_ended(updates) and (updates.install_error ~= nil or updates.install_exit_code ~= 0)
-end
-
--- Where the run is, strongest first; the panel's cards and the bar glyph both ask it by name. Tools
--- after an install are `running` too, since the manager has exited but the run has not. A failed
--- check with a stale list is `pending`: the list still shows.
-local phase = computed({ mantle.updates, result_showing, dev_running }, function(updates, showing, tool)
-    if updates == nil then
-        return "loading"
+-- Pacman's output unless the run was tools only, then the tools'. yay colours even without a tty.
+local log_lines = computed({ mantle.updates, run, tool_log }, function(updates, current, lines)
+    local own = {}
+    for index, line in ipairs(current.kind ~= "tools" and updates.install_log or {}) do
+        own[index] = model.strip_ansi(line)
     end
-    if updates.installing or tool ~= "" then
-        return "running"
-    elseif showing then
-        return install_failed(updates) and "failed" or "done"
-    elseif updates.checking then
-        return "checking"
-    elseif #packages(updates) > 0 then
-        return "pending"
-    end
-    return updates.check_error ~= nil and "check_failed" or "empty"
-end, "loading")
+    return util.concat(own, lines)
+end, {})
 
--- Absent means on, so a tool added to `config/dev_tools.lua` runs without a `state.json` edit.
-local function tool_enabled(name, flags)
-    if flags == nil then
-        flags = store.updates_dev_tools:get()
-    end
-    return (flags or {})[name] ~= false
-end
-
--- `name`'s place among the tools a run will start (ticked and present), and their count.
-local function tool_step(name)
-    local present = tools_present:get()
-    local flags = store.updates_dev_tools:get()
-    local step, total = 0, 0
+-- Ticked (absent counts as ticked) and on `PATH`; with `only`, the tools it names, ticked or not.
+local function runnable_names(flags, present, only)
+    local names = {}
     for _, tool in ipairs(dev_tools) do
-        if tool_enabled(tool.name, flags) and present[tool.requires] then
-            total = total + 1
-            if tool.name == name then
-                step = total
-            end
+        if present[tool.requires] and (only and only[tool.name] or not only and flags[tool.name] ~= false) then
+            names[#names + 1] = tool.name
         end
     end
-    return step, total
+    return names
 end
 
-local function any_tool_runnable()
-    return select(2, tool_step()) > 0
-end
-
-local NOTIFICATION_ID = "8001"
-
--- Dismissing closes the card, which also ends a waiting `notify-send --wait`.
-local function dismiss_notifications()
+local function dismiss_toasts(summary)
     local notifications = mantle.notifications:get()
     for _, notification in ipairs((notifications and notifications.feed) or {}) do
-        if notification.app_name == "System Updates" then
+        if notification.app_name == APP and (summary == nil or notification.summary == summary) then
             mantle.notifications:dismiss(notification.id)
         end
     end
 end
 
--- Replaces any pending toast. The card handles its action, including after the toast expires into history.
-local function toast(urgency, title, body, action)
-    dismiss_notifications()
-    local args = {
-        "-u", urgency,
-        "-a", "System Updates",
-        "-i", "system-software-update",
-        "--replace-id", NOTIFICATION_ID,
-    }
-    local tail = action and { "-A", "run-updates=" .. action, title, body } or { title, body }
-    process.detach("notify-send", util.concat(args, tail))
+-- Each opens the panel; no toast starts work.
+local ACTIONS = { review = "Review updates", details = "Show details", restart = "Restart…" }
+
+-- One slot: replaces any earlier toast. Skipped while the panel is open, which already shows it.
+local function toast(urgency, title, body, keys)
+    if panel_showing:get() then
+        return
+    end
+    dismiss_toasts()
+    local updates = mantle.updates:get()
+    if updates and updates.reboot_required and title ~= "Restart to finish updating" then
+        body = body .. "\nRestart to finish updating."
+    end
+    local args = { "-u", urgency, "-a", APP, "-i", "system-software-update" }
+    for _, key in ipairs(keys) do
+        args[#args + 1], args[#args + 2] = "-A", key .. "=" .. ACTIONS[key]
+    end
+    process.detach("notify-send", util.concat(args, { title, body }))
 end
 
--- ponytail: unbounded, unlike the Supervisor's 200-line tail. Cap it if a run ever prints thousands.
-local function append_dev_log(line)
-    dev_log:set(util.concat(dev_log:get(), { line }))
+local function append_log(line)
+    local lines = util.concat(tool_log:get(), { model.strip_ansi(line) })
+    if #lines > LOG_LINES then
+        table.remove(lines, 1)
+    end
+    tool_log:set(lines)
 end
 
--- Stops at the first non-zero exit. A reload kills the child with `nil` and ends the chain.
+local function collect(command, args, done)
+    local found = {}
+    process.run(command, args, function(line, stream)
+        if stream == "stdout" then found[#found + 1] = line end
+    end, function(code)
+        if code ~= nil then done(found) end
+    end)
+end
+
+-- ponytail: `/etc` only, where pacman's backup files live; unreadable directories are skipped.
+local function scan_pacnew()
+    collect("find", { "/etc", "(", "-name", "*.pacnew", "-o", "-name", "*.pacsave", ")" }, function(found)
+        table.sort(found)
+        pacnew:set(found)
+    end)
+end
+
+local function probe_tools()
+    local args = { "-c", 'for n; do command -v "$n" >/dev/null && echo "$n"; done', "sh" }
+    for _, tool in ipairs(dev_tools) do
+        args[#args + 1] = tool.requires
+    end
+    collect("sh", args, function(found)
+        local present = {}
+        for _, name in ipairs(found) do present[name] = true end
+        tools_present:set(present)
+    end)
+end
+
+-- A toast never carries the `.pacnew` count, so it need not wait for the rescan.
+local function finished(current)
+    scan_pacnew()
+    probe_tools()
+    local outcome, updates = model.outcome(current), mantle.updates:get()
+    local look = look_of(outcome, updates, current, 0, {}, false)
+    local restart = outcome == "done" and updates and updates.reboot_required
+    toast(outcome == "failed" and "critical" or "normal", look.title, look.detail,
+        restart and { "details", "restart" } or { "details" })
+end
+
+local advance
+
+-- Stops at the first non-zero exit. `env` turns a command missing from `PATH` into exit 127, so
+-- `nil` is a signal or a reload's kill.
 local function run_commands(commands, index, done)
     local command = commands[index]
     if command == nil then
-        return done(true)
+        return done(0)
     end
-    process.run(command[1], { table.unpack(command, 2) }, append_dev_log, function(code)
-        if code == nil then
-            return dev_running:set("")
-        elseif code ~= 0 then
-            log.error("update:", table.concat(command, " "), "exited", code)
-            return done(false)
+    process.run("env", util.concat({ "--" }, command), append_log, function(code)
+        if code ~= 0 then
+            return done(code, command)
         end
         run_commands(commands, index + 1, done)
     end)
 end
 
-local function report_run(updates, failures)
-    if install_failed(updates) then
-        return toast("critical", "Update failed", "The updates panel has " .. manager(updates) .. "'s output")
-    end
-    if #failures > 0 then
-        return toast("critical", "Update finished with failures", table.concat(failures, ", "))
-    end
-    local count = ran_packages(updates) and updates.install_total_steps or 0
-    local tools = any_tool_runnable() and " and developer tooling" or ""
-    toast("normal", "Update complete", count > 0 and (plural(count, "package") .. tools .. " updated")
-        or "Developer tooling updated")
-end
-
--- Walks `config/dev_tools.lua`; the panel's `LOG_COLOURS` tints the markers it logs.
-local function run_tools(index, failures)
-    local tool = dev_tools[index]
-    if tool == nil then
-        dev_running:set("")
-        dev_result:set({ finished_at = os.time(), failures = failures })
-        return report_run(mantle.updates:get(), failures)
-    end
-    if not tool_enabled(tool.name) then
-        return run_tools(index + 1, failures)
-    end
-    if not tools_present:get()[tool.requires] then
-        append_dev_log(string.format("[SKIP] %s (%s not found)", tool.name, tool.requires))
-        return run_tools(index + 1, failures)
-    end
-    dev_running:set(tool.name)
-    append_dev_log("▶ " .. tool.name)
-    run_commands(tool.run, 1, function(ok)
-        append_dev_log((ok and "[ OK ] " or "[FAIL] ") .. tool.name)
-        if not ok then
-            failures[#failures + 1] = tool.name
-        end
-        run_tools(index + 1, failures)
+-- ponytail: `process.run` dies with every reload, which ends the run at that tool. `session_process`
+-- survives reloads but captures no output; needs one that does.
+local function start_tool(current)
+    local name = current.plan[current.tool]
+    local tool = util.find(dev_tools, function(entry) return entry.name == name end)
+    append_log("▶ " .. name)
+    run_commands(tool and tool.run or {}, 1, function(code, command)
+        local reason = code and code ~= 0 and model.tool_reason(code, command, tool_log:get()) or nil
+        append_log((code == 0 and "[ OK ] " or "[FAIL] ") .. name)
+        advance(model.tool_exit(run:get(), current.started_at, current.tool, code, reason, os.time()))
     end)
 end
 
-local function start_dev_tools()
-    dev_log:set({})
-    run_tools(1, {})
+function advance(new)
+    if new == nil then
+        return
+    end
+    local old = run:get()
+    run:set(new)
+    -- `packages` is stale after any install, failed or not; the capability does not recheck.
+    if old.stage == "packages" and new.stage ~= "packages" then
+        mantle.updates:check()
+    end
+    if new.finished_at and not old.finished_at then
+        finished(new)
+    elseif new.stage == "tools" and (new.started_at ~= old.started_at or new.tool ~= old.tool) then
+        start_tool(new)
+    end
 end
 
--- A retry runs with no pending count: a partial failure can leave zero pending on a half-upgraded
--- system.
+local function reconcile()
+    advance(model.on_push(run:get(), mantle.updates:get(), os.time()))
+end
+
+local function begin(kind, names)
+    local updates = mantle.updates:get()
+    if updates == nil or is_busy(updates, run:get()) or (kind == "tools" and #names == 0) then
+        return
+    end
+    tool_log:set({})
+    dismiss_toasts()
+    advance(model.start(kind, names, os.time(), updates))
+    if kind == "system" then
+        mantle.updates:install()
+        timer(model.WATCHDOG * 1000, reconcile)
+    end
+end
+
+-- Everything pending, then the ticked tools. A failed install reruns even with nothing pending.
 local function install()
     local updates = mantle.updates:get()
-    if updates == nil or updates.installing or dev_running:get() ~= "" then
-        return
-    end
-    local packages_pending = #updates.packages > 0 or install_failed(updates)
-    if not packages_pending and not any_tool_runnable() then
-        return
-    end
-    dismiss_notifications()
-    started_at:set(os.time())
-    dismissed:set(false)
-    dev_result:set({})
-    log_open:set(false)
-    if packages_pending then
-        return mantle.updates:install()
-    end
-    start_dev_tools()
+    local names = runnable_names(store.updates_dev_tools:get(), tools_present:get())
+    local system = updates and (#updates.packages > 0 or model.phase(updates, run:get()) == "failed")
+    begin(system and "system" or "tools", names)
 end
 action("updates.install", install)
 
+local function retry_tools()
+    local only = {}
+    for _, failure in ipairs(run:get().failures or {}) do
+        only[failure.name] = true
+    end
+    begin("tools", runnable_names({}, tools_present:get(), only))
+end
+
+local function dismiss()
+    advance(model.read(run:get()))
+    ui.close_panel()
+end
+
 local function notification_action(notification, key)
-    if notification.id ~= tonumber(NOTIFICATION_ID) or notification.app_name ~= "System Updates" or key ~= "run-updates" then
+    if notification.app_name ~= APP or ACTIONS[key] == nil then
         return false
     end
-    install()
+    mantle.notifications:dismiss(notification.id)
+    ui.open_panel(KIND, hover_rect(KIND):get())
+    -- After the open, which resets disclosures.
+    restart_asked:set(key == "restart")
     return true
 end
 
--- `rows`' first answer with a pattern in `lowered`, each row `{ answer, pattern... }`.
-local function first_match(lowered, rows)
-    for _, entry in ipairs(rows) do
-        for index = 2, #entry do
-            if lowered:find(entry[index]) then
-                return entry[1]
-            end
+-- Opening rescans `.pacnew`, since a merge runs in a terminal the shell does not watch. Closing reads
+-- a done or issues result after the exit tween, unless the panel opened again meanwhile.
+panel_showing:on_change(function(showing)
+    if showing then
+        dismiss_toasts()
+        return scan_pacnew()
+    end
+    timer(theme.animation_ms, function()
+        local current = run:get()
+        if not panel_showing:get() and model.outcome(current) ~= "failed" then
+            advance(model.read(current))
         end
-    end
-end
+    end)
+end)
 
--- Pacman output to actionable wording, strongest first.
-local FAILURE_PHRASES = {
-    { "Could not download; check the connection", "failed retrieving",            "could not resolve host", "connection refused" },
-    { "Not enough disk space",                    "not enough free disk space" },
-    { "A package failed its signature check",     "invalid or corrupted package", "signature from" },
-    { "Files conflict with another package",      "conflicting files" },
-    { "Authentication failed",                    "authentication" },
-}
-
--- Only asked once `install_failed(updates)`, so `updates` is set.
-local function failure_reason(updates)
-    for _, line in ipairs(updates.install_log or {}) do
-        local reason = first_match(line:lower(), FAILURE_PHRASES)
-        if reason then
-            return reason
-        end
-    end
-    if updates.install_error ~= nil then
-        return "The updater could not be started"
-    end
-    if updates.install_exit_code == nil then
-        return manager(updates) .. " was killed before it finished"
-    end
-    return string.format("%s exited with %d", manager(updates), updates.install_exit_code)
-end
-
--- Updates stay dormant until configured. Seeding from `mantle.storage`'s first push lets a restart
--- within the hour skip the check and still show an answer.
+-- Updates stay dormant until configured; the stored answer lets a restart within the hour skip the check.
 mantle.storage:on_change(function(_, previous)
     if previous == nil then
         mantle.updates:configure({
@@ -281,116 +271,78 @@ mantle.storage:on_change(function(_, previous)
     end
 end)
 
--- On a completed check, remember its time and packages and announce what is new, comparing names
--- with the stored key so a restart does not repeat the same twelve packages.
-local function announce_check(updates, previous)
-    -- Compare with the store, not the previous push: the first post-restart push carries seeded
-    -- time.
-    if updates.last_successful_check and updates.last_successful_check ~= store.updates_checked_at:get() then
-        store:set("updates_checked_at", updates.last_successful_check)
-        store:set("updates_packages", updates.packages)
-    end
-    -- Every fifth consecutive failure: the bar's count is no longer the system's answer.
-    local failures = updates.consecutive_check_failures or 0
-    if failures > 0 and failures % 5 == 0 and previous ~= nil and (previous.consecutive_check_failures or 0) ~= failures then
-        toast("critical", "Update check failed", updates.check_error or "")
-    end
-    -- Only the push that ends a check has a fresh list.
-    if updates.checking or previous == nil or previous.checking ~= true then
-        return
-    end
-    if #updates.packages == 0 then
-        if not result_showing:get() then
-            dismiss_notifications()
-        end
-        store:set("updates_notified", "")
-        return
-    end
-    local announced = store.updates_notified:get()
+-- Announces names not announced before, even across a restart.
+local function announce(updates)
     local names = {}
-    for _, package in ipairs(updates.packages) do
-        names[#names + 1] = package.name
+    for index, package in ipairs(updates.packages) do
+        names[index] = package.name
     end
     table.sort(names)
-    local key = table.concat(names, "\n")
-    if key == announced then
-        return
+    local announced = "\n" .. store.updates_notified:get() .. "\n"
+    store:set("updates_notified", table.concat(names, "\n"))
+    -- Anchored on newlines: a bare `find` counts a new `python` as announced beside `python-pip`.
+    local fresh = #util.filter(names, function(name) return not announced:find("\n" .. name .. "\n", 1, true) end)
+    if #names == 0 then
+        dismiss_toasts("Updates available")
+    elseif fresh > 0 then
+        toast("normal", "Updates available", fresh == #names and model.plural(fresh, "package")
+            or string.format("%d new · %d in all", fresh, #names), { "review" })
     end
-    store:set("updates_notified", key)
-    local fresh = 0
-    local announced_names = "\n" .. announced .. "\n"
-    for _, name in ipairs(names) do
-        -- Anchored on newlines: a bare `find` matches inside a neighbour, so a new `python`
-        -- counted as already announced whenever `python-pip` was in the stored list.
-        if not announced_names:find("\n" .. name .. "\n", 1, true) then
-            fresh = fresh + 1
-        end
-    end
-    if fresh == 0 then
-        return
-    end
-    local body = fresh == 1 and string.format("One new package can be upgraded (%d)", #updates.packages)
-        or string.format("%d new packages can be upgraded (%d)", fresh, #updates.packages)
-    toast("normal", "Updates available", body, "Run updates")
-end
-
-do
-    -- One shell for every tool.
-    local names = {}
-    for _, tool in ipairs(dev_tools) do
-        names[#names + 1] = tool.requires
-    end
-    local found = {}
-    process.run("sh", { "-c", 'for n; do command -v "$n" >/dev/null && echo "$n"; done', "sh", table.unpack(names) },
-        function(line)
-            found[line] = true
-        end, function()
-            tools_present:set(found)
-        end)
 end
 
 mantle.updates:on_change(function(updates, previous)
     if updates == nil then
         return
     end
-    announce_check(updates, previous)
-    -- Keyed on the stamp moving: pushes coalesce, so an `installing` edge can be missed.
-    if previous == nil or updates.installing or not install_ended(updates) then
-        return
+    -- Compare with the store, not the previous push: the first push after a restart carries the seed.
+    if updates.last_successful_check and updates.last_successful_check ~= store.updates_checked_at:get() then
+        store:set("updates_checked_at", updates.last_successful_check)
+        store:set("updates_packages", updates.packages)
     end
-    if updates.install_finished_at == previous.install_finished_at and updates.install_error == previous.install_error then
-        return
+    local current = run:get()
+    -- An install this evaluation did not start, after the Renderer lost `run`.
+    if updates.installing and (current.started_at == nil or current.finished_at) then
+        advance(model.start("system", {}, os.time(), updates))
     end
-    -- `packages` is stale after any run, failed or not.
-    mantle.updates:check()
-    if install_failed(updates) then
-        -- A half-upgraded system is the wrong place to rebuild a toolchain against.
-        return report_run(updates, {})
+    reconcile()
+    local failures = updates.consecutive_check_failures or 0
+    if failures > 0 and failures % 5 == 0 and previous and previous.consecutive_check_failures ~= failures then
+        toast("normal", CHECK_FAILED, model.plain(updates.check_error) .. " · "
+            .. model.plural(failures, "failed check") .. " in a row", { "details" })
     end
-    start_dev_tools()
+    if previous and previous.checking and not updates.checking then
+        if updates.check_error == nil then
+            dismiss_toasts(CHECK_FAILED)
+        end
+        advance(model.check_ended(run:get(), updates))
+        announce(updates)
+    end
 end)
 
+-- A reload killed the last evaluation's tool, if one ran; pacman lives in the Supervisor.
+probe_tools()
+scan_pacnew()
+local current = run:get()
+advance(model.tool_exit(current, current.started_at, current.tool, nil, nil, os.time()))
+reconcile()
+
 return {
+    KIND = KIND,
     CHECK_INTERVAL = CHECK_INTERVAL,
-    log_open = log_open,
-    dismissed = dismissed,
-    started_at = started_at,
+    run = run,
+    pacnew = pacnew,
     tools_present = tools_present,
-    dev_running = dev_running,
-    dev_log = dev_log,
-    dev_result = dev_result,
-    packages = packages,
-    plural = plural,
-    result_showing = result_showing,
+    restart_asked = restart_asked,
     phase = phase,
-    ran_packages = ran_packages,
-    install_failed = install_failed,
-    tool_enabled = tool_enabled,
-    tool_step = tool_step,
-    any_tool_runnable = any_tool_runnable,
-    dismiss_notifications = dismiss_notifications,
+    view = phase:map(function(name) return model.VIEW[name] or "idle" end),
+    look = look,
+    busy = busy,
+    progress = computed({ mantle.updates, run }, model.progress, model.progress(nil, {})),
+    log_lines = log_lines,
+    runnable_names = runnable_names,
     install = install,
+    update_tools = function(names) begin("tools", names) end,
+    retry_tools = retry_tools,
+    dismiss = dismiss,
     notification_action = notification_action,
-    first_match = first_match,
-    failure_reason = failure_reason,
 }

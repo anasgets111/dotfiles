@@ -1,582 +1,377 @@
--- Update actions, repository groups and run output. `lib/updates.lua` owns execution.
+-- The update panel: one prebuilt view per `service.view`, switched through `children`.
+-- `lib/update_model.lua` words the state; `lib/updates.lua` runs it.
 local theme = require("config.theme")
 local icons = require("config.icons")
 local util = require("lib.util")
 local cell = require("components.cell")
 local checkbox = require("components.checkbox")
+local callout = require("components.callout")
+local meter = require("components.meter")
+local panel_card = require("components.panel_card")
+local panel_empty_state = require("components.panel_empty_state")
 local panel_header = require("components.panel_header")
-local spinner = require("components.spinner")
 local action_button = require("components.action_button")
 local panel_action_icon = require("components.panel_action_icon")
 local panel_row = require("components.panel_row")
 local section_header = require("components.section_header")
-local meter = require("components.meter")
-local info_badge = require("components.info_badge")
 local store = require("lib.store")
 local ui = require("lib.ui_state")
 local disclosure = require("lib.disclosure")
 local service = require("lib.updates")
+local model = require("lib.update_model")
 local dev_tools = require("config.dev_tools")
 
-local KIND = "updates"
+local look, run, log_lines = service.look, service.run, service.log_lines
 local LOG_SCROLL = scroll("update_log")
+-- Disclosed rows start under their parent's title.
+local INDENT = { left = theme.icon.md + theme.spacing.sm }
 
-local log_open = service.log_open
-local settings_expanded = disclosure.state("updates_settings_expanded", false)
-local phase = service.phase
+local settings_open = disclosure.state("updates_settings_expanded", false)
+local pacnew_open = disclosure.state("updates_pacnew_open", false)
 
-local function download_total(updates)
-    local total = 0
-    for _, package in ipairs(service.packages(updates)) do
-        total = total + (package.download_size or 0)
-    end
-    return total
-end
+local checking = mantle.updates:map(function(updates) return updates.checking end, false)
+local reboot = mantle.updates:map(function(updates) return updates.reboot_required end, false)
+local has_pacnew = service.pacnew:map(function(files) return #files > 0 end)
+local has_log = log_lines:map(function(lines) return #lines > 0 end)
+local warning = look:map(function(current) return current.warning end)
+local tools_runnable = computed({ store.updates_dev_tools, service.tools_present }, service.runnable_names, {})
 
-local status_color = computed({ phase, mantle.updates, service.dev_result }, function(current, updates, dev)
-    if current == "failed" or current == "check_failed" then
-        return theme.RED
-    elseif (updates and (updates.check_error ~= nil or updates.aur_error ~= nil)) or
-        (current == "done" and #(dev.failures or {}) > 0) then
-        return theme.PEACH
-    end
-    return current == "done" and theme.GREEN or theme.DIM
-end, theme.DIM)
-
--- ponytail: `install_log` is a 200-line tail, so long runs undercount. Exact needs a Supervisor counter.
-local function warning_count(updates)
-    local count = 0
-    for _, line in ipairs(updates.install_log or {}) do
-        if line:lower():find("warning", 1, true) then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-local function status_line(updates, current, tool, dev)
-    if current == "loading" then
-        return "Waiting for the updater"
-    elseif tool ~= "" then
-        return "Updating " .. tool
-    elseif current == "running" then
-        local package = updates.install_current_package
-        return (package ~= nil and package ~= "") and ("Installing " .. package) or "Preparing update…"
-    elseif current == "failed" then
-        return "Update failed"
-    elseif current == "done" then
-        return #(dev.failures or {}) > 0 and "Update finished with failures" or "Update complete"
-    elseif current == "checking" then
-        return "Checking…"
-    elseif current == "pending" then
-        return service.plural(#updates.packages, "update") .. " available"
-    elseif current == "check_failed" then
-        return "Check failed"
-    end
-    return "Up to date"
-end
-
-local function detail_line(updates, current, tool, dev, start)
-    if current == "loading" then
-        return ""
-    elseif tool ~= "" then
-        return string.format("Developer tooling · %d of %d", service.tool_step(tool))
-    elseif current == "running" then
-        local total = updates.install_total_steps or 0
-        if total > 0 then
-            return string.format("Package %d of %d", updates.install_current_step or 0, total)
-        end
-        -- No step line yet. Without a tty pacman downloads silently, so show what `alpm` sized.
-        return string.format("Downloading %s · %s", service.plural(#updates.packages, "package"),
-            util.bytes(download_total(updates)))
-    end
-    if current == "done" or current == "failed" then
-        -- The reason heads the log, beside the output it came from.
-        -- A spawn failure has no finish time, so no duration.
-        local seconds = (dev.finished_at or updates.install_finished_at or 0) - start
-        local time_str = (start > 0 and seconds >= 0) and (seconds < 60 and string.format("%d sec", seconds)
-            or string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60))
-        if current == "failed" then
-            return time_str and ("Failed after " .. time_str) or "See the log below"
-        end
-        local ran = service.ran_packages(updates)
-        local warnings = ran and warning_count(updates) or 0
-        local noted = warnings > 0 and (" · " .. service.plural(warnings, "warning")) or ""
-        local failed = #(dev.failures or {}) > 0 and (" · " .. table.concat(dev.failures, ", ") .. " failed") or ""
-        local count = ran and (updates.install_total_steps or 0) or 0
-        local count_prefix = count > 0 and (service.plural(count, "package") .. " · ") or ""
-        local took = time_str and ((count > 0 and "took " or "Took ") .. time_str) or "Finished"
-        return count_prefix .. took .. noted .. failed
-    end
-    -- A failed check keeps the last good list, so say which list is shown.
-    if updates.check_error ~= nil then
-        local failures = updates.consecutive_check_failures or 0
-        -- Five consecutive failures is the warning threshold.
-        local repeated = failures >= 5 and string.format(" · %d in a row", failures) or ""
-        return "Showing the last list · " .. updates.check_error:match("[^\n]*") .. repeated
-    end
-    if updates.aur_error ~= nil then
-        return "AUR not checked · " .. updates.aur_error:match("[^\n]*")
-    end
-    if #updates.packages > 0 then
-        return string.format("%s to download", util.bytes(download_total(updates)))
-    end
-    return "Nothing pending"
-end
-
--- Dated unless today, and marked stale past two intervals (a suspended laptop). `detail_line` covers
--- errors.
-local function last_check_line(updates, now)
-    if updates.last_successful_check == nil then
-        return "Never checked"
-    end
-    local at = updates.last_successful_check
-    return "Checked " .. util.stamp(at, now) .. (now - at > service.CHECK_INTERVAL * 2 and " · stale" or "")
+local function check()
+    mantle.updates:check()
 end
 
 -- Packages whose new version only runs after a reboot; tinted in the list.
 local REBOOT = { systemd = true, glibc = true, ["amd-ucode"] = true, ["intel-ucode"] = true }
-local REPO_COLORS = { core = theme.GREEN, extra = theme.YELLOW, multilib = theme.ACCENT, aur = theme.PEACH }
 
 local function needs_reboot(name)
     return REBOOT[name] == true or name:find("^linux") ~= nil or name:find("^nvidia") ~= nil
 end
 
 -- Every install log line re-pushes `mantle.updates`, and past 256 entries the engine cannot see the
--- list is unchanged, so the sort reran per line. `packages` is the answer of the check stamped
--- `last_successful_check`, so the stamp says when to sort again.
-local sorted_at, sorted_count, sorted_rows = nil, nil, {}
-
--- Group by repository, with AUR builds last; names sort within each group.
+-- list is unchanged, so the check's stamp and count key the sort: a scalar the engine compares.
 local sorted_packages = mantle.updates:map(function(updates)
-    local packages = service.packages(updates)
-    if updates.last_successful_check ~= nil and updates.last_successful_check == sorted_at
-        and #packages == sorted_count then
-        return sorted_rows
-    end
-    local list = util.concat(packages)
-    table.sort(list, function(left, right)
-        local left_repo, right_repo = left.repository or "", right.repository or ""
-        if left_repo ~= right_repo then
-            if left_repo == "aur" or right_repo == "aur" then
-                return right_repo == "aur"
-            end
-            return left_repo < right_repo
-        end
-        return (left.name or "") < (right.name or "")
-    end)
-    local rows, group = {}, nil
-    for _, package in ipairs(list) do
-        local repo = package.repository or ""
-        if group == nil or repo ~= group.repository then
-            group = {
-                repository = repo,
-                header = repo == "aur" and "AUR builds" or repo == "" and "Repositories" or repo,
-                count = 0
-            }
-            rows[#rows + 1] = group
-        end
-        group.count = group.count + 1
-        rows[#rows + 1] = package
-    end
-    sorted_at, sorted_count, sorted_rows = updates.last_successful_check, #packages, rows
-    return rows
-end, {})
-
--- The capability retains packages during a refresh, keeping this height until results arrive.
-local package_height = sorted_packages:map(function(packages)
-    return math.max(theme.control.sm, util.fit_height(packages, theme.update_list_height, theme.spacing.xs,
-        function(package)
-            return package.header and theme.section_header_height or theme.control.md
-        end))
+    return string.format("%s:%d", updates.last_successful_check, #updates.packages)
+end, ""):map(function()
+    local list = util.concat((mantle.updates:get() or {}).packages)
+    table.sort(list, function(left, right) return (left.name or "") < (right.name or "") end)
+    return list
 end)
+local has_packages = sorted_packages:map(function(list) return #list > 0 end)
 
-local log_lines = computed({ mantle.updates, service.dev_log }, function(updates, lines)
-    return util.concat((updates and updates.install_log) or {}, lines)
-end, {})
-
--- Strongest first, so red failures are findable in two hundred lines of pacman output.
-local LOG_COLOURS = {
-    { theme.RED, "%[fail%]", "error", "failed" },
-    { theme.PEACH, "warning", "%[skip%]" },
-    { theme.ACCENT, "downloading", "retrieving", "installing", "upgrading", "%(%s*%d+/%d+%)" },
-    { theme.GREEN, "%[ ok %]", "complete", "up to date" },
-    { theme.FG, "^▶", "^::", "^==>" },
-}
-
--- A finished run's re-check keeps its result on screen while the Check button is busy.
-local checking = mantle.updates:map(function(updates)
-    return updates.checking
-end, false)
-
-local log_showing = computed({ phase, log_open }, function(current, open)
-    return current == "running" or current == "failed" or (current == "done" and open)
-end)
-
--- Follow the newest line on every push. Past 200 lines the tail changes but its length does not,
--- and the exit push carries the failure's stderr.
---
--- ponytail: scrolling back does not pause the follow. The offset trails `reveal` by a layout pass,
--- so user scrolls are undetectable; needs an engine "wheel moved this viewport" signal.
-mantle.updates:on_change(function(updates)
-    local lines = updates ~= nil and #(updates.install_log or {}) or 0
-    if lines > 0 then
-        LOG_SCROLL:reveal(lines)
+-- Versions wrap after their separators to a second line rather than hide their tail.
+local function package_line(name, current, new, name_color, new_color, name_size)
+    local function version(text, color)
+        return cell((text:gsub("[.+:-]", "%0\u{200B}")), color, theme.font.xs,
+            { width = theme.update_version_width, align = "end", align_v = "center", wrap = "word", max_lines = 2 })
     end
-end)
-
--- The whole row toggles inclusion; the checkbox is its readback.
----@param on Signal<boolean>
----@param opts PanelRowOpts
-local function include_row(on, opts)
-    local mark = checkbox(on)
-    opts.height = theme.control.md
-    opts.trailing = opts.trailing and row {
-        spacing = theme.spacing.sm, align_v = "center", children = { opts.trailing, mark },
-    } or mark
-    return panel_row(opts)
-end
-
-local tools_heading = section_header("also update")
-tools_heading.margin = { left = theme.spacing.sm }
-local tool_rows = {}
-for _, tool in ipairs(dev_tools) do
-    local included = store.updates_dev_tools:map(function(ticked)
-        return service.tool_enabled(tool.name, ticked)
-    end)
-    tool_rows[#tool_rows + 1] = include_row(included, {
-        title = tool.name == "node" and "Node.js" or tool.name:gsub("^%l", string.upper),
-        slot = "updates-tool-" .. tool.name,
-        -- Nothing to decide about a tool this machine cannot run.
-        visible = service.tools_present:map(function(present)
-            return present[tool.requires] == true
-        end),
-        on_activate = function()
-            store:set("updates_dev_tools", util.with(store.updates_dev_tools:get(), tool.name, not included:get()))
-        end,
-    })
-end
-
--- The capability learns the switch through `configure`; the check then adds or drops AUR rows.
-local aur_row = include_row(store.updates_aur, {
-    title = "AUR packages",
-    slot = "updates-aur",
-    trailing = cell(mantle.updates:map(function(updates)
-        return updates.aur_helper or "No helper found"
-    end, "No helper found"), theme.DIM, theme.font.xs),
-    on_activate = function()
-        local on = not store.updates_aur:get()
-        store:set("updates_aur", on)
-        mantle.updates:configure({ interval = service.CHECK_INTERVAL, aur = on })
-        mantle.updates:check()
-    end,
-})
-
-local settings_summary = computed({ store.updates_aur, store.updates_dev_tools, service.tools_present },
-    function(aur, ticked, present)
-        local words, count = aur and { "AUR" } or {}, 0
-        for _, tool in ipairs(dev_tools) do
-            if present[tool.requires] == true and service.tool_enabled(tool.name, ticked) then
-                count = count + 1
-            end
-        end
-        if count > 0 then
-            words[#words + 1] = service.plural(count, "developer tool")
-        end
-        return #words > 0 and table.concat(words, " · ") or "Repositories only"
-    end)
-
-local busy = computed({ mantle.updates, service.dev_running }, function(updates, tool)
-    return (updates and (updates.checking or updates.installing)) or tool ~= ""
-end, true)
-
--- Percent through this run's packages, then its tools; `false` while there is no count to show.
-local progress = computed({ mantle.updates, service.dev_running }, function(updates, tool)
-    if tool ~= "" then
-        local step, total = service.tool_step(tool)
-        return total > 0 and 100 * step / total or false
-    end
-    local total = (updates and updates.installing and updates.install_total_steps) or 0
-    return total > 0 and 100 * ((updates and updates.install_current_step) or 0) / total or false
-end, false)
-
--- `.pacnew` and `.pacsave` files from this run, each wanting a manual merge.
-local pacnew = computed({ mantle.updates, service.result_showing }, function(updates, showing)
-    local files = {}
-    if not (showing and service.ran_packages(updates)) then
-        return files
-    end
-    for _, line in ipairs(updates.install_log or {}) do
-        local path = line:match("installed as (%S+%.pacnew)") or line:match("saved as (%S+%.pacsave)")
-        if path then
-            files[#files + 1] = path
-        end
-    end
-    return files
-end, {})
-
--- Installing before pacman has counted the packages.
-local working = mantle.updates:map(function(updates)
-    return updates.installing and (updates.install_total_steps or 0) == 0
-end, false)
-
-local function package_columns(name, current, new, name_color, new_color, name_size)
-    return {
-        cell(name, name_color, name_size or theme.font.sm, { width = "fill", align_v = "center" }),
-        cell(current, theme.DIM, theme.font.xs, { width = theme.update_version_width, align = "end", align_v = "center" }),
-        cell(new, new_color, theme.font.xs, { width = theme.update_version_width, align = "end", align_v = "center" }),
+    return row {
+        width = "fill",
+        min_height = theme.control.sm,
+        align_v = "center",
+        spacing = theme.spacing.md,
+        children = {
+            cell(name, name_color, name_size or theme.font.sm, { width = "fill", align_v = "center" }),
+            version(current, theme.DIM),
+            version(new, new_color),
+        },
     }
 end
 
-local body = {
-    panel_header {
-        title = "Updates",
-        icon = phase:map(function(current)
-            if current == "running" then
-                return icons.updating
-            elseif current == "checking" then
-                return icons.checking
-            elseif current == "failed" or current == "check_failed" then
-                return icons.update_err
-            end
-            return current == "pending" and icons.updates or icons.up_to_date
+local package_card = panel_card({
+    package_line("Package", "Installed", "Available", theme.TEXT_MUTED, theme.TEXT_MUTED, theme.font.xs),
+    list {
+        width = "fill",
+        -- The capability keeps packages through a refresh, so this height holds until results arrive.
+        height = sorted_packages:map(function(list)
+            return util.fit_height(list, theme.update_list_height, theme.spacing.xs,
+                function() return theme.control.sm end)
         end),
-        accent = computed({ phase, status_color }, function(current, color)
-            return (current == "pending" or current == "running" or current == "checking") and theme.ACCENT or color
-        end),
-        subtitle = computed({ mantle.updates, phase, service.dev_running, service.dev_result }, status_line, "Waiting for the updater"),
-        trailing = {
-            info_badge("Reboot required", theme.PEACH, {
-                visible = mantle.updates:map(function(updates)
-                    return updates.reboot_required == true
-                end, false),
-            }),
-        },
-    },
-    row {
-        width = "fill",
-        spacing = theme.spacing.sm,
-        children = {
-            action_button(
-                computed({ phase, mantle.updates }, function(current, updates)
-                    if current == "running" then
-                        return "Updating…"
-                    elseif current == "failed" then
-                        return "Retry update"
-                    elseif not updates or #updates.packages == 0 then
-                        return "Update developer tools"
-                    end
-                    return "Update all"
-                end, "Update developer tools"),
-                service.install,
-                "updates-install",
-                {
-                    tone = "accent",
-                    glyph = icons.updates,
-                    width = "fill",
-                    disabled = busy,
-                    visible = computed({ phase, mantle.updates, store.updates_dev_tools, service.tools_present },
-                        function(current, updates)
-                            if current == "running" or current == "failed" then
-                                return true
-                            elseif current == "loading" or current == "done" then
-                                return false
-                            end
-                            return #updates.packages > 0 or service.any_tool_runnable()
-                        end, false),
-                }
-            ),
-            action_button(util.choose(checking, "Checking…", "Check"), function()
-                mantle.updates:check()
-            end, "updates-refresh", {
-                tone = "quiet",
-                glyph = icons.refresh,
-                width = theme.update_version_width + theme.spacing.lg,
-                disabled = busy,
-            }),
-        },
-    },
-    column {
-        width = "fill",
-        spacing = theme.spacing.sm,
-        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-        children = {
-            row {
-                width = "fill",
-                spacing = theme.spacing.sm,
-                align_v = "center",
-                children = {
-                    cell(computed({ mantle.updates, phase, service.dev_running, service.dev_result, service.started_at }, detail_line, ""),
-                        status_color, theme.font.xs, { width = "fill", wrap = "word" }),
-                    cell(computed({ mantle.updates, mantle.clock }, function(updates, clock)
-                        return last_check_line(updates, clock and clock.time)
-                    end, "Never checked"), theme.TEXT_MUTED, theme.font.xs, {
-                        align = "end",
-                        visible = phase:map(function(current)
-                            return current ~= "running" and current ~= "done" and current ~= "failed"
-                        end),
-                    }),
-                },
-            },
-            row {
-                width = "fill",
-                visible = progress:map(function(percent)
-                    return percent ~= false
-                end),
-                children = { meter(progress, function(percent) return percent or 0 end, theme.ACCENT) },
-            },
-            row {
-                spacing = theme.spacing.sm,
-                align_v = "center",
-                visible = working,
-                children = { spinner(working, theme.control.xs), cell("Working…", theme.DIM, theme.font.xs) },
-            },
-        },
-    },
-    column {
-        width = "fill",
-        visible = pacnew:map(function(files) return #files > 0 end),
+        scroll = scroll("update_packages"),
+        animate = { scroll = theme.scroll_ease },
         spacing = theme.spacing.xs,
-        children = {
-            section_header("config files to merge"),
-            column {
-                width = "fill",
-                padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-                spacing = theme.spacing.xs,
-                children = pacnew:map(function(files)
-                    local rows = {}
-                    for _, path in ipairs(files) do
-                        rows[#rows + 1] = cell(path, theme.PEACH, theme.font.xs, {
-                            width = "fill", wrap = "word", font = theme.mono_font,
-                        })
-                    end
-                    return rows
-                end),
-            },
-        },
+        items = sorted_packages,
+        each = function(package)
+            return package_line(package.name or "?", package.old_version or "", package.new_version or "",
+                needs_reboot(package.name or "") and theme.PEACH or theme.FG, theme.ACCENT)
+        end,
+        key = function(package) return package.name or "?" end,
     },
-    column {
+}, { width = "fill", visible = has_packages })
+
+-- Failures stand out in two hundred lines of pacman output.
+local function log_colour(line)
+    local lowered = line:lower()
+    return (lowered:find("error", 1, true) or lowered:find("fail", 1, true)) and theme.RED
+        or lowered:find("warning", 1, true) and theme.PEACH
+        or (line:find("^▶") or line:find("^%[ OK %]") or line:find("^::")) and theme.FG or theme.DIM
+end
+
+-- ponytail: the log follows its newest line even after a scroll back. The offset trails `reveal` by a
+-- layout pass, so user scrolls are undetectable; needs an engine "wheel moved this viewport" signal.
+log_lines:on_change(function(lines)
+    if #lines > 0 then
+        LOG_SCROLL:reveal(#lines)
+    end
+end)
+
+-- `height` fixes the running view's box; a result's grows with its lines up to the same height.
+local function output(height)
+    local label = section_header("Output")
+    label.width = "fill"
+    return column {
         width = "fill",
         spacing = theme.spacing.xs,
-        padding = { left = theme.spacing.sm, right = theme.spacing.sm },
-        visible = phase:map(function(current)
-            return current == "checking" or current == "pending"
-        end),
-        children = {
-            row {
-                width = "fill",
-                spacing = theme.spacing.md,
-                children = package_columns("Package", "Installed", "Available", theme.TEXT_MUTED, theme.TEXT_MUTED,
-                    theme.font.xs),
-            },
-            list {
-                width = "fill",
-                height = package_height,
-                scroll = scroll("update_packages"),
-                animate = { scroll = theme.scroll_ease },
-                spacing = theme.spacing.xs,
-                items = sorted_packages,
-                each = function(package)
-                    if package.header then
-                        local heading = section_header(string.format("%s · %d", package.header, package.count))
-                        heading.foreground = theme.with_opacity(REPO_COLORS[package.repository] or theme.DIM,
-                            theme.opacity.strong)
-                        return heading
-                    end
-                    return row {
-                        width = "fill",
-                        height = theme.control.md,
-                        align_v = "center",
-                        spacing = theme.spacing.md,
-                        children = package_columns(
-                            package.name or "?",
-                            package.old_version or "",
-                            package.new_version or "",
-                            needs_reboot(package.name or "") and theme.PEACH or theme.FG,
-                            theme.ACCENT),
-                    }
-                end,
-                key = function(package)
-                    return package.header and ("repo:" .. package.repository) or package.name or "?"
-                end,
-            },
-        },
-    },
-    column {
-        width = "fill",
-        visible = log_showing,
-        spacing = theme.spacing.xs,
+        visible = height ~= nil or has_log,
         children = {
             row {
                 width = "fill",
                 align_v = "center",
                 children = {
-                    cell(util.bold(mantle.updates:map(function(updates)
-                        return service.install_failed(updates) and service.failure_reason(updates) or "Install log"
-                    end, "Install log")), mantle.updates:map(function(updates)
-                        return service.install_failed(updates) and theme.RED or theme.DIM
-                    end, theme.DIM), theme.font.xs, { width = "fill", wrap = "word" }),
+                    label,
                     panel_action_icon(icons.copy, function()
-                        local lines = log_lines:get() or {}
-                        if #lines > 0 then
-                            process.detach("wl-copy", { table.concat(lines, "\n") })
-                        end
-                    end, { slot = "updates-copy-log" }),
+                        process.detach("wl-copy", { table.concat(log_lines:get(), "\n") })
+                    end, { slot = "updates-copy-log", visible = has_log }),
                 },
             },
-            list {
-                width = "fill",
-                height = theme.update_log_height,
-                scroll = LOG_SCROLL,
-                items = log_lines,
-                spacing = theme.spacing.xs,
-                each = function(line)
-                    return cell(line, service.first_match(line:lower(), LOG_COLOURS) or theme.DIM, theme.font.xs, {
-                        width = "fill", wrap = "word", max_lines = 3, font = theme.mono_font,
-                    })
-                end,
-            },
+            panel_card({
+                list {
+                    width = "fill",
+                    height = height and "fill",
+                    max_height = height == nil and theme.update_log_height or nil,
+                    visible = has_log,
+                    scroll = LOG_SCROLL,
+                    items = log_lines,
+                    spacing = theme.spacing.xs,
+                    each = function(line)
+                        return cell(line, log_colour(line), theme.font.xs, {
+                            width = "fill", wrap = "word", max_lines = 3, font = theme.mono_font,
+                        })
+                    end,
+                },
+                panel_empty_state("No output yet", log_lines:map(function(lines) return #lines == 0 end)),
+            }, { width = "fill", height = height }),
         },
-    },
-    panel_row {
-        slot = "updates-settings",
+    }
+end
+
+-- The whole row toggles inclusion; the checkbox is its readback. Locked while a run reads them.
+local function include_row(on, opts)
+    local toggle = opts.on_activate
+    opts.height = theme.control.md
+    opts.opacity = util.choose(service.busy, theme.opacity.disabled, 1)
+    opts.on_activate = function()
+        if toggle and not service.busy:get() then
+            toggle()
+        end
+    end
+    opts.trailing = checkbox(on)
+    return panel_row(opts)
+end
+
+local function settings_row()
+    local rows = {
+        include_row(store.updates_aur, {
+            title = "AUR packages",
+            subtitle = mantle.updates:map(function(updates)
+                return updates.aur_helper and ("Through " .. updates.aur_helper) or "No AUR helper found"
+            end, ""),
+            on_activate = function()
+                local on = not store.updates_aur:get()
+                store:set("updates_aur", on)
+                mantle.updates:configure({ interval = service.CHECK_INTERVAL, aur = on })
+                check()
+            end,
+        }),
+    }
+    for _, tool in ipairs(dev_tools) do
+        local included = store.updates_dev_tools:map(function(ticked) return ticked[tool.name] ~= false end)
+        rows[#rows + 1] = include_row(included, {
+            title = tool.name,
+            visible = service.tools_present:map(function(present) return present[tool.requires] == true end),
+            on_activate = function()
+                store:set("updates_dev_tools", util.with(store.updates_dev_tools:get(), tool.name, not included:get()))
+            end,
+        })
+    end
+    return panel_row {
         icon = icons.settings,
         title = "Include in updates",
-        subtitle = settings_summary,
-        expanded = settings_expanded,
+        subtitle = computed({ store.updates_aur, tools_runnable }, function(aur, names)
+            return (aur and "AUR and " or "Repositories and ") .. model.plural(#names, "developer tool")
+        end),
+        expanded = settings_open,
+        details = column { width = "fill", padding = INDENT, children = rows },
+    }
+end
+
+local function pacnew_row()
+    return panel_row {
+        icon = icons.warning,
+        icon_color = theme.PEACH,
+        title = service.pacnew:map(function(files) return model.plural(#files, "config file") .. " to merge" end),
+        subtitle = "Pacman left new or saved copies beside your configs",
+        visible = has_pacnew,
+        expanded = pacnew_open,
         details = column {
             width = "fill",
-            children = {
-                aur_row,
-                column {
-                    width = "fill",
-                    visible = service.tools_present:map(function(present)
-                        return util.find(dev_tools, function(tool) return present[tool.requires] == true end) ~= nil
-                    end),
-                    children = util.concat({ tools_heading }, tool_rows),
-                },
-            },
+            padding = INDENT,
+            children = service.pacnew:map(function(files)
+                local rows = {}
+                for index, path in ipairs(files) do
+                    rows[index] = panel_row { title = path:match("[^/]+$"), subtitle = path:match("^(.*)/") or "/" }
+                end
+                return rows
+            end),
         },
-    },
-    row {
+    }
+end
+
+-- A result's body states its detail, so its header keeps to the title.
+local function header(trailing, title_only)
+    return panel_header {
+        title = "Updates",
+        icon = look:map(function(current) return current.icon end),
+        accent = look:map(function(current) return current.color end),
+        subtitle = look:map(function(current)
+            return (current.detail == "" or title_only) and current.title or (current.title .. " · " .. current.detail)
+        end),
+        trailing = trailing,
+    }
+end
+
+local function primary(label, on_activate, slot, opts)
+    opts.tone, opts.width = opts.tone or "accent", "fill"
+    return action_button(label, on_activate, slot, opts)
+end
+
+local function quiet(label, on_activate, slot, glyph, opts)
+    opts = opts or {}
+    opts.tone, opts.glyph, opts.width = "quiet", glyph, "fill"
+    return action_button(label, on_activate, slot, opts)
+end
+
+-- Merge configs and Restart… when they apply, then `extra` while `extra_shown`; Restart… asks first.
+local function followups(extra, extra_shown)
+    local merge = quiet("Merge configs", function()
+        process.detach("xdg-terminal-exec", { "pacdiff", "--sudo" })
+        ui.close_panel()
+    end, "updates-merge", icons.command)
+    local restart = quiet("Restart…", function() service.restart_asked:set(true) end, "updates-restart", icons.power)
+    local confirm = {
+        quiet("Cancel", function() service.restart_asked:set(false) end, "updates-restart-cancel"),
+        primary("Restart now", function() process.detach("systemctl", { "reboot" }) end, "updates-restart-confirm",
+            { tone = "danger", glyph = icons.power }),
+    }
+    local nodes = computed(
+        { has_pacnew, reboot, service.restart_asked, extra_shown or reboot:map(function() return false end) },
+        function(files, restart_on, asked, more)
+            if restart_on and asked then
+                return confirm
+            end
+            local list = {}
+            if files then list[#list + 1] = merge end
+            if restart_on then list[#list + 1] = restart end
+            if more then list[#list + 1] = extra end
+            return list
+        end, {})
+    return row {
         width = "fill",
         spacing = theme.spacing.sm,
-        visible = service.result_showing,
-        children = {
-            action_button(util.choose(log_open, "Hide log", "View log"), function()
-                log_open:set(not log_open:get())
-            end, "updates-log", {
-                tone = "quiet",
-                width = "fill",
-                visible = phase:map(function(current) return current == "done" end),
-            }),
-            action_button("Close", function()
-                service.dismiss_notifications()
-                service.dismissed:set(true)
-                ui.close_panel()
-            end, "updates-dismiss", { tone = "quiet", width = "fill" }),
-        },
-    },
-}
+        visible = nodes:map(function(list) return #list > 0 end),
+        children = nodes,
+    }
+end
 
-return { kind = KIND, width = theme.update_panel_width, body = body }
+local function view(name, children)
+    return column { id = "updates-" .. name, width = "fill", spacing = theme.spacing.md, children = children }
+end
+
+-- Idle and pending: Check now until there are packages, then Update all with a refresh beside the title.
+local idle = view("idle", {
+    header({ panel_action_icon(icons.refresh, check, {
+        slot = "updates-refresh", spinning = checking, disabled = service.busy, visible = has_packages,
+    }) }),
+    primary(checking:map(function(on) return on and "Checking…" or "Check now" end), check, "updates-check", {
+        glyph = checking:map(function(on) return on and "" or icons.refresh end),
+        spinning = checking,
+        disabled = service.busy,
+        visible = has_packages:map(function(on) return not on end),
+    }),
+    primary("Update all", service.install, "updates-install",
+        { glyph = icons.updates, disabled = service.busy, visible = has_packages }),
+    callout(icons.warning, warning, { tone = "neutral", visible = warning:map(function(text) return text ~= "" end) }),
+    package_card,
+    pacnew_row(),
+    settings_row(),
+    followups(quiet(tools_runnable:map(function(names) return "Update " .. model.plural(#names, "developer tool") end),
+        function() service.update_tools(tools_runnable:get()) end, "updates-tools-only", icons.updates,
+        { disabled = service.busy }), computed({ tools_runnable, has_packages }, function(names, pending)
+        return #names > 0 and not pending
+    end, false)),
+})
+
+local running = view("running", {
+    header(),
+    panel_card({
+        meter(service.progress, function(progress)
+            return progress.total > 0 and 100 * progress.done / progress.total or 0
+        end, theme.ACCENT, nil, {
+            indeterminate = service.progress:map(function(progress) return progress.count == "" end),
+        }),
+    }, { width = "fill" }),
+    output(theme.update_log_height),
+})
+
+local outcome = run:map(model.outcome)
+local ACTIONS = {
+    failed = { primary("Retry update", service.install, "updates-retry", { glyph = icons.refresh, disabled = service.busy }) },
+    issues = {
+        primary(run:map(function(current) return "Retry " .. model.plural(#(current.failures or {}), "tool") end),
+            service.retry_tools, "updates-retry-tools", { glyph = icons.refresh, disabled = service.busy }),
+        primary("Update all", service.install, "updates-install-pending",
+            { glyph = icons.updates, disabled = service.busy, visible = has_packages }),
+    },
+    done = { primary("Done", ui.close_panel, "updates-done", { glyph = icons.check }) },
+}
+local summary = run:map(function(current) return model.summary(current) or "" end)
+
+local result = view("result", {
+    header(nil, true),
+    callout(icons.update_err, run:map(function(current) return current.reason or "" end), {
+        visible = outcome:map(function(name) return name == "failed" end),
+    }),
+    row { width = "fill", spacing = theme.spacing.sm, children = outcome:map(function(name) return ACTIONS[name] end) },
+    list {
+        width = "fill",
+        visible = run:map(function(current) return #(current.failures or {}) > 0 end),
+        items = run:map(function(current) return current.failures or {} end),
+        key = function(failure) return failure.name end,
+        each = function(failure)
+            return panel_row { icon = icons.warning, icon_color = theme.PEACH, title = failure.name, subtitle = failure.reason }
+        end,
+    },
+    panel_row {
+        icon = icons.check,
+        icon_color = theme.GREEN,
+        title = summary,
+        subtitle = run:map(function(current) return current.finished_at and ("Took " .. model.took(current)) or "" end),
+        visible = summary:map(function(text) return text ~= "" end),
+    },
+    panel_row {
+        icon = icons.updates,
+        icon_color = theme.ACCENT,
+        title = mantle.updates:map(function(updates) return model.plural(#updates.packages, "update") .. " available" end, ""),
+        visible = has_packages,
+    },
+    pacnew_row(),
+    output(),
+    followups(quiet("Dismiss", service.dismiss, "updates-dismiss"), outcome:map(function(name) return name ~= "done" end)),
+})
+
+local VIEWS = { idle = idle, running = running, result = result }
+
+return {
+    kind = service.KIND,
+    width = theme.update_panel_width,
+    body = service.view:map(function(name) return { VIEWS[name] } end),
+}

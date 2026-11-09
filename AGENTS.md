@@ -72,7 +72,7 @@ Lazy means efficient, not careless. The best code is the code never written.
 - **Root cause.** Fix the cause, not the symptom. Grep every caller and fix the shared function once.
 - **Boring.** No new abstractions, dependencies, boilerplate or files unless required. Between similar-sized approaches, take the edge-case-correct one.
 - **Ceilings.** Mark a deliberate simplification (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming its ceiling and upgrade path.
-- **Checks.** Non-trivial logic gets one runnable check; trivial one-liners get none.
+- **Checks.** No test files: verify with `just` and by driving the live shell.
 - **Full effort.** Understanding the problem, trust-boundary validation, data loss, security, accessibility, real-hardware calibration and explicit requests are never lazy.
 
 Before writing code, trace the real flow end to end, then stop at the first rung that holds:
@@ -116,6 +116,7 @@ The default terminal resolves through `xdg-terminal-exec`.
 | `clip` defaults to `"none"`: children, shadows and transforms paint past a box | Set `clip = "box"` where a box must cut: a fill hiding its label copy, a slide-in, an animated width |
 | A `row`'s `align_h` packs its children and also places the row in a stacking parent, so a fixed-width row centres itself | Wrap it in a `rect` (or `width = "fill"`) to centre only the children |
 | Named state resets when its scalar seed changes | Keep the seed stable |
+| `process.run` reports a command missing from `PATH` as `on_exit(nil)`, the same as a reload's kill | Run it through `env --`, which exits 127 and says why (`lib/updates.lua`) |
 | `timer`, `action` and `on_change` last one evaluation | Expect them to re-register on every reload |
 | `fonts` is read once at startup | Restart the shell after editing it |
 | `mantle input` takes surface-logical coordinates, and a surface anchored to every edge starts below the bar's exclusive zone | Subtract the bar height (`modal_host` sits 42 px down on 1440p) |
