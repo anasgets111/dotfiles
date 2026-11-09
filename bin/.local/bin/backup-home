@@ -118,6 +118,7 @@ EXCLUDES=(
     '/Videos'
 
     # Stow-managed files (home module)
+    '/.agents'
     '.bashrc'
     '.gitconfig'
     '.profile'
