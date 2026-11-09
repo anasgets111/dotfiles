@@ -117,7 +117,7 @@ function M.tool_reason(code, command, log)
 end
 
 -- A fresh run; it replaces the last, so `read` starts false. An install already running is adopted.
--- `expected` counts the packages: pacman without a tty prints no step counter (mantle#53).
+-- `expected` is the checked list's count until pacman, which refreshes first, reports its own.
 function M.start(kind, plan, now, u)
     return {
         kind = kind,
@@ -151,7 +151,8 @@ function M.on_push(run, u, now)
     if not ended and now - run.started_at < M.WATCHDOG then
         return nil
     elseif ended and u.install_error == nil and u.install_exit_code == 0 then
-        return #run.plan > 0 and copy(run, { stage = "tools", tool = 1 }) or finish(run, {}, now)
+        local counted = { expected = (u.install_total_steps or 0) > 0 and u.install_total_steps or run.expected }
+        return #run.plan > 0 and copy(run, copy(counted, { stage = "tools", tool = 1 })) or finish(run, counted, now)
     end
     -- A half-upgraded system is the wrong place to rebuild a toolchain against, so no tools run.
     local reason = (ended or u.install_error) and M.failure_reason(u) or (manager(u) .. " did not start")
