@@ -57,7 +57,7 @@ COMMON_PACKAGES=(
     # Audio
     espeak-ng pipewire-alsa pipewire-jack pipewire-pulse playerctl rtkit speech-dispatcher wireplumber sound-theme-freedesktop
     # System
-    gnome-keyring kvantum ly mkcert mold nautilus pacman-contrib pkgstats wl-clipboard wl-clip-persist wtype
+    gnome-keyring kvantum ly mkcert mold nautilus pacman-contrib pkgstats slurp wl-clipboard wl-clip-persist wtype
     xdg-desktop-portal-gnome xdg-user-dirs qt5-wayland showmethekey cloudflared sshfs unixodbc
     # Shell
     bash-completion bat btop dysk expac eza fastfetch fd fish fnm fzf kitty starship tealdeer zoxide xsel
@@ -81,7 +81,7 @@ NVIDIA_PACKAGES=(nvidia-open nvidia-settings libva-nvidia-driver lib32-nvidia-ut
 INTEL_GPU_PACKAGES=(intel-media-driver vulkan-intel)
 AMD_GPU_PACKAGES=(vulkan-radeon)
 LAPTOP_PACKAGES=(brightnessctl sof-firmware)
-HYPRLAND_PACKAGES=(hyprland hyprpicker hyprshot slurp uwsm xdg-desktop-portal-hyprland)
+HYPRLAND_PACKAGES=(hyprland hyprpicker hyprshot uwsm xdg-desktop-portal-hyprland)
 WOLVERINE_PACKAGES=(gamemode lib32-gamemode mangohud steam solaar openrgb)
 MENTALIST_PACKAGES=(acpi_call pipewire-libcamera pipewire-v4l2)
 
@@ -688,7 +688,7 @@ self_check() {
 
     CPU_VENDOR=authenticamd GPU_VENDORS=" 0x10de" IS_LAPTOP=0 HOSTNAME=Wolverine COMPOSITOR=hyprland
     resolve_profile
-    [[ " ${PACKAGES[*]} " == *" amd-ucode nvidia-open "*" slurp "*" steam "* && "${STOW_PACKAGES[*]}" == hypr ]]
+    [[ " ${PACKAGES[*]} " == *" amd-ucode nvidia-open "*" steam "* && "${STOW_PACKAGES[*]}" == hypr ]]
     [[ "${SERVICES[*]}" == nvidia-persistenced && ${#INITRAMFS_MODULES[@]} == 4 && "$USER_GROUPS" == wheel,input,gamemode ]]
     CPU_VENDOR=genuineintel GPU_VENDORS=" 0x8086" IS_LAPTOP=1 HOSTNAME=Scratch COMPOSITOR=niri
     resolve_profile
