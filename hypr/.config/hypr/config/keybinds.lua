@@ -76,7 +76,7 @@ local keybinds = {
     { mod .. " + SHIFT + W",                             hl.dsp.exec_cmd("mantle toggle modal wallpaper_picker") },
     { mod .. " + CTRL + P",                              hl.dsp.exec_cmd("mantle toggle modal idle_settings") },
     { mod .. " + C",                                     hl.dsp.exec_cmd("uwsm app -- t3code") },
-    { mod .. " + Z",                                     hl.dsp.exec_cmd("uwsm app -- env WAYLAND_DISPLAY='' zeditor") },
+    { mod .. " + Z",                                     hl.dsp.exec_cmd("uwsm app -- zeditor") },
     { mod .. " + H",                                     hl.dsp.exec_cmd("uwsm app -- heroic", { workspace = "6" }) },
     { mod .. " + G",                                     hl.dsp.exec_cmd("uwsm app -- steam", { workspace = "6" }) },
     { mod .. " + n",                                     hl.dsp.exec_cmd("say --clipboard") },
