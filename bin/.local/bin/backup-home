@@ -172,7 +172,8 @@ EXCLUDES=(
     'media_cache'
 )
 
-RSYNC_ARGS=(-avh "${EXCLUDES[@]/#/--exclude=}")
+# rustup copied whole: rust-src's vendored crates hold vendor/, target/ and build/ dirs (first match wins)
+RSYNC_ARGS=(-avh --include='.rustup/**' "${EXCLUDES[@]/#/--exclude=}")
 
 if [[ "${1:-}" == "--restore" || "${1:-}" == "-r" ]]; then
     echo "Restoring from $BACKUP_DIR to $HOME..."
