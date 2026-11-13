@@ -6,6 +6,7 @@ local startup_commands = {
     "uwsm app -- $CARGOBIN/kdeconnect-service",
     "uwsm app -- chromium",
     "uwsm app -- zeditor",
+    "uwsm app -- t3code",
     "uwsm app -- qbittorrent",
     "uwsm app -- thunderbird",
     "uwsm app -- Telegram",

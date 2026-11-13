@@ -87,6 +87,7 @@ spawn-sh-at-startup "PATH=$HOME/.local/share/cargo/bin:$PATH exec mantle"
 spawn-at-startup "wl-clip-persist" "--clipboard" "regular"
 spawn-sh-at-startup "PATH=$HOME/.local/share/cargo/bin:$PATH exec kdeconnect-service"
 spawn-at-startup "zeditor"
+spawn-at-startup "t3code"
 spawn-sh-at-startup "sleep 1 && zen-browser"
 spawn-at-startup "Telegram"
 spawn-at-startup "vesktop"
@@ -149,6 +150,7 @@ window-rule {
 
 window-rule {
     match app-id="org.gnome.Nautilus"
+    match app-id="com.t3tools.T3Code"
     open-on-workspace "2"
 }
 

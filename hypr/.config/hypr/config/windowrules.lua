@@ -32,6 +32,7 @@ end
 -- App Routing
 for workspace, classes in pairs({
     ["1"]                       = { "zen" },
+    ["2 silent"]                = { [[com\.t3tools\.T3Code]] },
     ["3 silent"]                = { [[dev\.zed\.Zed]] },
     ["5 silent"]                = { [[org\.qbittorrent\.qBittorrent]], "steam_app_.*" },
     ["7 silent"]                = { [[org\.mozilla\.Thunderbird]] },
